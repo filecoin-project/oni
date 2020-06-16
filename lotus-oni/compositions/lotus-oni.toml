@@ -1,0 +1,26 @@
+[metadata]
+  name = "lotus-oni"
+  author = "ave"
+
+[global]
+  plan = "lotus-oni"
+  case = "default"
+  total_instances = 3
+  builder = "docker:generic"
+  runner = "cluster:k8s"
+  [global.build_config]
+    go_proxy_mode="remote"
+    push_registry=true
+    go_proxy_url="http://localhost:8081"
+    registry_type="aws"
+  [global.run_config]
+    keep_service = true
+
+[[groups]]
+  id = "first"
+  [groups.resources]
+    memory = "2048Mi"
+    cpu = "200m"
+  [groups.instances]
+    count = 3
+    percentage = 0.0

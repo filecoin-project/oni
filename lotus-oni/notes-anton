@@ -1,0 +1,31 @@
+1. build base images and push to internet
+
+```
+pushd docker-images
+docker build -t 909427826938.dkr.ecr.eu-west-2.amazonaws.com/lotus-oni-base -f Dockerfile.lotus-oni-base .
+
+aws ecr get-login-password \
+    --region eu-west-2 \
+| docker login \
+    --username AWS \
+    --password-stdin 909427826938.dkr.ecr.eu-west-2.amazonaws.com
+
+docker push 909427826938.dkr.ecr.eu-west-2.amazonaws.com/lotus-oni-base:latest
+```
+
+TODO: maybe specify tag as lotus git version
+TODO: maybe push only binaries, and not full image online?
+TODO: authenticate and pull base images on testground-daemon host docker
+
+2. confirm that the base image has the necessary binaries
+
+```
+docker run --entrypoint /bin/bash -it iptestground/lotus-oni-base:6bbea74a
+
+root@df10f59c5f58:/go/lotus# ls -la | grep lotus
+-rwxr-xr-x  1 root root 91464455 Jun 16 13:45 lotus
+-rwxr-xr-x  1 root root 69470623 Jun 16 13:46 lotus-seal-worker
+-rwxr-xr-x  1 root root 90705367 Jun 16 13:46 lotus-storage-miner
+```
+
+

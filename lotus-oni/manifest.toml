@@ -1,0 +1,15 @@
+name = "lotus-oni"
+
+[defaults]
+builder = "docker:generic"
+runner = "cluster:k8s"
+
+[builders."docker:generic"]
+enabled = true
+
+[runners."cluster:k8s"]
+enabled = true
+
+[[testcases]]
+name = "default"
+instances = { min = 3, max = 100, default = 3 }
