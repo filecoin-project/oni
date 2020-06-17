@@ -11,6 +11,7 @@ require (
 	github.com/multiformats/go-multiaddr-net v0.1.5
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
+	github.com/savaki/jq v0.0.0-20161209013833-0e6baecebbf8
 	github.com/testground/sdk-go v0.2.2
 )
 

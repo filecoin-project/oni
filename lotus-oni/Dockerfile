@@ -10,8 +10,8 @@ RUN cd /go && curl https://ipfs.io/ipns/dist.ipfs.io/go-ipfs/v0.5.1/go-ipfs_v0.5
 
 
 FROM lotus-oni-base AS lotus-oni
-ARG LOTUS_VERSION=master
-RUN git clone https://github.com/filecoin-project/lotus.git && cd lotus && git checkout ${LOTUS_VERSION} && make clean && make all && go build -o lotus-seed ./cmd/lotus-seed
+ARG LOTUS_VERSION=f17c32c593a76303be8d8c89c61754074be409bc
+RUN git clone https://github.com/filecoin-project/lotus.git && cd lotus && git checkout ${LOTUS_VERSION} && make clean && make 2k && go build -o lotus-seed ./cmd/lotus-seed
 RUN mv /go/lotus /lotus/
 
 
@@ -44,5 +44,7 @@ COPY --from=builder /plan/testplan /
 ### Copy Lotus source and binaries
 COPY --from=lotus-oni /lotus /lotus
 COPY --from=lotus-oni-base /go/bin/ipfs /go/bin/ipfs
+### TODO: Move to an earlier stage
+RUN /lotus/lotus fetch-params --proving-params 2048
 EXPOSE 6060
 ENTRYPOINT [ "/testplan"]

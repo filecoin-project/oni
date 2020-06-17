@@ -111,29 +111,8 @@ func run(runenv *runtime.RunEnv) error {
 	}
 
 	// States
-	//genesisReadyState := sync.State("genesisReady")
 	nodeReadyState := sync.State("nodeReady")
 	doneState := sync.State("done")
-
-	//runenv.RecordMessage("Start up nginx")
-	//cmdNginx := exec.Command(
-	//"npm",
-	//"run",
-	//"nginx",
-	//)
-	//cmdNginx.Dir = "/plan/js-lotus-client-testground"
-	//outfile, err := os.Create("/outputs/nginx.out")
-	//if err != nil {
-	//return err
-	//}
-	//defer outfile.Close()
-	//cmdNginx.Stdout = outfile
-	//cmdNginx.Stderr = outfile
-	//err = cmdNginx.Start()
-	//if err != nil {
-	//return err
-	//}
-	//time.Sleep(2 * time.Second) // Give nginx time to start
 
 	mux := http.NewServeMux()
 
@@ -175,87 +154,11 @@ func run(runenv *runtime.RunEnv) error {
 	case seq == 1: // genesis node
 		runenv.RecordMessage("Genesis: %v", config.IPv4.IP)
 
-		//if runenv.StringParam("ssh-tunnel") != "\"\"" {
-		//runenv.RecordMessage("Run install-ssh.sh script")
-		//cmdInstallSSH := exec.Command(
-		//"/plan/install-ssh.sh",
-		//)
-		//// cmdPreseal.Env = append(os.Environ(), "GOLOG_LOG_LEVEL="+runenv.StringParam("log-level"))
-		//outfile, err := os.Create("/outputs/install-ssh.out")
-		//if err != nil {
-		//return err
-		//}
-		//defer outfile.Close()
-		//cmdInstallSSH.Stdout = outfile
-		//cmdInstallSSH.Stderr = outfile
-		//err = cmdInstallSSH.Run()
-		//if err != nil {
-		//return err
-		//}
-
-		//tunnelArgs := make([]string, 0)
-		//tunnelArgs = append(tunnelArgs, "-N")
-		//for i := 1; i <= runenv.TestInstanceCount; i++ {
-		//ipC := byte((i >> 8) + 1)
-		//ipD := byte(i)
-
-		//subnet := runenv.TestSubnet.IPNet
-		//nodeIPv4 := &subnet
-		//nodeIPv4.IP = append(config.IPv4.IP[0:2:2], ipC, ipD)
-		//nodeForwardArg := fmt.Sprintf(
-		//"RemoteForward %v %v:8001",
-		//11234+i-1,
-		//nodeIPv4.IP.String(),
-		//)
-		//tunnelArgs = append(tunnelArgs, "-o", nodeForwardArg)
-		//minerForwardArg := fmt.Sprintf(
-		//"RemoteForward %v %v:8002",
-		//12345+i-1,
-		//nodeIPv4.IP.String(),
-		//)
-		//tunnelArgs = append(tunnelArgs, "-o", minerForwardArg)
-		//testplanForwardArg := fmt.Sprintf(
-		//"RemoteForward %v %v:9999",
-		//30000+i-1,
-		//nodeIPv4.IP.String(),
-		//)
-		//tunnelArgs = append(tunnelArgs, "-o", testplanForwardArg)
-		//ipfsForwardArg := fmt.Sprintf(
-		//"RemoteForward %v %v:5001",
-		//31000+i-1,
-		//nodeIPv4.IP.String(),
-		//)
-		//tunnelArgs = append(tunnelArgs, "-o", ipfsForwardArg)
-		//}
-		//tunnelArgs = append(tunnelArgs, "-o", "StrictHostKeyChecking no")
-		//tunnelArgs = append(tunnelArgs, runenv.StringParam("ssh-tunnel"))
-		//[>
-		//for _, arg := range tunnelArgs {
-		//runenv.RecordMessage("ssh arg", arg)
-		//}
-		//*/
-
-		//runenv.RecordMessage("Ssh to " + runenv.StringParam("ssh-tunnel"))
-		//cmdSSH := exec.Command("ssh", tunnelArgs...)
-		//// cmdNode.Env = append(os.Environ(), "GOLOG_LOG_LEVEL="+runenv.StringParam("log-level"))
-		//outfile, err = os.Create("/outputs/ssh-tunnel.out")
-		//if err != nil {
-		//return err
-		//}
-		//defer outfile.Close()
-		//cmdSSH.Stdout = outfile
-		//cmdSSH.Stderr = outfile
-		//err = cmdSSH.Start()
-		//if err != nil {
-		//return err
-		//}
-		//}
-
 		runenv.RecordMessage("Pre-seal some sectors")
 		cmdPreseal := exec.Command(
 			"/lotus/lotus-seed",
 			"pre-seal",
-			"--sector-size=8388608",
+			"--sector-size=2KiB",
 			"--num-sectors=2",
 		)
 		// cmdPreseal.Env = append(os.Environ(), "GOLOG_LOG_LEVEL="+runenv.StringParam("log-level"))
@@ -373,15 +276,37 @@ func run(runenv *runtime.RunEnv) error {
 			}
 		}
 
+		// copy to /outputs
+		runenv.RecordMessage("Copy .genesis-sectors to outputs")
+		parts := strings.Split(`cp -r /root/.genesis-sectors `+runenv.TestOutputsPath+`/`, " ")
+		head := parts[0]
+		args := parts[1:len(parts)]
+		exec.Command(head, args...).Run()
+		parts = strings.Split(`cp -r /root/dev.gen `+runenv.TestOutputsPath+`/`, " ")
+		head = parts[0]
+		args = parts[1:len(parts)]
+		exec.Command(head, args...).Run()
+		parts = strings.Split(`cp -r /root/localnet.json `+runenv.TestOutputsPath+`/`, " ")
+		head = parts[0]
+		args = parts[1:len(parts)]
+		exec.Command(head, args...).Run()
+
+		//op, _ := jq.Parse(".t01000.Owner") // extract owner id
+		//data, _ := ioutil.ReadFile(runenv.TestOutputsPath + "/.genesis-sectors/pre-seal-t01000.json")
+		//value, _ := op.Apply(data)
+		//owner := string(value)
+		//owner = owner[1 : len(owner)-1]
+
+		//runenv.RecordMessage("Owner: " + owner)
 		runenv.RecordMessage("Set up the genesis miner")
 		cmdSetupMiner := exec.Command(
 			"/lotus/lotus-storage-miner",
 			"init",
 			"--genesis-miner",
 			"--actor=t01000",
-			"--sector-size=8388608",
-			"--pre-sealed-sectors=~/.genesis-sectors",
-			"--pre-sealed-metadata=~/.genesis-sectors/pre-seal-t01000.json",
+			"--sector-size=2KiB",
+			"--pre-sealed-sectors=/root/.genesis-sectors",
+			"--pre-sealed-metadata=/root/.genesis-sectors/pre-seal-t01000.json",
 			"--nosync",
 		)
 		// cmdSetupMiner.Env = append(os.Environ(), "GOLOG_LOG_LEVEL="+runenv.StringParam("log-level"))
@@ -539,29 +464,6 @@ func run(runenv *runtime.RunEnv) error {
 			return err
 		}
 		runenv.RecordMessage("State: nodeReady from other nodes")
-
-		// Run Javascript tests from Genesis node
-		runenv.RecordMessage("Run npm test")
-		cmdNpmTest := exec.Command(
-			"npm",
-			"test",
-		)
-		cmdNpmTest.Dir = "/plan/js-lotus-client-testground"
-		outfile, err = os.Create(runenv.TestOutputsPath + "/npm-test.out")
-		if err != nil {
-			return err
-		}
-		defer outfile.Close()
-		cmdNpmTest.Stdout = outfile
-		cmdNpmTest.Stderr = outfile
-		err = cmdNpmTest.Run()
-		if err != nil {
-			if runenv.BooleanParam("keep-alive") {
-				runenv.RecordMessage("npm test failed")
-			} else {
-				return err
-			}
-		}
 
 		// Signal we're done and everybody should shut down
 		_, err = client.SignalEntry(ctx, doneState)
