@@ -6,7 +6,7 @@ runner = "local:exec"
 
 [builders."docker:go"]
 enabled = true
-skip_runtime_image = true
+skip_runtime_image = false
 
 [builders."docker:go".dockerfile_extensions]
 pre_mod_download = """
@@ -17,6 +17,12 @@ RUN cd ${PLAN_DIR}/../lotus/extern/filecoin-ffi \
     && make \
     && mkdir /tmp/filecoin-ffi \
     && cp -R ${PLAN_DIR}/../lotus/extern/filecoin-ffi /tmp
+"""
+
+post_runtime_copy = """
+COPY --from=builder /usr/lib/x86_64-linux-gnu/* /lib/x86_64-linux-gnu/* /usr/lib/
+COPY --from=builder /lotus/build/bootstrap/* /lotus/build/bootstrap/
+COPY --from=builder /lotus/build/proof-params/* /lotus/build/proof-params/
 """
 
 [builders."exec:go"]
@@ -37,7 +43,7 @@ enabled = true
 # seq 0
 [[testcases]]
 name = "lotus-network"
-instances = { min = 2, max = 2, default = 2 }
+instances = { min = 3, max = 3, default = 3 }
 
 [testcases.params]
    miner-count = { type = "int", default = 1 }
