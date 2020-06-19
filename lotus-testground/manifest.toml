@@ -9,16 +9,7 @@ enabled = true
 runtime_image = "iptestground/oni-runtime:c6a8fe16"
 skip_runtime_image = false
 
-[builders."exec:go"]
-enabled = true
-
 [runners."local:docker"]
-enabled = true
-
-[runners."local:exec"]
-enabled = true
-
-[runners."cluster:swarm"]
 enabled = true
 
 [runners."cluster:k8s"]
