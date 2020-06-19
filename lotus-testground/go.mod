@@ -20,3 +20,5 @@ require (
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../lotus/extern/filecoin-ffi
+
+replace github.com/filecoin-project/lotus => ../lotus

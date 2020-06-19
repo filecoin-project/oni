@@ -10,6 +10,12 @@ runtime_image = "iptestground/oni-runtime:c6a8fe16"
 enable_go_build_cache = true
 skip_runtime_image = false
 
+[builders."docker:go".dockerfile_extensions]
+pre_mod_download = """
+ARG LOTUS_VERSION=c6a8fe16
+RUN git clone https://github.com/filecoin-project/lotus.git ${PLAN_DIR}/../lotus && cd ${PLAN_DIR}/../lotus && git checkout ${LOTUS_VERSION} && git submodule update --init
+"""
+
 [runners."local:docker"]
 enabled = true
 
