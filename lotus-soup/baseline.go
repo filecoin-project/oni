@@ -17,25 +17,15 @@ import (
 // The plan ensures that all (previously) published content can be correctly retrieved
 // and measures the time it took.
 //
-// Preparation the genesis block: this is the responsibility of the bootstrapper.
+// Preparation of the genesis block: this is the responsibility of the bootstrapper.
 // In order to compute the genesis block, we need to collect identities and presealed
 // sectors from each node.
 // The we create a genesis block that allocates some funds to each node and collects
 // the presealed sectors.
-func runBaseline(runenv *runtime.RunEnv) error {
-	env := prepareEnv(runenv)
-
-	role := runenv.StringParam("role")
-	switch role {
-	case "bootstrapper":
-		return runBaselineBootstrapper(env)
-	case "miner":
-		return runeBaselineMiner(env)
-	case "client":
-		return runBaselineClient(env)
-	default:
-		return fmt.Errorf("Unknown role: %s", role)
-	}
+var baselineRoles = map[string]func(*Environment) error{
+	"bootstrapper": runBaselineBootstrapper,
+	"miner":        runBaselineMiner,
+	"client":       runBaselineClient,
 }
 
 func runBaselineBootstrapper(env *Environment) error {
