@@ -1,0 +1,11 @@
+ARG GO_VERSION=1.14.2
+
+ARG RUNTIME_IMAGE=busybox:1.31.1-glibc
+
+FROM golang:${GO_VERSION}-buster AS builder
+
+RUN apt-get update && apt-get install -y ca-certificates llvm clang mesa-opencl-icd ocl-icd-opencl-dev jq gcc git bzr pkg-config
+
+FROM ${RUNTIME_IMAGE} AS binary
+
+COPY --from=builder /usr/lib/x86_64-linux-gnu/* /lib/x86_64-linux-gnu/* /usr/lib/

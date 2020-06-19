@@ -1,4 +1,4 @@
-module github.com/testground/testground/plans/network
+module github.com/filecoin-project/oni/lotus-testground
 
 go 1.14
 
@@ -15,7 +15,7 @@ require (
 	github.com/libp2p/go-libp2p v0.9.4
 	github.com/libp2p/go-libp2p-core v0.5.7
 	github.com/libp2p/go-libp2p-crypto v0.1.0
-	github.com/testground/sdk-go v0.2.0
+	github.com/testground/sdk-go v0.2.3-0.20200617132925-2e4d69f9ba38
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 )
 

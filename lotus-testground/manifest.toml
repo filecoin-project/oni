@@ -6,6 +6,7 @@ runner = "local:exec"
 
 [builders."docker:go"]
 enabled = true
+runtime_image = "iptestground/oni-runtime:latest"
 skip_runtime_image = false
 
 [builders."docker:go".dockerfile_extensions]
@@ -20,7 +21,6 @@ RUN cd ${PLAN_DIR}/../lotus/extern/filecoin-ffi \
 """
 
 post_runtime_copy = """
-COPY --from=builder /usr/lib/x86_64-linux-gnu/* /lib/x86_64-linux-gnu/* /usr/lib/
 COPY --from=builder /lotus/build/bootstrap/* /lotus/build/bootstrap/
 COPY --from=builder /lotus/build/proof-params/* /lotus/build/proof-params/
 """
