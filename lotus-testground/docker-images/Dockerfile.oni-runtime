@@ -6,6 +6,17 @@ FROM golang:${GO_VERSION}-buster AS builder
 
 RUN apt-get update && apt-get install -y ca-certificates llvm clang mesa-opencl-icd ocl-icd-opencl-dev jq gcc git bzr pkg-config
 
+ARG LOTUS_VERSION=c6a8fe16
+
+RUN git clone https://github.com/filecoin-project/lotus.git /lotus && cd /lotus && git checkout ${LOTUS_VERSION} && git submodule update --init
+
+RUN cd /lotus/extern/filecoin-ffi \
+    && make \
+    && mkdir /tmp/filecoin-ffi \
+    && cp -R /lotus/extern/filecoin-ffi /tmp
+
 FROM ${RUNTIME_IMAGE} AS binary
 
+COPY --from=builder /lotus/build/bootstrap/* /lotus/build/bootstrap/
+COPY --from=builder /lotus/build/proof-params/* /lotus/build/proof-params/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/* /lib/x86_64-linux-gnu/* /usr/lib/

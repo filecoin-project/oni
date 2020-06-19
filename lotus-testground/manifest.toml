@@ -6,24 +6,8 @@ runner = "local:exec"
 
 [builders."docker:go"]
 enabled = true
-runtime_image = "iptestground/oni-runtime:latest"
+runtime_image = "iptestground/oni-runtime:c6a8fe16"
 skip_runtime_image = false
-
-[builders."docker:go".dockerfile_extensions]
-pre_mod_download = """
-RUN apt-get update && apt-get install -y ca-certificates llvm clang mesa-opencl-icd ocl-icd-opencl-dev jq gcc git bzr pkg-config
-ARG LOTUS_VERSION=c6a8fe16
-RUN git clone https://github.com/filecoin-project/lotus.git ${PLAN_DIR}/../lotus && cd ${PLAN_DIR}/../lotus && git checkout ${LOTUS_VERSION} && git submodule update --init
-RUN cd ${PLAN_DIR}/../lotus/extern/filecoin-ffi \
-    && make \
-    && mkdir /tmp/filecoin-ffi \
-    && cp -R ${PLAN_DIR}/../lotus/extern/filecoin-ffi /tmp
-"""
-
-post_runtime_copy = """
-COPY --from=builder /lotus/build/bootstrap/* /lotus/build/bootstrap/
-COPY --from=builder /lotus/build/proof-params/* /lotus/build/proof-params/
-"""
 
 [builders."exec:go"]
 enabled = true
