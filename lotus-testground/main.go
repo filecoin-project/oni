@@ -5,11 +5,11 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -184,21 +184,25 @@ func testStorageNode(ctx context.Context, waddr address.Address, act address.Add
 	return minerapi, nil
 }
 
-func setupStorageNode(fnode api.FullNode, key *wallet.Key, maddr, worker address.Address, preSealDir string, numPreSeals int) (api.StorageMiner, error) {
+func setupStorageNode(runenv *runtime.RunEnv, fnode api.FullNode, key *wallet.Key, maddr, worker address.Address, preSealDir string, numPreSeals int) (api.StorageMiner, error) {
 	ctx := context.TODO()
+	runenv.RecordMessage("Wallet Import")
 	if _, err := fnode.WalletImport(ctx, &key.KeyInfo); err != nil {
 		return nil, err
 	}
+	runenv.RecordMessage("Wallet Set Defaults")
 	if err := fnode.WalletSetDefault(ctx, key.Address); err != nil {
 		return nil, err
 	}
 
+	runenv.RecordMessage("test Storage Node")
 	storageNode, err := testStorageNode(ctx, worker, maddr, fnode, node.Options(), numPreSeals)
 	if err != nil {
 		return nil, err
 	}
 
 	if preSealDir != "" {
+		runenv.RecordMessage("Storage Add Local")
 		if err := storageNode.StorageAddLocal(ctx, preSealDir); err != nil {
 			return nil, err
 		}
@@ -295,6 +299,8 @@ func lotusNetwork() run.InitializedTestCaseFn {
 			client.Publish(ctx, preSealTopic, psi)
 		}
 
+		//time.Sleep(300 * time.Second)
+
 		genesisTopic := sync.NewTopic("genesis", &GenesisMessage{})
 
 		var genesisBytes []byte
@@ -372,12 +378,13 @@ func lotusNetwork() run.InitializedTestCaseFn {
 		withMiner := seq < int64(minerCount)
 
 		if withMiner {
-			sminer, err := setupStorageNode(lnode, mpsi.WKey, maddr, mpsi.WKey.Address, mpsi.Dir, nGenesisPreseals)
+			runenv.RecordMessage("Setup storage node")
+			sminer, err := setupStorageNode(runenv, lnode, mpsi.WKey, maddr, mpsi.WKey.Address, mpsi.Dir, nGenesisPreseals)
 			if err != nil {
 				return xerrors.Errorf("failed to set up storage miner: %w", err)
 			}
 
-			spew.Dump(sminer)
+			fmt.Println(sminer)
 		}
 
 		return nil

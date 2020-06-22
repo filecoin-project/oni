@@ -20,7 +20,7 @@ enabled = true
 # seq 0
 [[testcases]]
 name = "lotus-network"
-instances = { min = 3, max = 3, default = 3 }
+instances = { min = 5, max = 5, default = 5 }
 
 [testcases.params]
-   miner-count = { type = "int", default = 1 }
+   miner-count = { type = "int", default = 2 }
