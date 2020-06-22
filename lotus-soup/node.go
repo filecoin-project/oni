@@ -331,6 +331,7 @@ func prepareMiner(env *Environment) (*Node, error) {
 	}
 
 	// we are ready; wait for all nodes to be ready
+	env.runenv.RecordMessage("waiting for all nodes to be ready")
 	env.syncC.MustBarrier(ctx, sync.State("ready"), env.runenv.TestInstanceCount)
 
 	return n, err
@@ -377,6 +378,7 @@ func prepareClient(env *Environment) (*Node, error) {
 		return nil, err
 	}
 
+	env.runenv.RecordMessage("waiting for all nodes to be ready")
 	// we are ready; wait for all nodes to be ready
 	env.syncC.MustBarrier(ctx, sync.State("ready"), env.runenv.TestInstanceCount)
 

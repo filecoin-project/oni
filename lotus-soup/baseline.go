@@ -1,7 +1,5 @@
 package main
 
-import ()
-
 // This is the basline test; Filecoin 101.
 //
 // A network with a bootstrapper, a number of miners, and a number of clients/full nodes
@@ -27,6 +25,7 @@ var baselineRoles = map[string]func(*Environment) error{
 }
 
 func runBaselineBootstrapper(env *Environment) error {
+	env.runenv.RecordMessage("running bootstrapper")
 	_, err := prepareBootstrapper(env)
 	if err != nil {
 		return err
@@ -38,6 +37,7 @@ func runBaselineBootstrapper(env *Environment) error {
 }
 
 func runBaselineMiner(env *Environment) error {
+	env.runenv.RecordMessage("running miner")
 	_, err := prepareMiner(env)
 	if err != nil {
 		return err
@@ -50,6 +50,7 @@ func runBaselineMiner(env *Environment) error {
 }
 
 func runBaselineClient(env *Environment) error {
+	env.runenv.RecordMessage("running client")
 	_, err := prepareClient(env)
 	if err != nil {
 		return err
