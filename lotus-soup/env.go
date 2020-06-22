@@ -14,14 +14,14 @@ var PrepareEnvTimeOut = 2 * time.Minute
 type Environment struct {
 	runenv *runtime.RunEnv
 	syncC  sync.Client
-	netC   network.Client
+	netC   *network.Client
 	ipaddr string
-	seqno  int
+	seqno  int64
 }
 
 // prepareEnv prepares the network environment
 func prepareEnv(runenv *runtime.RunEnv) *Environment {
-	ctx, cancel := WithTimeout(context.Background(), PrepareEnvTimeOut)
+	ctx, cancel := context.WithTimeout(context.Background(), PrepareEnvTimeOut)
 	defer cancel()
 
 	runenv.RecordMessage("binding sync service client")
@@ -49,10 +49,10 @@ func prepareEnv(runenv *runtime.RunEnv) *Environment {
 
 	// TODO figure out our IP address
 
-	return &Environemt{
+	return &Environment{
 		runenv: runenv,
 		syncC:  client,
-		netC:   client,
+		netC:   netclient,
 		ipaddr: "TOOO",
 		seqno:  seq,
 	}

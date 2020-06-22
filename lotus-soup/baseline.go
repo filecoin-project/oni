@@ -1,8 +1,6 @@
 package main
 
-import (
-	"github.com/testground/sdk-go/runtime"
-)
+import ()
 
 // This is the basline test; Filecoin 101.
 //
@@ -29,7 +27,7 @@ var baselineRoles = map[string]func(*Environment) error{
 }
 
 func runBaselineBootstrapper(env *Environment) error {
-	node, err := prepareBootstrapper(env)
+	_, err := prepareBootstrapper(env)
 	if err != nil {
 		return err
 	}
@@ -40,7 +38,7 @@ func runBaselineBootstrapper(env *Environment) error {
 }
 
 func runBaselineMiner(env *Environment) error {
-	node, err := prepareMiner(env)
+	_, err := prepareMiner(env)
 	if err != nil {
 		return err
 	}
@@ -52,7 +50,7 @@ func runBaselineMiner(env *Environment) error {
 }
 
 func runBaselineClient(env *Environment) error {
-	node, err := prepareClient(env)
+	_, err := prepareClient(env)
 	if err != nil {
 		return err
 	}

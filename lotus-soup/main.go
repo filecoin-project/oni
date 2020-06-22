@@ -3,24 +3,25 @@ package main
 import (
 	"fmt"
 
+	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
 
-var testplans = map[string]runtime.TestCaseFn{
+var testplans = map[string]interface{}{
 	"lotus-baseline": testRunner(baselineRoles),
 }
 
 func main() {
-	runtime.InvokeMap(testplans)
+	run.InvokeMap(testplans)
 }
 
 func testRunner(roles map[string]func(*Environment) error) func(runenv *runtime.RunEnv) error {
-	func(runenv *runtime.RunEnv) error {
+	return func(runenv *runtime.RunEnv) error {
 		return runTestPlan(runenv, roles)
 	}
 }
 
-func runTestPlan(runenv *runtime.RunEnv, roles map[string]func(*Environment) error) {
+func runTestPlan(runenv *runtime.RunEnv, roles map[string]func(*Environment) error) error {
 	env := prepareEnv(runenv)
 	role := runenv.StringParam("role")
 	proc, ok := roles[role]
