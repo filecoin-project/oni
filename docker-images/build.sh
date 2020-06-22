@@ -24,4 +24,4 @@ fi
 dir="$(dirname "$0")"
 
 docker build -t "iptestground/oni-buildbase:$TAG" -f "$dir/Dockerfile.oni-buildbase" "$dir"
-docker build -t "iptestground/oni-buildbase:$TAG" -f "$dir/Dockerfile.oni-runtime" "$dir"
+docker build -t "iptestground/oni-runtime:$TAG" -f "$dir/Dockerfile.oni-runtime" "$dir"
