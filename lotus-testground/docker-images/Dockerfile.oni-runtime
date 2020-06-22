@@ -6,7 +6,7 @@ FROM golang:${GO_VERSION}-buster AS builder
 
 RUN apt-get update && apt-get install -y ca-certificates llvm clang mesa-opencl-icd ocl-icd-opencl-dev jq gcc git bzr pkg-config
 
-ARG LOTUS_VERSION=c6a8fe16
+ARG LOTUS_VERSION
 
 RUN git clone https://github.com/filecoin-project/lotus.git /lotus && cd /lotus && git checkout ${LOTUS_VERSION} && git submodule update --init
 
