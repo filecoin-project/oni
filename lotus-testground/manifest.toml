@@ -4,12 +4,18 @@ name = "lotus-testground"
 builder = "exec:go"
 runner = "local:exec"
 
+[builders."exec:go"]
+enabled = true
+
 [builders."docker:go"]
 enabled = true
-runtime_image = "iptestground/oni-runtime:596ed33"
-build_base_image = "iptestground/oni-buildbase:596ed33"
+build_base_image = "filecoin-project/oni-build:latest"
+runtime_image = "filecoin-project/oni-runtime:latest"
 enable_go_build_cache = true
 skip_runtime_image = false
+
+[runners."local:exec"]
+enabled = true
 
 [runners."local:docker"]
 enabled = true
