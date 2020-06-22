@@ -1,5 +1,10 @@
 package main
 
+import (
+	"github.com/testground/sdk-go/run"
+	"github.com/testground/sdk-go/runtime"
+)
+
 // This is the basline test; Filecoin 101.
 //
 // A network with a bootstrapper, a number of miners, and a number of clients/full nodes
@@ -18,15 +23,15 @@ package main
 // sectors from each node.
 // The we create a genesis block that allocates some funds to each node and collects
 // the presealed sectors.
-var baselineRoles = map[string]func(*Environment) error{
+var baselineRoles = map[string]run.InitializedTestCaseFn{
 	"bootstrapper": runBaselineBootstrapper,
 	"miner":        runBaselineMiner,
 	"client":       runBaselineClient,
 }
 
-func runBaselineBootstrapper(env *Environment) error {
-	env.runenv.RecordMessage("running bootstrapper")
-	_, err := prepareBootstrapper(env)
+func runBaselineBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	runenv.RecordMessage("running bootstrapper")
+	_, err := prepareBootstrapper(runenv, initCtx)
 	if err != nil {
 		return err
 	}
@@ -36,9 +41,9 @@ func runBaselineBootstrapper(env *Environment) error {
 	return nil
 }
 
-func runBaselineMiner(env *Environment) error {
-	env.runenv.RecordMessage("running miner")
-	_, err := prepareMiner(env)
+func runBaselineMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	runenv.RecordMessage("running miner")
+	_, err := prepareMiner(runenv, initCtx)
 	if err != nil {
 		return err
 	}
@@ -49,9 +54,9 @@ func runBaselineMiner(env *Environment) error {
 	return nil
 }
 
-func runBaselineClient(env *Environment) error {
-	env.runenv.RecordMessage("running client")
-	_, err := prepareClient(env)
+func runBaselineClient(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	runenv.RecordMessage("running client")
+	_, err := prepareClient(runenv, initCtx)
 	if err != nil {
 		return err
 	}
