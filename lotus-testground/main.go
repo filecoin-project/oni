@@ -5,11 +5,11 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -45,8 +45,8 @@ import (
 
 func init() {
 	power.ConsensusMinerMinPower = big.NewInt(2048)
-	saminer.SupportedProofTypes = map[abi.RegisteredProof]struct{}{
-		abi.RegisteredProof_StackedDRG2KiBSeal: {},
+	saminer.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
+		abi.RegisteredSealProof_StackedDrg2KiBV1: {},
 	}
 	verifreg.MinVerifiedDealSize = big.NewInt(256)
 }
@@ -142,7 +142,7 @@ func testStorageNode(ctx context.Context, waddr address.Address, act address.Add
 		return nil, err
 	}
 
-	enc, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: peerid})
+	enc, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(peerid)})
 	if err != nil {
 		return nil, err
 	}
@@ -184,21 +184,25 @@ func testStorageNode(ctx context.Context, waddr address.Address, act address.Add
 	return minerapi, nil
 }
 
-func setupStorageNode(fnode api.FullNode, key *wallet.Key, maddr, worker address.Address, preSealDir string, numPreSeals int) (api.StorageMiner, error) {
+func setupStorageNode(runenv *runtime.RunEnv, fnode api.FullNode, key *wallet.Key, maddr, worker address.Address, preSealDir string, numPreSeals int) (api.StorageMiner, error) {
 	ctx := context.TODO()
+	runenv.RecordMessage("Wallet Import")
 	if _, err := fnode.WalletImport(ctx, &key.KeyInfo); err != nil {
 		return nil, err
 	}
+	runenv.RecordMessage("Wallet Set Defaults")
 	if err := fnode.WalletSetDefault(ctx, key.Address); err != nil {
 		return nil, err
 	}
 
+	runenv.RecordMessage("test Storage Node")
 	storageNode, err := testStorageNode(ctx, worker, maddr, fnode, node.Options(), numPreSeals)
 	if err != nil {
 		return nil, err
 	}
 
 	if preSealDir != "" {
+		runenv.RecordMessage("Storage Add Local")
 		if err := storageNode.StorageAddLocal(ctx, preSealDir); err != nil {
 			return nil, err
 		}
@@ -221,7 +225,7 @@ func runPreSeal(runenv *runtime.RunEnv, maddr address.Address, minerPid peer.ID)
 		return nil, err
 	}
 
-	genm, k, err := seed.PreSeal(maddr, abi.RegisteredProof_StackedDRG2KiBPoSt, 0, nGenesisPreseals, tdir, []byte("make genesis mem random"), nil)
+	genm, k, err := seed.PreSeal(maddr, abi.RegisteredSealProof_StackedDrg2KiBV1, 0, nGenesisPreseals, tdir, []byte("make genesis mem random"), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -294,6 +298,8 @@ func lotusNetwork() run.InitializedTestCaseFn {
 			mpsi = psi
 			client.Publish(ctx, preSealTopic, psi)
 		}
+
+		//time.Sleep(300 * time.Second)
 
 		genesisTopic := sync.NewTopic("genesis", &GenesisMessage{})
 
@@ -372,12 +378,13 @@ func lotusNetwork() run.InitializedTestCaseFn {
 		withMiner := seq < int64(minerCount)
 
 		if withMiner {
-			sminer, err := setupStorageNode(lnode, mpsi.WKey, maddr, mpsi.WKey.Address, mpsi.Dir, nGenesisPreseals)
+			runenv.RecordMessage("Setup storage node")
+			sminer, err := setupStorageNode(runenv, lnode, mpsi.WKey, maddr, mpsi.WKey.Address, mpsi.Dir, nGenesisPreseals)
 			if err != nil {
 				return xerrors.Errorf("failed to set up storage miner: %w", err)
 			}
 
-			spew.Dump(sminer)
+			fmt.Println(sminer)
 		}
 
 		return nil
@@ -416,6 +423,6 @@ func (m genFakeVerifier) VerifyWindowPoSt(ctx context.Context, info abi.WindowPo
 	panic("not supported")
 }
 
-func (m genFakeVerifier) GenerateWinningPoStSectorChallenge(ctx context.Context, proof abi.RegisteredProof, id abi.ActorID, randomness abi.PoStRandomness, u uint64) ([]uint64, error) {
+func (m genFakeVerifier) GenerateWinningPoStSectorChallenge(ctx context.Context, proof abi.RegisteredPoStProof, id abi.ActorID, randomness abi.PoStRandomness, u uint64) ([]uint64, error) {
 	panic("not supported")
 }
