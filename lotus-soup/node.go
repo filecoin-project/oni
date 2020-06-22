@@ -132,12 +132,10 @@ func prepareBootstrapper(env *Environment) (*Node, error) {
 	)
 	n.stop = stop
 
-	// watch this dance to construct the bootstrapper multiaddr
+	// this dance to construct the bootstrapper multiaddr is quite vexing.
 	var bootstrapperAddr ma.Multiaddr
 
-	// this is easy
 	bootstrapperIP := env.netC.MustGetDataNetworkIP().String()
-	// this is disgusting
 	bootstrapperAddrs, err := n.fullApi.NetAddrsListen(ctx)
 	if err != nil {
 		stop(context.TODO())
