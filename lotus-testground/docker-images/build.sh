@@ -17,7 +17,7 @@ COMMIT=$1
 # Validate required arguments
 if [ -z "$COMMIT" ]
 then
-  echo -e "Please provider commit of Lotus to build against. For example: \`./build-push.sh 596ed33\`"
+  echo -e "Please provider commit of Lotus to build against. For example: \`./build.sh 596ed33\`"
   exit 2
 fi
 
@@ -25,5 +25,3 @@ my_dir="$(dirname "$0")"
 
 docker build --build-arg LOTUS_VERSION=$COMMIT -t iptestground/oni-buildbase:$COMMIT -f $my_dir/Dockerfile.oni-buildbase $my_dir
 docker build --build-arg LOTUS_VERSION=$COMMIT -t iptestground/oni-runtime:$COMMIT -f $my_dir/Dockerfile.oni-runtime $my_dir
-docker push iptestground/oni-buildbase:$COMMIT
-docker push iptestground/oni-runtime:$COMMIT
