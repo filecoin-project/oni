@@ -19,4 +19,4 @@ require (
 )
 
 // If you're using the exec:go builder, replace this with $PATH_TO_ONI_REPO/filecoin-ffi.
-replace github.com/filecoin-project/filecoin-ffi => /Users/raul/W/pl/oni/filecoin-ffi
+// replace github.com/filecoin-project/filecoin-ffi => /Users/raul/W/pl/oni/filecoin-ffi
