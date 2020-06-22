@@ -11,7 +11,6 @@ require (
 	github.com/filecoin-project/specs-actors v0.5.4-0.20200521014528-0df536f7e461
 	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-ipfs-blockstore v1.0.0
-	github.com/labstack/gommon v0.3.0
 	github.com/libp2p/go-libp2p v0.9.4
 	github.com/libp2p/go-libp2p-core v0.5.7
 	github.com/libp2p/go-libp2p-crypto v0.1.0

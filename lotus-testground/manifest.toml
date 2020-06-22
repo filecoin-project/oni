@@ -6,8 +6,8 @@ runner = "local:exec"
 
 [builders."docker:go"]
 enabled = true
-runtime_image = "iptestground/oni-runtime:c6a8fe16"
-build_base_image = "iptestground/oni-buildbase:c6a8fe16"
+runtime_image = "iptestground/oni-runtime:596ed33"
+build_base_image = "iptestground/oni-buildbase:596ed33"
 enable_go_build_cache = true
 skip_runtime_image = false
 
