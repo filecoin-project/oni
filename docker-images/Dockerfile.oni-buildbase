@@ -1,0 +1,13 @@
+ARG GO_VERSION=1.14.2
+
+FROM golang:${GO_VERSION}-buster
+
+RUN apt-get update && apt-get install -y ca-certificates llvm clang mesa-opencl-icd ocl-icd-opencl-dev jq gcc git bzr pkg-config
+
+ARG FILECOIN_FFI_COMMIT=ca281af0b6c00314382a75ae869e5cb22c83655b
+ARG FFI_DIR=/filecoin-ffi
+
+RUN git clone https://github.com/filecoin-project/filecoin-ffi.git ${FFI_DIR} \
+    && cd ${FFI_DIR} \
+    && git checkout ${FILECOIN_FFI_COMMIT} \
+    && make
