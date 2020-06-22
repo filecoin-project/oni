@@ -20,3 +20,10 @@ enabled = true
 [[testcases]]
 name = "lotus-baseline"
 instances = { min = 1, max = 100, default = 5 }
+
+  [testcases.params]
+  clients = { type = "int", default = 1 }
+  miners = { type = "int", default = 1 }
+  balance = { type = "int", default = 1 }
+  sectors = { type = "int", default = 1 }
+  role = { type = "string" }

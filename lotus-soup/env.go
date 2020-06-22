@@ -21,8 +21,8 @@ type Environment struct {
 
 // prepareEnv prepares the network environment
 func prepareEnv(runenv *runtime.RunEnv) *Environment {
-	ctx, cancel := context.WithTimeout(context.Background(), PrepareEnvTimeOut)
-	defer cancel()
+	ctx, _ := context.WithTimeout(context.Background(), PrepareEnvTimeOut)
+	//defer cancel()
 
 	runenv.RecordMessage("binding sync service client")
 	client := sync.MustBoundClient(ctx, runenv)
