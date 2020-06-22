@@ -1,4 +1,4 @@
-name = "lotus-testground"
+name = "lotus-soup"
 
 [defaults]
 builder = "docker:go"
