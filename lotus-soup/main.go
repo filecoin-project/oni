@@ -15,7 +15,7 @@ func main() {
 	run.InvokeMap(testplans)
 }
 
-func testRunner(roles map[string]func(*Environment) error) func(runenv *runtime.RunEnv) error {
+func testRunner(roles map[string]func(*Environment) error) run.TestCaseFn {
 	return func(runenv *runtime.RunEnv) error {
 		return runTestPlan(runenv, roles)
 	}
