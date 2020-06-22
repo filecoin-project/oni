@@ -1,6 +1,6 @@
 ARG GO_VERSION=1.14.2
 
-ARG RUNTIME_IMAGE=busybox:1.31.1-glibc
+ARG RUNTIME_IMAGE=ubuntu:18.04
 
 FROM golang:${GO_VERSION}-buster AS builder
 

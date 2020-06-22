@@ -3,7 +3,6 @@ module github.com/filecoin-project/oni/lotus-testground
 go 1.14
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
 	github.com/filecoin-project/lotus v0.3.1-0.20200518172415-1ed618334471

@@ -5,11 +5,11 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -384,7 +384,7 @@ func lotusNetwork() run.InitializedTestCaseFn {
 				return xerrors.Errorf("failed to set up storage miner: %w", err)
 			}
 
-			spew.Dump(sminer)
+			fmt.Println(sminer)
 		}
 
 		return nil
