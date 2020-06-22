@@ -45,8 +45,8 @@ import (
 
 func init() {
 	power.ConsensusMinerMinPower = big.NewInt(2048)
-	saminer.SupportedProofTypes = map[abi.RegisteredProof]struct{}{
-		abi.RegisteredProof_StackedDRG2KiBSeal: {},
+	saminer.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
+		abi.RegisteredSealProof_StackedDrg2KiBV1: {},
 	}
 	verifreg.MinVerifiedDealSize = big.NewInt(256)
 }
@@ -142,7 +142,7 @@ func testStorageNode(ctx context.Context, waddr address.Address, act address.Add
 		return nil, err
 	}
 
-	enc, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: peerid})
+	enc, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(peerid)})
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func runPreSeal(runenv *runtime.RunEnv, maddr address.Address, minerPid peer.ID)
 		return nil, err
 	}
 
-	genm, k, err := seed.PreSeal(maddr, abi.RegisteredProof_StackedDRG2KiBPoSt, 0, nGenesisPreseals, tdir, []byte("make genesis mem random"), nil)
+	genm, k, err := seed.PreSeal(maddr, abi.RegisteredSealProof_StackedDrg2KiBV1, 0, nGenesisPreseals, tdir, []byte("make genesis mem random"), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -416,6 +416,6 @@ func (m genFakeVerifier) VerifyWindowPoSt(ctx context.Context, info abi.WindowPo
 	panic("not supported")
 }
 
-func (m genFakeVerifier) GenerateWinningPoStSectorChallenge(ctx context.Context, proof abi.RegisteredProof, id abi.ActorID, randomness abi.PoStRandomness, u uint64) ([]uint64, error) {
+func (m genFakeVerifier) GenerateWinningPoStSectorChallenge(ctx context.Context, proof abi.RegisteredPoStProof, id abi.ActorID, randomness abi.PoStRandomness, u uint64) ([]uint64, error) {
 	panic("not supported")
 }
