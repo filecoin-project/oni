@@ -18,5 +18,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 )
 
-// If you're using the exec:go builder, replace this with $PATH_TO_ONI_REPO/filecoin-ffi.
-// replace github.com/filecoin-project/filecoin-ffi => /Users/raul/W/pl/oni/filecoin-ffi
+// This will work in all build modes: docker:go, exec:go, and local go build.
+// On docker:go and exec:go, it maps to /extra/filecoin-ffi, as it's picked up
+// as an "extra source" in the manifest.
+replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
