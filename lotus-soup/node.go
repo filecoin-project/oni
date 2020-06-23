@@ -349,6 +349,7 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 		node.Online(),
 		node.Repo(minerRepo),
 		node.Override(new(api.FullNode), n.fullApi),
+		withMinerListenAddress(minerIP),
 	)
 	if err != nil {
 		stop1(context.TODO())
@@ -502,5 +503,10 @@ func withPubsubConfig(bootstrapper bool) node.Option {
 
 func withListenAddress(ip string) node.Option {
 	addrs := []string{fmt.Sprintf("/ip4/%s/tcp/4001", ip)}
+	return node.Override(node.StartListeningKey, lp2p.StartListening(addrs))
+}
+
+func withMinerListenAddress(ip string) node.Option {
+	addrs := []string{fmt.Sprintf("/ip4/%s/tcp/4002", ip)}
 	return node.Override(node.StartListeningKey, lp2p.StartListening(addrs))
 }
