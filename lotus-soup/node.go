@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	//"encoding/json"
+	//"fmt"
 	"io/ioutil"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/testground/sdk-go/runtime"
 	"github.com/testground/sdk-go/sync"
 
+	logging "github.com/ipfs/go-log/v2"
 	libp2p_crypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -67,6 +70,8 @@ type GenesisMsg struct {
 }
 
 func init() {
+	logging.SetLogLevel("vm", "WARN")
+
 	build.DisableBuiltinAssets = true
 
 	// Note: I don't understand the significance of this, but the node test does it.
@@ -130,6 +135,15 @@ func prepareBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Nod
 		Miners:    genesisMiners,
 		Timestamp: uint64(time.Now().Unix() - 1000), // this needs to be in the past
 	}
+
+	// dump the genesis block
+	// var jsonBuf bytes.Buffer
+	// jsonEnc := json.NewEncoder(&jsonBuf)
+	// err := jsonEnc.Encode(genesisTemplate)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// runenv.RecordMessage(fmt.Sprintf("Genesis template: %s", string(jsonBuf.Bytes())))
 
 	// this is horrendously disgusting, we use this contraption to side effect the construction
 	// of the genesis block in the buffer -- yes, a side effect of dependency injection.
@@ -222,7 +236,7 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 		return nil, err
 	}
 
-	minerAddr, err := address.NewIDAddress(genesis_chain.MinerStart + uint64(initCtx.GlobalSeq))
+	minerAddr, err := address.NewIDAddress(genesis_chain.MinerStart + uint64(initCtx.GroupSeq-1))
 	if err != nil {
 		return nil, err
 	}
@@ -238,6 +252,8 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 		return nil, err
 	}
 	genMiner.PeerId = minerID
+
+	runenv.RecordMessage("Miner Info: Owner: %s Worker: %s", genMiner.Owner, genMiner.Worker)
 
 	presealTopic := sync.NewTopic("preseal", &PresealMsg{})
 	presealMsg := &PresealMsg{Miner: *genMiner}
