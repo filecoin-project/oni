@@ -21,7 +21,7 @@
     [groups.run.test_params]
       role = "bootstrapper"
       clients = "1"
-      miners = "0"
+      miners = "1"
       balance = "2000"
       sectors = "10"
 
@@ -36,7 +36,7 @@
   [groups.run]
     [groups.run.test_params]
       role = "miner"
-      clients = "0"
+      clients = "1"
       miners = "1"
       balance = "2000"
       sectors = "10"
@@ -53,6 +53,6 @@
     [groups.run.test_params]
       role = "client"
       clients = "1"
-      miners = "0"
+      miners = "1"
       balance = "2000"
       sectors = "10"
