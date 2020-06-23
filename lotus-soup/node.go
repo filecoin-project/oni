@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	//"encoding/json"
-	//"fmt"
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -35,6 +35,7 @@ import (
 	"github.com/filecoin-project/lotus/node/config"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
+	"github.com/filecoin-project/lotus/node/modules/lp2p"
 	modtest "github.com/filecoin-project/lotus/node/modules/testing"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
@@ -150,12 +151,15 @@ func prepareBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Nod
 	// I remember when software was straightforward...
 	var genesisBuffer bytes.Buffer
 
+	bootstrapperIP := initCtx.NetClient.MustGetDataNetworkIP().String()
+
 	n := &Node{}
 	stop, err := node.New(context.Background(),
 		node.FullAPI(&n.fullApi),
 		node.Online(),
 		node.Repo(repo.NewMemory(nil)),
 		node.Override(new(modules.Genesis), modtest.MakeGenesisMem(&genesisBuffer, genesisTemplate)),
+		withListenAddress(bootstrapperIP),
 		withBootstrapper(nil),
 		withPubsubConfig(true),
 	)
@@ -167,7 +171,6 @@ func prepareBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Nod
 	// this dance to construct the bootstrapper multiaddr is quite vexing.
 	var bootstrapperAddr ma.Multiaddr
 
-	bootstrapperIP := initCtx.NetClient.MustGetDataNetworkIP().String()
 	bootstrapperAddrs, err := n.fullApi.NetAddrsListen(ctx)
 	if err != nil {
 		stop(context.TODO())
@@ -315,6 +318,8 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 		return nil, err
 	}
 
+	minerIP := initCtx.NetClient.MustGetDataNetworkIP().String()
+
 	// create the node
 	n := &Node{}
 	stop, err := node.New(context.Background(),
@@ -323,6 +328,7 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 		node.Online(),
 		node.Repo(minerRepo),
 		withGenesis(genesisMsg.Genesis),
+		withListenAddress(minerIP),
 		withBootstrapper(genesisMsg.Bootstrapper),
 		withPubsubConfig(false),
 	)
@@ -396,6 +402,8 @@ func prepareClient(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, err
 	initCtx.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
 	genesisMsg := <-genesisCh
 
+	clientIP := initCtx.NetClient.MustGetDataNetworkIP().String()
+
 	// create the node
 	n := &Node{}
 	stop, err := node.New(context.Background(),
@@ -403,6 +411,7 @@ func prepareClient(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, err
 		node.Online(),
 		node.Repo(repo.NewMemory(nil)),
 		withGenesis(genesisMsg.Genesis),
+		withListenAddress(clientIP),
 		withBootstrapper(genesisMsg.Bootstrapper),
 		withPubsubConfig(false),
 	)
@@ -469,4 +478,9 @@ func withPubsubConfig(bootstrapper bool) node.Option {
 			RemoteTracer: "",
 		}
 	})
+}
+
+func withListenAddress(ip string) node.Option {
+	addrs := []string{fmt.Sprintf("/ip4/%s/tcp/4001", ip)}
+	return node.Override(node.StartListeningKey, lp2p.StartListening(addrs))
 }
