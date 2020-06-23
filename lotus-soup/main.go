@@ -8,26 +8,18 @@ import (
 )
 
 var testplans = map[string]interface{}{
-	"lotus-baseline": testRunner(baselineRoles),
+	"lotus-baseline": baselineRoles,
 }
 
 func main() {
 	run.InvokeMap(testplans)
 }
 
-func testRunner(roles map[string]func(*Environment) error) run.TestCaseFn {
-	return func(runenv *runtime.RunEnv) error {
-		return runTestPlan(runenv, roles)
-	}
-}
-
-func runTestPlan(runenv *runtime.RunEnv, roles map[string]func(*Environment) error) error {
-	env := prepareEnv(runenv)
+func doRun(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	role := runenv.StringParam("role")
-	proc, ok := roles[role]
+	proc, ok := baselineRoles[role]
 	if ok {
-		return proc(env)
+		return proc(runenv, initCtx)
 	}
-
 	return fmt.Errorf("Unknown role: %s", role)
 }

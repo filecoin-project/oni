@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/testground/sdk-go/run"
+	"github.com/testground/sdk-go/runtime"
 	"github.com/testground/sdk-go/sync"
 
 	libp2p_crypto "github.com/libp2p/go-libp2p-core/crypto"
@@ -75,12 +77,12 @@ func init() {
 	verifreg.MinVerifiedDealSize = big.NewInt(256)
 }
 
-func prepareBootstrapper(env *Environment) (*Node, error) {
+func prepareBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
 	defer cancel()
 
-	clients := env.runenv.IntParam("clients")
-	miners := env.runenv.IntParam("miners")
+	clients := runenv.IntParam("clients")
+	miners := runenv.IntParam("miners")
 	nodes := clients + miners
 
 	// the first duty of the boostrapper is to construct the genesis block
@@ -89,7 +91,7 @@ func prepareBootstrapper(env *Environment) (*Node, error) {
 	balanceTopic := sync.NewTopic("balance", &InitialBalanceMsg{})
 	balanceCh := make(chan *InitialBalanceMsg)
 
-	env.syncC.MustSubscribe(ctx, balanceTopic, balanceCh)
+	initCtx.SyncClient.MustSubscribe(ctx, balanceTopic, balanceCh)
 	for i := 0; i < nodes; i++ {
 		m := <-balanceCh
 		balanceMsgs = append(balanceMsgs, m)
@@ -100,7 +102,7 @@ func prepareBootstrapper(env *Environment) (*Node, error) {
 	presealTopic := sync.NewTopic("preseal", &PresealMsg{})
 	presealCh := make(chan *PresealMsg)
 
-	env.syncC.MustSubscribe(ctx, presealTopic, presealCh)
+	initCtx.SyncClient.MustSubscribe(ctx, presealTopic, presealCh)
 	for i := 0; i < miners; i++ {
 		m := <-presealCh
 		presealMsgs = append(presealMsgs, m)
@@ -151,7 +153,7 @@ func prepareBootstrapper(env *Environment) (*Node, error) {
 	// this dance to construct the bootstrapper multiaddr is quite vexing.
 	var bootstrapperAddr ma.Multiaddr
 
-	bootstrapperIP := env.netC.MustGetDataNetworkIP().String()
+	bootstrapperIP := initCtx.NetClient.MustGetDataNetworkIP().String()
 	bootstrapperAddrs, err := n.fullApi.NetAddrsListen(ctx)
 	if err != nil {
 		stop(context.TODO())
@@ -185,15 +187,15 @@ func prepareBootstrapper(env *Environment) (*Node, error) {
 		Bootstrapper: bootstrapperAddr.Bytes(),
 	}
 	genesisTopic := sync.NewTopic("genesis", &GenesisMsg{})
-	env.syncC.MustPublish(ctx, genesisTopic, genesisMsg)
+	initCtx.SyncClient.MustPublish(ctx, genesisTopic, genesisMsg)
 
 	// we are ready; wait for all nodes to be ready
-	env.syncC.MustBarrier(ctx, sync.State("ready"), env.runenv.TestInstanceCount)
+	initCtx.SyncClient.MustBarrier(ctx, sync.State("ready"), runenv.TestInstanceCount)
 
 	return n, nil
 }
 
-func prepareMiner(env *Environment) (*Node, error) {
+func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
 	defer cancel()
 
@@ -204,10 +206,10 @@ func prepareMiner(env *Environment) (*Node, error) {
 	}
 
 	// publish the account ID/balance
-	balance := env.runenv.IntParam("balance")
+	balance := runenv.IntParam("balance")
 	balanceTopic := sync.NewTopic("balance", &InitialBalanceMsg{})
 	balanceMsg := &InitialBalanceMsg{Addr: walletKey.Address, Balance: balance}
-	env.syncC.Publish(ctx, balanceTopic, balanceMsg)
+	initCtx.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
 
 	// create and publish the preseal commitment
 	priv, _, err := libp2p_crypto.GenerateEd25519Key(rand.Reader)
@@ -220,7 +222,7 @@ func prepareMiner(env *Environment) (*Node, error) {
 		return nil, err
 	}
 
-	minerAddr, err := address.NewIDAddress(genesis_chain.MinerStart + uint64(env.seqno))
+	minerAddr, err := address.NewIDAddress(genesis_chain.MinerStart + uint64(initCtx.GlobalSeq))
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +232,7 @@ func prepareMiner(env *Environment) (*Node, error) {
 		return nil, err
 	}
 
-	sectors := env.runenv.IntParam("sectors")
+	sectors := runenv.IntParam("sectors")
 	genMiner, _, err := seed.PreSeal(minerAddr, abi.RegisteredSealProof_StackedDrg2KiBV1, 0, sectors, presealDir, []byte("TODO: randomize this"), &walletKey.KeyInfo)
 	if err != nil {
 		return nil, err
@@ -239,12 +241,12 @@ func prepareMiner(env *Environment) (*Node, error) {
 
 	presealTopic := sync.NewTopic("preseal", &PresealMsg{})
 	presealMsg := &PresealMsg{Miner: *genMiner}
-	env.syncC.Publish(ctx, presealTopic, presealMsg)
+	initCtx.SyncClient.Publish(ctx, presealTopic, presealMsg)
 
 	// then collect the genesis block and bootstrapper address
 	genesisTopic := sync.NewTopic("genesis", &GenesisMsg{})
 	genesisCh := make(chan *GenesisMsg)
-	env.syncC.MustSubscribe(ctx, genesisTopic, genesisCh)
+	initCtx.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
 	genesisMsg := <-genesisCh
 
 	// prepare the repo
@@ -350,13 +352,13 @@ func prepareMiner(env *Environment) (*Node, error) {
 	}
 
 	// we are ready; wait for all nodes to be ready
-	env.runenv.RecordMessage("waiting for all nodes to be ready")
-	env.syncC.MustBarrier(ctx, sync.State("ready"), env.runenv.TestInstanceCount)
+	runenv.RecordMessage("waiting for all nodes to be ready")
+	initCtx.SyncClient.MustBarrier(ctx, sync.State("ready"), runenv.TestInstanceCount)
 
 	return n, err
 }
 
-func prepareClient(env *Environment) (*Node, error) {
+func prepareClient(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
 	defer cancel()
 
@@ -367,15 +369,15 @@ func prepareClient(env *Environment) (*Node, error) {
 	}
 
 	// publish the account ID/balance
-	balance := env.runenv.IntParam("balance")
+	balance := runenv.IntParam("balance")
 	balanceTopic := sync.NewTopic("balance", &InitialBalanceMsg{})
 	balanceMsg := &InitialBalanceMsg{Addr: walletKey.Address, Balance: balance}
-	env.syncC.Publish(ctx, balanceTopic, balanceMsg)
+	initCtx.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
 
 	// then collect the genesis block and bootstrapper address
 	genesisTopic := sync.NewTopic("genesis", &GenesisMsg{})
 	genesisCh := make(chan *GenesisMsg)
-	env.syncC.MustSubscribe(ctx, genesisTopic, genesisCh)
+	initCtx.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
 	genesisMsg := <-genesisCh
 
 	// create the node
@@ -400,9 +402,9 @@ func prepareClient(env *Environment) (*Node, error) {
 		return nil, err
 	}
 
-	env.runenv.RecordMessage("waiting for all nodes to be ready")
+	runenv.RecordMessage("waiting for all nodes to be ready")
 	// we are ready; wait for all nodes to be ready
-	env.syncC.MustBarrier(ctx, sync.State("ready"), env.runenv.TestInstanceCount)
+	initCtx.SyncClient.MustBarrier(ctx, sync.State("ready"), runenv.TestInstanceCount)
 
 	return n, nil
 }
