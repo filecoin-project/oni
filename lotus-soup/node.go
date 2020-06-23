@@ -130,6 +130,9 @@ func prepareBootstrapper(env *Environment) (*Node, error) {
 		withBootstrapper(nil),
 		withPubsubConfig(true),
 	)
+	if err != nil {
+		return nil, err
+	}
 	n.stop = stop
 
 	// this dance to construct the bootstrapper multiaddr is quite vexing.
@@ -292,6 +295,9 @@ func prepareMiner(env *Environment) (*Node, error) {
 		withBootstrapper(genesisMsg.Bootstrapper),
 		withPubsubConfig(false),
 	)
+	if err != nil {
+		return nil, err
+	}
 	n.stop = stop
 
 	// set the wallet
@@ -369,6 +375,9 @@ func prepareClient(env *Environment) (*Node, error) {
 		withBootstrapper(genesisMsg.Bootstrapper),
 		withPubsubConfig(false),
 	)
+	if err != nil {
+		return nil, err
+	}
 	n.stop = stop
 
 	// set the wallet
