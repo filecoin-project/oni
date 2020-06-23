@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+
 	//"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -48,7 +49,13 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 )
 
-var PrepareNodeTimeout = time.Minute
+var (
+	PrepareNodeTimeout = time.Minute
+
+	genesisTopic = sync.NewTopic("genesis", &GenesisMsg{})
+	balanceTopic = sync.NewTopic("balance", &InitialBalanceMsg{})
+	presealTopic = sync.NewTopic("preseal", &PresealMsg{})
+)
 
 type Node struct {
 	fullApi  api.FullNode
@@ -94,7 +101,6 @@ func prepareBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Nod
 	// the first duty of the boostrapper is to construct the genesis block
 	// first collect all client and miner balances to assign initial funds
 	balanceMsgs := make([]*InitialBalanceMsg, 0, nodes)
-	balanceTopic := sync.NewTopic("balance", &InitialBalanceMsg{})
 	balanceCh := make(chan *InitialBalanceMsg)
 
 	initCtx.SyncClient.MustSubscribe(ctx, balanceTopic, balanceCh)
@@ -105,7 +111,6 @@ func prepareBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Nod
 
 	// then collect all preseals from miners
 	presealMsgs := make([]*PresealMsg, 0, miners)
-	presealTopic := sync.NewTopic("preseal", &PresealMsg{})
 	presealCh := make(chan *PresealMsg)
 
 	initCtx.SyncClient.MustSubscribe(ctx, presealTopic, presealCh)
@@ -203,7 +208,6 @@ func prepareBootstrapper(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Nod
 		Genesis:      genesisBuffer.Bytes(),
 		Bootstrapper: bootstrapperAddr.Bytes(),
 	}
-	genesisTopic := sync.NewTopic("genesis", &GenesisMsg{})
 	initCtx.SyncClient.MustPublish(ctx, genesisTopic, genesisMsg)
 
 	// we are ready; wait for all nodes to be ready
@@ -224,7 +228,6 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 
 	// publish the account ID/balance
 	balance := runenv.IntParam("balance")
-	balanceTopic := sync.NewTopic("balance", &InitialBalanceMsg{})
 	balanceMsg := &InitialBalanceMsg{Addr: walletKey.Address, Balance: balance}
 	initCtx.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
 
@@ -258,12 +261,10 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 
 	runenv.RecordMessage("Miner Info: Owner: %s Worker: %s", genMiner.Owner, genMiner.Worker)
 
-	presealTopic := sync.NewTopic("preseal", &PresealMsg{})
 	presealMsg := &PresealMsg{Miner: *genMiner}
 	initCtx.SyncClient.Publish(ctx, presealTopic, presealMsg)
 
 	// then collect the genesis block and bootstrapper address
-	genesisTopic := sync.NewTopic("genesis", &GenesisMsg{})
 	genesisCh := make(chan *GenesisMsg)
 	initCtx.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
 	genesisMsg := <-genesisCh
@@ -413,12 +414,10 @@ func prepareClient(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, err
 
 	// publish the account ID/balance
 	balance := runenv.IntParam("balance")
-	balanceTopic := sync.NewTopic("balance", &InitialBalanceMsg{})
 	balanceMsg := &InitialBalanceMsg{Addr: walletKey.Address, Balance: balance}
 	initCtx.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
 
 	// then collect the genesis block and bootstrapper address
-	genesisTopic := sync.NewTopic("genesis", &GenesisMsg{})
 	genesisCh := make(chan *GenesisMsg)
 	initCtx.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
 	genesisMsg := <-genesisCh
