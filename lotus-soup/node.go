@@ -321,12 +321,13 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 	minerIP := initCtx.NetClient.MustGetDataNetworkIP().String()
 
 	// create the node
+	// we need both a full node _and_ and storage miner node
 	n := &Node{}
-	stop, err := node.New(context.Background(),
+
+	stop1, err := node.New(context.Background(),
 		node.FullAPI(&n.fullApi),
-		node.StorageMiner(&n.minerApi),
 		node.Online(),
-		node.Repo(minerRepo),
+		node.Repo(repo.NewMemory(nil)),
 		withGenesis(genesisMsg.Genesis),
 		withListenAddress(minerIP),
 		withBootstrapper(genesisMsg.Bootstrapper),
@@ -335,19 +336,38 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 	if err != nil {
 		return nil, err
 	}
-	n.stop = stop
+
+	stop2, err := node.New(context.Background(),
+		node.StorageMiner(&n.minerApi),
+		node.Online(),
+		node.Repo(minerRepo),
+		node.Override(new(api.FullNode), n.fullApi),
+	)
+	if err != nil {
+		stop1(context.TODO())
+		return nil, err
+	}
+	n.stop = func(ctx context.Context) error {
+		// TODO use a multierror for this
+		err2 := stop2(ctx)
+		err1 := stop1(ctx)
+		if err2 != nil {
+			return err2
+		}
+		return err1
+	}
 
 	// set the wallet
 	err = n.setWallet(ctx, walletKey)
 	if err != nil {
-		stop(context.TODO())
+		n.stop(context.TODO())
 		return nil, err
 	}
 
 	// add local storage for presealed sectors
 	err = n.minerApi.StorageAddLocal(ctx, presealDir)
 	if err != nil {
-		stop(context.TODO())
+		n.stop(context.TODO())
 		return nil, err
 	}
 
@@ -369,7 +389,7 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 
 	_, err = n.fullApi.MpoolPushMessage(ctx, changeMinerID)
 	if err != nil {
-		stop(context.TODO())
+		n.stop(context.TODO())
 		return nil, err
 	}
 
