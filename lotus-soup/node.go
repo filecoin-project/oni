@@ -337,6 +337,13 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 		return nil, err
 	}
 
+	// set the wallet
+	err = n.setWallet(ctx, walletKey)
+	if err != nil {
+		stop1(context.TODO())
+		return nil, err
+	}
+
 	stop2, err := node.New(context.Background(),
 		node.StorageMiner(&n.minerApi),
 		node.Online(),
@@ -355,13 +362,6 @@ func prepareMiner(runenv *runtime.RunEnv, initCtx *run.InitContext) (*Node, erro
 			return err2
 		}
 		return err1
-	}
-
-	// set the wallet
-	err = n.setWallet(ctx, walletKey)
-	if err != nil {
-		n.stop(context.TODO())
-		return nil, err
 	}
 
 	// add local storage for presealed sectors
