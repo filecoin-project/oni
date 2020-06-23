@@ -65,6 +65,8 @@ type GenesisMsg struct {
 }
 
 func init() {
+	build.DisableBuiltinAssets = true
+
 	// Note: I don't understand the significance of this, but the node test does it.
 	power.ConsensusMinerMinPower = big.NewInt(2048)
 	saminer.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
