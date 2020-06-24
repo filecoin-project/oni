@@ -58,8 +58,8 @@ var (
 )
 
 type TestEnvironment struct {
-	runenv  *runtime.RunEnv
-	initCtx *run.InitContext
+	*runtime.RunEnv
+	*run.InitContext
 }
 
 type Node struct {
@@ -99,8 +99,8 @@ func prepareBootstrapper(t *TestEnvironment) (*Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
 	defer cancel()
 
-	clients := t.runenv.IntParam("clients")
-	miners := t.runenv.IntParam("miners")
+	clients := t.IntParam("clients")
+	miners := t.IntParam("miners")
 	nodes := clients + miners
 
 	// the first duty of the boostrapper is to construct the genesis block
@@ -108,7 +108,7 @@ func prepareBootstrapper(t *TestEnvironment) (*Node, error) {
 	balanceMsgs := make([]*InitialBalanceMsg, 0, nodes)
 	balanceCh := make(chan *InitialBalanceMsg)
 
-	t.initCtx.SyncClient.MustSubscribe(ctx, balanceTopic, balanceCh)
+	t.SyncClient.MustSubscribe(ctx, balanceTopic, balanceCh)
 	for i := 0; i < nodes; i++ {
 		m := <-balanceCh
 		balanceMsgs = append(balanceMsgs, m)
@@ -118,7 +118,7 @@ func prepareBootstrapper(t *TestEnvironment) (*Node, error) {
 	presealMsgs := make([]*PresealMsg, 0, miners)
 	presealCh := make(chan *PresealMsg)
 
-	t.initCtx.SyncClient.MustSubscribe(ctx, presealTopic, presealCh)
+	t.SyncClient.MustSubscribe(ctx, presealTopic, presealCh)
 	for i := 0; i < miners; i++ {
 		m := <-presealCh
 		presealMsgs = append(presealMsgs, m)
@@ -161,7 +161,7 @@ func prepareBootstrapper(t *TestEnvironment) (*Node, error) {
 	// I remember when software was straightforward...
 	var genesisBuffer bytes.Buffer
 
-	bootstrapperIP := t.initCtx.NetClient.MustGetDataNetworkIP().String()
+	bootstrapperIP := t.NetClient.MustGetDataNetworkIP().String()
 
 	n := &Node{}
 	stop, err := node.New(context.Background(),
@@ -213,10 +213,10 @@ func prepareBootstrapper(t *TestEnvironment) (*Node, error) {
 		Genesis:      genesisBuffer.Bytes(),
 		Bootstrapper: bootstrapperAddr.Bytes(),
 	}
-	t.initCtx.SyncClient.MustPublish(ctx, genesisTopic, genesisMsg)
+	t.SyncClient.MustPublish(ctx, genesisTopic, genesisMsg)
 
 	// we are ready; wait for all nodes to be ready
-	t.initCtx.SyncClient.MustBarrier(ctx, sync.State("ready"), t.runenv.TestInstanceCount)
+	t.SyncClient.MustBarrier(ctx, sync.State("ready"), t.TestInstanceCount)
 
 	return n, nil
 }
@@ -232,9 +232,9 @@ func prepareMiner(t *TestEnvironment) (*Node, error) {
 	}
 
 	// publish the account ID/balance
-	balance := t.runenv.IntParam("balance")
+	balance := t.IntParam("balance")
 	balanceMsg := &InitialBalanceMsg{Addr: walletKey.Address, Balance: balance}
-	t.initCtx.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
+	t.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
 
 	// create and publish the preseal commitment
 	priv, _, err := libp2p_crypto.GenerateEd25519Key(rand.Reader)
@@ -247,7 +247,7 @@ func prepareMiner(t *TestEnvironment) (*Node, error) {
 		return nil, err
 	}
 
-	minerAddr, err := address.NewIDAddress(genesis_chain.MinerStart + uint64(t.initCtx.GroupSeq-1))
+	minerAddr, err := address.NewIDAddress(genesis_chain.MinerStart + uint64(t.GroupSeq-1))
 	if err != nil {
 		return nil, err
 	}
@@ -257,21 +257,21 @@ func prepareMiner(t *TestEnvironment) (*Node, error) {
 		return nil, err
 	}
 
-	sectors := t.runenv.IntParam("sectors")
+	sectors := t.IntParam("sectors")
 	genMiner, _, err := seed.PreSeal(minerAddr, abi.RegisteredSealProof_StackedDrg2KiBV1, 0, sectors, presealDir, []byte("TODO: randomize this"), &walletKey.KeyInfo)
 	if err != nil {
 		return nil, err
 	}
 	genMiner.PeerId = minerID
 
-	t.runenv.RecordMessage("Miner Info: Owner: %s Worker: %s", genMiner.Owner, genMiner.Worker)
+	t.RecordMessage("Miner Info: Owner: %s Worker: %s", genMiner.Owner, genMiner.Worker)
 
 	presealMsg := &PresealMsg{Miner: *genMiner}
-	t.initCtx.SyncClient.Publish(ctx, presealTopic, presealMsg)
+	t.SyncClient.Publish(ctx, presealTopic, presealMsg)
 
 	// then collect the genesis block and bootstrapper address
 	genesisCh := make(chan *GenesisMsg)
-	t.initCtx.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
+	t.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
 	genesisMsg := <-genesisCh
 
 	// prepare the repo
@@ -324,7 +324,7 @@ func prepareMiner(t *TestEnvironment) (*Node, error) {
 		return nil, err
 	}
 
-	minerIP := t.initCtx.NetClient.MustGetDataNetworkIP().String()
+	minerIP := t.NetClient.MustGetDataNetworkIP().String()
 
 	// create the node
 	// we need both a full node _and_ and storage miner node
@@ -401,8 +401,8 @@ func prepareMiner(t *TestEnvironment) (*Node, error) {
 	}
 
 	// we are ready; wait for all nodes to be ready
-	t.runenv.RecordMessage("waiting for all nodes to be ready")
-	t.initCtx.SyncClient.MustBarrier(ctx, sync.State("ready"), t.runenv.TestInstanceCount)
+	t.RecordMessage("waiting for all nodes to be ready")
+	t.SyncClient.MustBarrier(ctx, sync.State("ready"), t.TestInstanceCount)
 
 	return n, err
 }
@@ -418,16 +418,16 @@ func prepareClient(t *TestEnvironment) (*Node, error) {
 	}
 
 	// publish the account ID/balance
-	balance := t.runenv.IntParam("balance")
+	balance := t.IntParam("balance")
 	balanceMsg := &InitialBalanceMsg{Addr: walletKey.Address, Balance: balance}
-	t.initCtx.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
+	t.SyncClient.Publish(ctx, balanceTopic, balanceMsg)
 
 	// then collect the genesis block and bootstrapper address
 	genesisCh := make(chan *GenesisMsg)
-	t.initCtx.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
+	t.SyncClient.MustSubscribe(ctx, genesisTopic, genesisCh)
 	genesisMsg := <-genesisCh
 
-	clientIP := t.initCtx.NetClient.MustGetDataNetworkIP().String()
+	clientIP := t.NetClient.MustGetDataNetworkIP().String()
 
 	// create the node
 	n := &Node{}
@@ -452,9 +452,9 @@ func prepareClient(t *TestEnvironment) (*Node, error) {
 		return nil, err
 	}
 
-	t.runenv.RecordMessage("waiting for all nodes to be ready")
+	t.RecordMessage("waiting for all nodes to be ready")
 	// we are ready; wait for all nodes to be ready
-	t.initCtx.SyncClient.MustBarrier(ctx, sync.State("ready"), t.runenv.TestInstanceCount)
+	t.SyncClient.MustBarrier(ctx, sync.State("ready"), t.TestInstanceCount)
 
 	return n, nil
 }

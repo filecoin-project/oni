@@ -27,7 +27,7 @@ var baselineRoles = map[string]func(*TestEnvironment) error{
 }
 
 func runBaselineBootstrapper(t *TestEnvironment) error {
-	t.runenv.RecordMessage("running bootstrapper")
+	t.RecordMessage("running bootstrapper")
 	_, err := prepareBootstrapper(t)
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ func runBaselineBootstrapper(t *TestEnvironment) error {
 }
 
 func runBaselineMiner(t *TestEnvironment) error {
-	t.runenv.RecordMessage("running miner")
+	t.RecordMessage("running miner")
 	_, err := prepareMiner(t)
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func runBaselineMiner(t *TestEnvironment) error {
 }
 
 func runBaselineClient(t *TestEnvironment) error {
-	t.runenv.RecordMessage("running client")
+	t.RecordMessage("running client")
 	_, err := prepareClient(t)
 	if err != nil {
 		return err

@@ -20,7 +20,7 @@ func doRun(roles map[string]func(*TestEnvironment) error) run.InitializedTestCas
 		role := runenv.StringParam("role")
 		proc, ok := baselineRoles[role]
 		if ok {
-			return proc(&TestEnvironment{runenv: runenv, initCtx: initCtx})
+			return proc(&TestEnvironment{RunEnv: runenv, InitContext: initCtx})
 		}
 		return fmt.Errorf("Unknown role: %s", role)
 	}
