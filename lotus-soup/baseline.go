@@ -1,7 +1,5 @@
 package main
 
-import ()
-
 // This is the basline test; Filecoin 101.
 //
 // A network with a bootstrapper, a number of miners, and a number of clients/full nodes
