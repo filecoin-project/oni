@@ -15,12 +15,12 @@ func main() {
 	run.InvokeMap(testplans)
 }
 
-func doRun(roles map[string]run.InitializedTestCaseFn) run.InitializedTestCaseFn {
+func doRun(roles map[string]func(*TestEnvironment) error) run.InitializedTestCaseFn {
 	return func(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 		role := runenv.StringParam("role")
 		proc, ok := baselineRoles[role]
 		if ok {
-			return proc(runenv, initCtx)
+			return proc(&TestEnvironment{runenv: runenv, initCtx: initCtx})
 		}
 		return fmt.Errorf("Unknown role: %s", role)
 	}
