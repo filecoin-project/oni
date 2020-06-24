@@ -55,6 +55,8 @@ var (
 	genesisTopic = sync.NewTopic("genesis", &GenesisMsg{})
 	balanceTopic = sync.NewTopic("balance", &InitialBalanceMsg{})
 	presealTopic = sync.NewTopic("preseal", &PresealMsg{})
+
+	stateReady = sync.State("ready")
 )
 
 type TestEnvironment struct {
@@ -216,7 +218,7 @@ func prepareBootstrapper(t *TestEnvironment) (*Node, error) {
 	t.SyncClient.MustPublish(ctx, genesisTopic, genesisMsg)
 
 	// we are ready; wait for all nodes to be ready
-	t.SyncClient.MustBarrier(ctx, sync.State("ready"), t.TestInstanceCount)
+	t.SyncClient.MustBarrier(ctx, stateReady, t.TestInstanceCount)
 
 	return n, nil
 }
@@ -402,7 +404,7 @@ func prepareMiner(t *TestEnvironment) (*Node, error) {
 
 	// we are ready; wait for all nodes to be ready
 	t.RecordMessage("waiting for all nodes to be ready")
-	t.SyncClient.MustBarrier(ctx, sync.State("ready"), t.TestInstanceCount)
+	t.SyncClient.MustBarrier(ctx, stateReady, t.TestInstanceCount)
 
 	return n, err
 }
@@ -454,7 +456,7 @@ func prepareClient(t *TestEnvironment) (*Node, error) {
 
 	t.RecordMessage("waiting for all nodes to be ready")
 	// we are ready; wait for all nodes to be ready
-	t.SyncClient.MustBarrier(ctx, sync.State("ready"), t.TestInstanceCount)
+	t.SyncClient.MustBarrier(ctx, stateReady, t.TestInstanceCount)
 
 	return n, nil
 }
