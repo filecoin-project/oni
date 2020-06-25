@@ -5,7 +5,7 @@
 [global]
   plan = "lotus-soup"
   case = "lotus-baseline"
-  total_instances = 6
+  total_instances = 3
   builder = "docker:go"
   runner = "local:docker"
 
@@ -17,11 +17,13 @@
   [groups.instances]
     count = 1
     percentage = 0.0
+  [groups.build]
+    selectors = ["testground"]
   [groups.run]
     [groups.run.test_params]
       role = "bootstrapper"
-      clients = "3"
-      miners = "2"
+      clients = "1"
+      miners = "1"
       balance = "2000000000"
       sectors = "10"
       random_beacon_type = "mock"
@@ -29,13 +31,15 @@
 [[groups]]
   id = "miners"
   [groups.instances]
-    count = 2
+    count = 1
     percentage = 0.0
+  [groups.build]
+    selectors = ["testground"]
   [groups.run]
     [groups.run.test_params]
       role = "miner"
-      clients = "3"
-      miners = "2"
+      clients = "1"
+      miners = "1"
       balance = "2000000000"
       sectors = "10"
       random_beacon_type = "mock"
@@ -44,13 +48,15 @@
 [[groups]]
   id = "clients"
   [groups.instances]
-    count = 3
+    count = 1
     percentage = 0.0
+  [groups.build]
+    selectors = ["testground"]
   [groups.run]
     [groups.run.test_params]
       role = "client"
-      clients = "3"
-      miners = "2"
+      clients = "1"
+      miners = "1"
       balance = "2000000000"
       sectors = "10"
       random_beacon_type = "mock"
