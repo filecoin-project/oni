@@ -848,7 +848,7 @@ func startServer(repo *repo.MemRepo, srv *http.Server) error {
 	return nil
 }
 
-func registerAndExportMetrics(miner string) {
+func registerAndExportMetrics(instanceName string) {
 	// Register all Lotus metric views
 	if err := view.Register(
 		metrics.DefaultViews...,
@@ -862,10 +862,10 @@ func registerAndExportMetrics(miner string) {
 	// Register our custom exporter to opencensus
 	e, err := influxdb.NewExporter(context.Background(), influxdb.Options{
 		Database:     "testground",
-		Address:      "http://testground-influxdb:8086",
+		Address:      os.Getenv("INFLUXDB_URL"),
 		Username:     "",
 		Password:     "",
-		InstanceName: miner,
+		InstanceName: instanceName,
 	})
 	if err != nil {
 		panic(err)
