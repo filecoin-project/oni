@@ -56,6 +56,7 @@ import (
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 	"github.com/testground/sdk-go/sync"
+
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 )
@@ -850,9 +851,8 @@ func startServer(repo *repo.MemRepo, srv *http.Server) error {
 
 func registerAndExportMetrics(instanceName string) {
 	// Register all Lotus metric views
-	if err := view.Register(
-		metrics.DefaultViews...,
-	); err != nil {
+	err := view.Register(metrics.DefaultViews...)
+	if err != nil {
 		panic(err)
 	}
 

@@ -52,9 +52,7 @@ func runMiner(t *TestEnvironment) error {
 			var i int
 			for i = 0; mine; i++ {
 				// synchronize all miners to mine the next block
-				if i%10 == 0 {
-					t.RecordMessage("synchronizing all miners to mine next block [%d]", i)
-				}
+				t.RecordMessage("synchronizing all miners to mine next block [%d]", i)
 				stateMineNext := sync.State(fmt.Sprintf("mine-block-%d", i))
 				t.SyncClient.MustSignalAndWait(ctx, stateMineNext, miners)
 
