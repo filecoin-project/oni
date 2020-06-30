@@ -18,7 +18,7 @@ package main
 // sectors from each node.
 // Then we create a genesis block that allocates some funds to each node and collects
 // the presealed sectors.
-var roles = map[string]func(*TestEnvironment) error{
+var basicRoles = map[string]func(*TestEnvironment) error{
 	"bootstrapper":  runBootstrapper,
 	"miner":         runMiner,
 	"client":        runBaselineClient,
