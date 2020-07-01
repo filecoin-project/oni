@@ -4,10 +4,21 @@
 
 [global]
   plan = "lotus-soup"
-  case = "lotus-baseline"
+  case = "deals-e2e"
   total_instances = 6
   builder = "docker:go"
   runner = "local:docker"
+
+[global.build_config]
+  enable_go_build_cache = true
+
+[global.run.test_params]
+    clients = "1"
+    miners = "1"
+    balance = "2000"
+    sectors = "10"
+    random_beacon_type = "local-drand"
+    genesis_timestamp_offset = "0"
 
 [[groups]]
   id = "bootstrapper"
@@ -20,11 +31,7 @@
   [groups.run]
     [groups.run.test_params]
       role = "bootstrapper"
-      clients = "1"
-      miners = "1"
-      balance = "2000"
-      sectors = "10"
-      random_beacon_type = "local-drand"
+
 
 [[groups]]
   id = "miners"
@@ -37,12 +44,6 @@
   [groups.run]
     [groups.run.test_params]
       role = "miner"
-      clients = "1"
-      miners = "1"
-      balance = "2000"
-      sectors = "10"
-      random_beacon_type = "local-drand"
-
 
 [[groups]]
   id = "clients"
@@ -55,12 +56,6 @@
   [groups.run]
     [groups.run.test_params]
       role = "client"
-      clients = "1"
-      miners = "1"
-      balance = "2000"
-      sectors = "10"
-      random_beacon_type = "local-drand"
-
 
 [[groups]]
   id = "drand"

@@ -4,13 +4,16 @@
 
 [global]
   plan = "lotus-soup"
-  case = "lotus-baseline"
+  case = "deals-e2e"
   total_instances = 6
   builder = "docker:go"
   runner = "local:docker"
 
 [global.build_config]
   enable_go_build_cache = true
+
+[global.build]
+  selectors = ["testground"]
 
 [global.run.test_params]
   clients = "3"
