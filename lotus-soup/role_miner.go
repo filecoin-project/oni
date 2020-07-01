@@ -45,8 +45,8 @@ func runMiner(t *TestEnvironment) error {
 		return err
 	}
 
-	t.RecordMessage("block delay: %v", build.BlockDelay)
-	t.D().Gauge("miner.block-delay").Update(build.BlockDelay)
+	t.RecordMessage("block delay: %v", build.BlockDelaySecs)
+	t.D().Gauge("miner.block-delay").Update(float64(build.BlockDelaySecs))
 
 	ctx := context.Background()
 
