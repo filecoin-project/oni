@@ -12,7 +12,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/repo"
-
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 )
 
@@ -95,7 +94,10 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.SyncClient.MustPublish(ctx, ClientsAddrsTopic, addrinfo)
+	t.SyncClient.MustPublish(ctx, ClientsAddrsTopic, &ClientAddressesMsg{
+		PeerAddr:   addrinfo,
+		WalletAddr: walletKey.Address,
+	})
 
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)

@@ -25,7 +25,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	influxdb "github.com/kpacha/opencensus-influxdb"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	manet "github.com/multiformats/go-multiaddr-net"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
@@ -52,6 +51,7 @@ type LotusNode struct {
 	FullApi  api.FullNode
 	MinerApi api.StorageMiner
 	StopFn   node.StopFunc
+	Wallet   *wallet.Key
 	MineOne  func(context.Context, func(bool)) error
 }
 
@@ -65,6 +65,8 @@ func (n *LotusNode) setWallet(ctx context.Context, walletKey *wallet.Key) error 
 	if err != nil {
 		return err
 	}
+
+	n.Wallet = walletKey
 
 	return nil
 }
@@ -136,11 +138,11 @@ func CollectMinerAddrs(t *TestEnvironment, ctx context.Context, miners int) ([]M
 	return addrs, nil
 }
 
-func CollectClientAddrs(t *TestEnvironment, ctx context.Context, clients int) ([]peer.AddrInfo, error) {
-	ch := make(chan peer.AddrInfo)
+func CollectClientAddrs(t *TestEnvironment, ctx context.Context, clients int) ([]*ClientAddressesMsg, error) {
+	ch := make(chan *ClientAddressesMsg)
 	sub := t.SyncClient.MustSubscribe(ctx, ClientsAddrsTopic, ch)
 
-	addrs := make([]peer.AddrInfo, 0, clients)
+	addrs := make([]*ClientAddressesMsg, 0, clients)
 	for i := 0; i < clients; i++ {
 		select {
 		case a := <-ch:
