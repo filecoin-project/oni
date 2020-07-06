@@ -6,8 +6,8 @@
   plan = "lotus-soup"
   case = "paych-stress"
   total_instances = 5   # 2 clients + 2 miners + 1 bootstrapper
-  builder = "docker:go"
-  runner = "local:docker"
+  builder = "exec:go"
+  runner = "local:exec"
 
 [global.build_config]
   enable_go_build_cache = true
