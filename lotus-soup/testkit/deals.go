@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/lotus/api"
@@ -40,7 +41,7 @@ loop:
 		}
 		switch di.State {
 		case storagemarket.StorageDealProposalRejected:
-			panic("deal rejected")
+			t.RecordMessage("%s", spew.Sdump(di))
 		case storagemarket.StorageDealFailing:
 			panic("deal failed")
 		case storagemarket.StorageDealError:
