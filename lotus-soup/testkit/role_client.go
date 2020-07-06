@@ -63,7 +63,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 		node.FullAPI(&n.FullApi),
 		node.Online(),
 		node.Repo(nodeRepo),
-		withApiEndpoint("/ip4/0.0.0.0/tcp/1234"),
+		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
 		withGenesis(genesisMsg.Genesis),
 		withListenAddress(clientIP),
 		withBootstrapper(genesisMsg.Bootstrapper),
@@ -82,7 +82,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 		return nil, err
 	}
 
-	err = startClientAPIServer(nodeRepo, n.FullApi)
+	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (c *LotusClient) RunDefault() error {
 	return nil
 }
 
-func startClientAPIServer(repo *repo.MemRepo, api api.FullNode) error {
+func startFullNodeAPIServer(t *TestEnvironment, repo *repo.MemRepo, api api.FullNode) error {
 	rpcServer := jsonrpc.NewServer()
 	rpcServer.Register("Filecoin", apistruct.PermissionedFullAPI(api))
 
@@ -137,5 +137,16 @@ func startClientAPIServer(repo *repo.MemRepo, api api.FullNode) error {
 
 	srv := &http.Server{Handler: http.DefaultServeMux}
 
-	return startServer(repo, srv)
+	endpoint, err := repo.APIEndpoint()
+	if err != nil {
+		return fmt.Errorf("no API endpoint in repo: %w", err)
+	}
+
+	listenAddr, err := startServer(endpoint, srv)
+	if err != nil {
+		return fmt.Errorf("failed to start client API endpoint: %w", err)
+	}
+
+	t.RecordMessage("started node API server at %s", listenAddr)
+	return nil
 }
