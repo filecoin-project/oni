@@ -17,6 +17,7 @@ import (
 	"github.com/filecoin-project/lotus/api/apistruct"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors"
+	"github.com/filecoin-project/lotus/chain/gen"
 	genesis_chain "github.com/filecoin-project/lotus/chain/gen/genesis"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet"
@@ -25,6 +26,7 @@ import (
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
+	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
@@ -35,6 +37,9 @@ import (
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/testground/sdk-go/sync"
+	"go.uber.org/fx"
+
+	"github.com/filecoin-project/oni/lotus-soup/statemachine"
 )
 
 const (
@@ -45,6 +50,8 @@ type LotusMiner struct {
 	*LotusNode
 
 	t *TestEnvironment
+
+	minerInstance *miner.Miner
 }
 
 func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
@@ -114,7 +121,13 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return nil, err
 	}
 
-	// prepare the repo
+	// create the node
+	// we need both a full node _and_ and storage miner node
+	n := &LotusNode{}
+
+	m := &LotusMiner{LotusNode: n, t: t}
+
+	// prepare the repo for the storage miner
 	minerRepo := repo.NewMemory(nil)
 
 	lr, err := minerRepo.Lock(repo.StorageMiner)
@@ -165,10 +178,6 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
 
-	// create the node
-	// we need both a full node _and_ and storage miner node
-	n := &LotusNode{}
-
 	nodeRepo := repo.NewMemory(nil)
 
 	stop1, err := node.New(context.Background(),
@@ -202,10 +211,25 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		withMinerListenAddress(minerIP),
 	}
 
-	if t.StringParam("mining_mode") != "natural" {
+	if t.StringParam("mining_mode") == "natural" {
+		// call through to default DI module, but capture a reference. gross, but seems to be the only way to get a direct ref to the miner.Miner
+		providerHook := func (lc fx.Lifecycle, ds dtypes.MetadataDS, api api.FullNode, epp gen.WinningPoStProver) (*miner.Miner, error) {
+			var err error
+			m.minerInstance, err = modules.SetupBlockProducer(lc, ds, api, epp)
+			return m.minerInstance, err
+		}
+		minerOpts = append(minerOpts, node.Override(new(*miner.Miner), providerHook))
+	} else {
 		mineBlock := make(chan func(bool, error))
+
+		// wrap the DI module returned by miner.NewTestMiner and grab a ref to the returned miner.Miner
+		providerHook := func(f api.FullNode, p gen.WinningPoStProver) *miner.Miner {
+			m.minerInstance = miner.NewTestMiner(mineBlock, minerAddr)(f, p)
+			return m.minerInstance
+		}
+
 		minerOpts = append(minerOpts,
-			node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)))
+			node.Override(new(*miner.Miner), providerHook))
 
 		n.MineOne = func(ctx context.Context, cb func(bool, error)) error {
 			select {
@@ -224,8 +248,11 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 	n.StopFn = func(ctx context.Context) error {
 		// TODO use a multierror for this
+		t.RecordMessage("stopping storage miner")
 		err2 := stop2(ctx)
+		t.RecordMessage("storage miner stopped, stopping full node")
 		err1 := stop1(ctx)
+		t.RecordMessage("full node stopped")
 		if err2 != nil {
 			return err2
 		}
@@ -334,8 +361,6 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
 
-	m := &LotusMiner{n, t}
-
 	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
 	if err != nil {
 		return nil, err
@@ -419,6 +444,11 @@ func (m *LotusMiner) RunDefault() error {
 		close(done)
 	}
 
+	if t.IsParamSet("suspend_events") {
+		suspender := statemachine.NewSuspender(m, t.RecordMessage)
+		go suspender.RunEvents(t.StringParam("suspend_events"))
+	}
+
 	// wait for a signal from all clients to stop mining
 	err = <-t.SyncClient.MustBarrier(ctx, StateStopMining, clients).C
 	if err != nil {
@@ -432,7 +462,24 @@ func (m *LotusMiner) RunDefault() error {
 	return nil
 }
 
-func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi api.StorageMiner) error {
+func (m *LotusMiner) Halt() {
+	m.t.RecordMessage("halting miner")
+
+	if err := m.minerInstance.Stop(context.TODO()); err != nil {
+		panic(err)
+	}
+	m.t.RecordMessage("miner halted")
+}
+
+func (m *LotusMiner) Resume() {
+	m.t.RecordMessage("resuming miner")
+	if err := m.minerInstance.Start(context.TODO()); err != nil {
+		panic(fmt.Errorf("failed to resume miner: %s", err))
+	}
+	m.t.RecordMessage("miner resumed")
+}
+
+func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) error {
 	mux := mux.NewRouter()
 
 	rpcServer := jsonrpc.NewServer()

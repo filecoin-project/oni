@@ -30,6 +30,7 @@ require (
 	github.com/multiformats/go-multiaddr-net v0.1.5
 	github.com/testground/sdk-go v0.2.3-0.20200706132230-6a65ddac2d8c
 	go.opencensus.io v0.22.4
+	go.uber.org/fx v1.9.0
 )
 
 // This will work in all build modes: docker:go, exec:go, and local go build.
