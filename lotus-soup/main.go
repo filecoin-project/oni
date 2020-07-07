@@ -11,13 +11,14 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/testground/sdk-go/run"
 
+	"github.com/filecoin-project/oni/lotus-soup/paych"
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
 )
 
 var cases = map[string]interface{}{
 	"deals-e2e":     testkit.WrapTestEnvironment(dealsE2E),
 	"drand-halting": testkit.WrapTestEnvironment(dealsE2E),
-	"paych-stress": testkit.WrapTestEnvironment(paychStress),
+	"paych-stress":  testkit.WrapTestEnvironment(paych.Stress),
 }
 
 func main() {

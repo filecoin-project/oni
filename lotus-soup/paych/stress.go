@@ -1,4 +1,4 @@
-package main
+package paych
 
 import (
 	"context"
@@ -17,13 +17,15 @@ import (
 
 var SendersDoneState = sync.State("senders-done")
 
-func paychStress(t *testkit.TestEnvironment) error {
+// TODO Stress is currently WIP. We found blockers in Lotus that prevent us from
+//  making progress. See https://github.com/filecoin-project/lotus/issues/2297.
+func Stress(t *testkit.TestEnvironment) error {
 	// Dispatch/forward non-client roles to defaults.
 	if t.Role != "client" {
 		return testkit.HandleDefaultRole(t)
 	}
 
-	// This is a client role
+	// This is a client role.
 	t.RecordMessage("running payments client")
 
 	var (
@@ -41,9 +43,11 @@ func paychStress(t *testkit.TestEnvironment) error {
 
 	// are we the receiver or a sender?
 	mode := "sender"
-	if t.TestGroupInstanceCount == 1 {
+	if t.GroupSeq == 1 {
 		mode = "receiver"
 	}
+
+	t.RecordMessage("acting as %s", mode)
 
 	var clients []*testkit.ClientAddressesMsg
 	sctx, cancel := context.WithCancel(ctx)
@@ -60,8 +64,6 @@ func paychStress(t *testkit.TestEnvironment) error {
 		<-t.SyncClient.MustBarrier(ctx, SendersDoneState, t.TestGroupInstanceCount-1).C
 
 	case "sender":
-		t.RecordMessage("acting as sender")
-
 		// we're going to lock up all our funds into this one payment channel.
 		recv := clients[0]
 		balance, err := cl.FullApi.WalletBalance(ctx, cl.Wallet.Address)
