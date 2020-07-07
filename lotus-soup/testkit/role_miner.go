@@ -34,6 +34,8 @@ import (
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/testground/sdk-go/sync"
+
+	"github.com/filecoin-project/oni/lotus-soup/statemachine"
 )
 
 type LotusMiner struct {
@@ -110,7 +112,14 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	// prepare the repo
-	minerRepo := repo.NewMemory(nil)
+	repoPath, err := ioutil.TempDir("", "miner-repo")
+	if err != nil {
+		return nil, err
+	}
+	minerRepo, err := repo.NewFS(repoPath)
+	if err != nil {
+		return nil, err
+	}
 
 	lr, err := minerRepo.Lock(repo.StorageMiner)
 	if err != nil {
@@ -164,7 +173,14 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	// we need both a full node _and_ and storage miner node
 	n := &LotusNode{}
 
-	nodeRepo := repo.NewMemory(nil)
+	repoPath, err = ioutil.TempDir("", "lotus-repo")
+	if err != nil {
+		return nil, err
+	}
+	nodeRepo, err := repo.NewFS(repoPath)
+	if err != nil {
+		return nil, err
+	}
 
 	stop1, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
@@ -400,6 +416,11 @@ func (m *LotusMiner) RunDefault() error {
 		close(done)
 	}
 
+	if t.IsParamSet("suspend_events") {
+		suspender := statemachine.NewSuspender(m, t.RecordMessage)
+		go suspender.RunEvents(t.StringParam("suspend_events"))
+	}
+
 	// wait for a signal from all clients to stop mining
 	err = <-t.SyncClient.MustBarrier(ctx, StateStopMining, clients).C
 	if err != nil {
@@ -413,7 +434,21 @@ func (m *LotusMiner) RunDefault() error {
 	return nil
 }
 
-func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi api.StorageMiner) error {
+
+func (m *LotusMiner) Halt() {
+	err := m.StopFn(context.TODO())
+	if err != nil {
+		m.t.RecordMessage("failed to halt miner: %s", err)
+	} else {
+		m.t.RecordMessage("miner halted")
+	}
+}
+
+func (m *LotusMiner) Resume() {
+	m.t.RecordMessage("TODO: figure out how to resume a stopped miner...")
+}
+
+func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) error {
 	mux := mux.NewRouter()
 
 	rpcServer := jsonrpc.NewServer()
