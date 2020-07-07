@@ -198,12 +198,11 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	if t.StringParam("mining_mode") != "natural" {
-		mineBlock := make(chan func(bool))
+		mineBlock := make(chan func(bool, error))
 		minerOpts = append(minerOpts,
-			node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)),
-		)
+			node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)))
 
-		n.MineOne = func(ctx context.Context, cb func(bool)) error {
+		n.MineOne = func(ctx context.Context, cb func(bool, error)) error {
 			select {
 			case mineBlock <- cb:
 				return nil
@@ -229,6 +228,11 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	registerAndExportMetrics(minerAddr.String())
+
+	// collect stats based on Travis' scripts
+	if t.InitContext.GroupSeq == 1 {
+		go collectStats(t, ctx, n.FullApi)
+	}
 
 	// Start listening on the full node.
 	fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
@@ -359,17 +363,32 @@ func (m *LotusMiner) RunDefault() error {
 				stateMineNext := sync.State(fmt.Sprintf("mine-block-%d", i))
 				t.SyncClient.MustSignalAndWait(ctx, stateMineNext, miners)
 
-				ch := make(chan struct{})
-				err := m.MineOne(ctx, func(mined bool) {
-					if mined {
-						t.D().Counter(fmt.Sprintf("block.mine,miner=%s", myActorAddr)).Inc(1)
+				ch := make(chan error)
+				const maxRetries = 100
+				success := false
+				for retries := 0; retries < maxRetries; retries++ {
+					err := m.MineOne(ctx, func(mined bool, err error) {
+						if mined {
+							t.D().Counter(fmt.Sprintf("block.mine,miner=%s", myActorAddr)).Inc(1)
+						}
+						ch <- err
+					})
+					if err != nil {
+						panic(err)
 					}
-					close(ch)
-				})
-				if err != nil {
-					panic(err)
+
+					miningErr := <-ch
+					if miningErr == nil {
+						success = true
+						break
+					}
+					t.D().Counter("block.mine.err").Inc(1)
+					t.RecordMessage("retrying block [%d] after %d attempts due to mining error: %s",
+						i, retries, miningErr)
 				}
-				<-ch
+				if !success {
+					panic(fmt.Errorf("failed to mine block %d after %d retries", i, maxRetries))
+				}
 			}
 
 			// signal the last block to make sure no miners are left stuck waiting for the next block signal

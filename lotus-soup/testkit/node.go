@@ -9,49 +9,20 @@ import (
 	"time"
 
 	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/metrics"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	modtest "github.com/filecoin-project/lotus/node/modules/testing"
-	"github.com/filecoin-project/specs-actors/actors/abi"
-	"github.com/filecoin-project/specs-actors/actors/abi/big"
-	saminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
-	logging "github.com/ipfs/go-log/v2"
-	influxdb "github.com/kpacha/opencensus-influxdb"
-	ma "github.com/multiformats/go-multiaddr"
+	tstats "github.com/filecoin-project/lotus/tools/stats"
 
-	manet "github.com/multiformats/go-multiaddr-net"
+	"github.com/kpacha/opencensus-influxdb"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multiaddr-net"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 )
-
-func init() {
-	_ = logging.SetLogLevel("*", "DEBUG")
-	_ = logging.SetLogLevel("dht/RtRefreshManager", "ERROR")	// noisy
-	_ = logging.SetLogLevel("bitswap", "ERROR")
-
-	_ = os.Setenv("BELLMAN_NO_GPU", "1")
-
-	build.InsecurePoStValidation = true
-	build.DisableBuiltinAssets = true
-	build.BlockDelaySecs = 2
-	build.PropagationDelaySecs = 1
-
-	// MessageConfidence is the amount of tipsets we wait after a message is
-	// mined, e.g. payment channel creation, to be considered committed.
-	build.MessageConfidence = 1
-
-	power.ConsensusMinerMinPower = big.NewInt(2048)
-	saminer.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
-		abi.RegisteredSealProof_StackedDrg2KiBV1: {},
-	}
-	verifreg.MinVerifiedDealSize = big.NewInt(256)
-}
 
 var PrepareNodeTimeout = time.Minute
 
@@ -60,7 +31,7 @@ type LotusNode struct {
 	MinerApi api.StorageMiner
 	StopFn   node.StopFunc
 	Wallet   *wallet.Key
-	MineOne  func(context.Context, func(bool)) error
+	MineOne  func(context.Context, func(bool, error)) error
 }
 
 func (n *LotusNode) setWallet(ctx context.Context, walletKey *wallet.Key) error {
@@ -251,4 +222,30 @@ func registerAndExportMetrics(instanceName string) {
 	}
 	view.RegisterExporter(e)
 	view.SetReportingPeriod(5 * time.Second)
+}
+
+func collectStats(t *TestEnvironment, ctx context.Context, api api.FullNode) error {
+	t.RecordMessage("collecting blockchain stats")
+
+	influxAddr := os.Getenv("INFLUXDB_URL")
+	influxUser := ""
+	influxPass := ""
+	influxDb := "testground"
+
+	influx, err := tstats.InfluxClient(influxAddr, influxUser, influxPass)
+	if err != nil {
+		t.RecordMessage(err.Error())
+		return err
+	}
+
+	height := int64(0)
+	headlag := 3
+
+	go func() {
+		time.Sleep(15 * time.Second)
+		t.RecordMessage("calling tstats.Collect")
+		tstats.Collect(context.Background(), api, influx, influxDb, height, headlag)
+	}()
+
+	return nil
 }
