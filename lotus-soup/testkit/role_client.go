@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/filecoin-project/lotus/api"
@@ -109,6 +111,26 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 	}
 	t.RecordMessage("got %v miner addrs", len(addrs))
 
+	// densely connect the client to the full node and the miners themselves.
+	for _, miner := range addrs {
+		if err := n.FullApi.NetConnect(ctx, miner.FullNetAddrs); err != nil {
+			return nil, fmt.Errorf("client failed to connect to full node of miner: %w", err)
+		}
+		if err := n.FullApi.NetConnect(ctx, miner.MinerNetAddrs); err != nil {
+			return nil, fmt.Errorf("client failed to connect to storage miner node node of miner: %w", err)
+		}
+	}
+
+	// wait for all clients to have completed identify, pubsub negotiation with miners.
+	time.Sleep(1 * time.Second)
+
+	peers, err := n.FullApi.NetPeers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query connected peers: %w", err)
+	}
+
+	t.RecordMessage("connected peers: %d", len(peers))
+
 	cl := &LotusClient{
 		t:          t,
 		LotusNode:  n,
@@ -134,6 +156,15 @@ func startFullNodeAPIServer(t *TestEnvironment, repo *repo.MemRepo, api api.Full
 	}
 
 	http.Handle("/rpc/v0", ah)
+
+	exporter, err := prometheus.NewExporter(prometheus.Options{
+		Namespace: "lotus",
+	})
+	if err != nil {
+		return err
+	}
+
+	http.Handle("/debug/metrics", exporter)
 
 	srv := &http.Server{Handler: http.DefaultServeMux}
 

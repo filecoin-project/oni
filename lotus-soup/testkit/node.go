@@ -31,12 +31,20 @@ import (
 )
 
 func init() {
-	_ = logging.SetLogLevel("*", "ERROR")
+	_ = logging.SetLogLevel("*", "DEBUG")
+	_ = logging.SetLogLevel("dht/RtRefreshManager", "ERROR")	// noisy
+	_ = logging.SetLogLevel("bitswap", "ERROR")
 
 	_ = os.Setenv("BELLMAN_NO_GPU", "1")
 
 	build.InsecurePoStValidation = true
 	build.DisableBuiltinAssets = true
+	build.BlockDelaySecs = 2
+	build.PropagationDelaySecs = 1
+
+	// MessageConfidence is the amount of tipsets we wait after a message is
+	// mined, e.g. payment channel creation, to be considered committed.
+	build.MessageConfidence = 1
 
 	power.ConsensusMinerMinPower = big.NewInt(2048)
 	saminer.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{

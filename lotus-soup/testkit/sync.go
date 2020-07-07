@@ -46,8 +46,9 @@ type ClientAddressesMsg struct {
 }
 
 type MinerAddressesMsg struct {
-	PeerAddr  peer.AddrInfo
-	ActorAddr address.Address
+	FullNetAddrs   peer.AddrInfo
+	MinerNetAddrs  peer.AddrInfo
+	MinerActorAddr address.Address
 }
 
 type PubsubTracerMsg struct {

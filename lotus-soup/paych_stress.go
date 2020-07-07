@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 	"github.com/testground/sdk-go/sync"
 
@@ -26,7 +30,7 @@ func paychStress(t *testkit.TestEnvironment) error {
 		// lanes to open; vouchers will be distributed across these lanes in round-robin fashion
 		laneCount = t.IntParam("lane_count")
 		// increments in which to send payment vouchers
-		increments = t.IntParam("increments")
+		increments = big.Mul(big.NewInt(int64(t.IntParam("increments"))), abi.TokenPrecision)
 	)
 
 	ctx := context.Background()
@@ -68,13 +72,40 @@ func paychStress(t *testkit.TestEnvironment) error {
 		t.RecordMessage("my balance: %d", balance)
 		t.RecordMessage("creating payment channel; from=%s, to=%s, funds=%d", cl.Wallet.Address, recv.WalletAddr, balance)
 
+		pid := os.Getpid()
+		t.RecordMessage("sender pid: %d", pid)
+
+		time.Sleep(20 * time.Second)
+
 		channel, err := cl.FullApi.PaychGet(ctx, cl.Wallet.Address, recv.WalletAddr, balance)
 		if err != nil {
 			return fmt.Errorf("failed to create payment channel: %w", err)
 		}
 
-		t.RecordMessage("payment channel created; addr=%s, msg_cid=%s", channel.Channel, channel.ChannelMessage)
+		if addr := channel.Channel; addr != address.Undef {
+			return fmt.Errorf("expected an Undef channel address, got: %s", addr)
+		}
 
+		t.RecordMessage("payment channel created; msg_cid=%s", channel.ChannelMessage)
+		t.RecordMessage("waiting for payment channel message to appear on chain")
+
+		// wait for the channel creation message to appear on chain.
+		_, err = cl.FullApi.StateWaitMsg(ctx, channel.ChannelMessage, 2)
+		if err != nil {
+			return fmt.Errorf("failed while waiting for payment channel creation msg to appear on chain: %w", err)
+		}
+
+		// need to wait so that the channel is tracked.
+		// the full API waits for build.MessageConfidence (=1 in tests) before tracking the channel.
+		// we wait for 2 confirmations, so we have the assurance the channel is tracked.
+
+		t.RecordMessage("reloading paych; now it should have an address")
+		channel, err = cl.FullApi.PaychGet(ctx, cl.Wallet.Address, recv.WalletAddr, big.Zero())
+		if err != nil {
+			return fmt.Errorf("failed to reload payment channel: %w", err)
+		}
+
+		t.RecordMessage("channel address: %s", channel.Channel)
 		t.RecordMessage("allocating lanes; count=%d", laneCount)
 
 		// allocate as many lanes as required
@@ -91,29 +122,33 @@ func paychStress(t *testkit.TestEnvironment) error {
 		t.RecordMessage("sending payments in round-robin fashion across lanes; increments=%d", increments)
 
 		// start sending payments
-		var (
-			zero   = big.Zero()
-			amount = big.NewInt(int64(increments))
-		)
+		zero := big.Zero()
 
 	Outer:
 		for remaining := balance; remaining.GreaterThan(zero); {
 			for _, lane := range lanes {
-				voucher, err := cl.FullApi.PaychVoucherCreate(ctx, channel.Channel, amount, lane)
+				voucher, err := cl.FullApi.PaychVoucherCreate(ctx, channel.Channel, increments, lane)
 				if err != nil {
 					return fmt.Errorf("failed to create voucher: %w", err)
 				}
-				_, err = cl.FullApi.PaychVoucherSubmit(ctx, channel.Channel, voucher)
+				t.RecordMessage("payment voucher created; lane=%d, nonce=%d, amount=%d", voucher.Lane, voucher.Nonce, voucher.Amount)
+
+				cid, err := cl.FullApi.PaychVoucherSubmit(ctx, channel.Channel, voucher)
 				if err != nil {
 					return fmt.Errorf("failed to submit voucher: %w", err)
 				}
-				remaining = types.BigSub(remaining, amount)
+				t.RecordMessage("payment voucher submitted; msg_cid=%s, lane=%d, nonce=%d, amount=%d", cid, voucher.Lane, voucher.Nonce, voucher.Amount)
+
+				remaining = types.BigSub(remaining, increments)
+				t.RecordMessage("remaining balance: %d", remaining)
 				if remaining.LessThanEqual(zero) {
 					// we have no more funds remaining.
 					break Outer
 				}
 			}
 		}
+
+		t.RecordMessage("finished sending all payment vouchers")
 
 		t.SyncClient.MustSignalEntry(ctx, SendersDoneState)
 	}
