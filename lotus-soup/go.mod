@@ -12,6 +12,7 @@ require (
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
 	github.com/filecoin-project/lotus v0.4.2-0.20200706172415-cf6ac44b6ec5
 	github.com/filecoin-project/specs-actors v0.6.2-0.20200702170846-2cd72643a5cf
+	github.com/gbrlsnchs/jwt/v3 v3.0.0-beta.1
 	github.com/gorilla/mux v1.7.4
 	github.com/influxdata/influxdb v1.8.0 // indirect
 	github.com/ipfs/go-cid v0.0.6
@@ -30,6 +31,7 @@ require (
 	github.com/multiformats/go-multiaddr-net v0.1.5
 	github.com/testground/sdk-go v0.2.3-0.20200706132230-6a65ddac2d8c
 	go.opencensus.io v0.22.4
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 )
 
 // This will work in all build modes: docker:go, exec:go, and local go build.
