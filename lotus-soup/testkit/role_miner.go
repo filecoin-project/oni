@@ -111,17 +111,14 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return nil, err
 	}
 
-	// prepare the repo
-	repoPath, err := ioutil.TempDir("", "miner-repo")
-	if err != nil {
-		return nil, err
-	}
-	minerRepo, err := repo.NewFS(repoPath)
-	if err != nil {
-		return nil, err
-	}
+	// create the node
+	// we need both a full node _and_ and storage miner node
+	n := &LotusNode{}
 
-	lr, err := minerRepo.Lock(repo.StorageMiner)
+	// prepare the repo for the storage miner
+	n.MinerRepo = repo.NewMemory(nil)
+
+	lr, err := n.MinerRepo.Lock(repo.StorageMiner)
 	if err != nil {
 		return nil, err
 	}
@@ -169,176 +166,189 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
 
-	// create the node
-	// we need both a full node _and_ and storage miner node
-	n := &LotusNode{}
+	firstRun := true
+	n.StartFn = func(ctx context.Context) error {
+		defer func() {
+			firstRun = false
+		}()
 
-	repoPath, err = ioutil.TempDir("", "lotus-repo")
-	if err != nil {
-		return nil, err
-	}
-	nodeRepo, err := repo.NewFS(repoPath)
-	if err != nil {
-		return nil, err
-	}
+		if n.FullRepo == nil {
+			n.FullRepo = repo.NewMemory(nil)
+		}
 
-	stop1, err := node.New(context.Background(),
-		node.FullAPI(&n.FullApi),
-		node.Online(),
-		node.Repo(nodeRepo),
-		withGenesis(genesisMsg.Genesis),
-		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
-		withListenAddress(minerIP),
-		withBootstrapper(genesisMsg.Bootstrapper),
-		withPubsubConfig(false, pubsubTracer),
-		drandOpt,
-	)
-	if err != nil {
-		return nil, err
-	}
+		stop1, err := node.New(context.Background(),
+			node.FullAPI(&n.FullApi),
+			node.Online(),
+			node.Repo(n.FullRepo),
+			withGenesis(genesisMsg.Genesis),
+			withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
+			withListenAddress(minerIP),
+			withBootstrapper(genesisMsg.Bootstrapper),
+			withPubsubConfig(false, pubsubTracer),
+			drandOpt,
+		)
+		if err != nil {
+			return err
+		}
 
-	// set the wallet
-	err = n.setWallet(ctx, walletKey)
-	if err != nil {
-		stop1(context.TODO())
-		return nil, err
-	}
-
-	minerOpts := []node.Option{
-		node.StorageMiner(&n.MinerApi),
-		node.Online(),
-		node.Repo(minerRepo),
-		node.Override(new(api.FullNode), n.FullApi),
-		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("miner_rpc", "0"))),
-		withMinerListenAddress(minerIP),
-	}
-
-	if t.StringParam("mining_mode") != "natural" {
-		mineBlock := make(chan func(bool, error))
-		minerOpts = append(minerOpts,
-			node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)))
-
-		n.MineOne = func(ctx context.Context, cb func(bool, error)) error {
-			select {
-			case mineBlock <- cb:
-				return nil
-			case <-ctx.Done():
-				return ctx.Err()
+		// set the wallet
+		if firstRun {
+			err = n.setWallet(ctx, walletKey)
+			if err != nil {
+				stop1(context.TODO())
+				return err
 			}
 		}
-	}
 
-	stop2, err := node.New(context.Background(), minerOpts...)
-	if err != nil {
-		stop1(context.TODO())
-		return nil, err
-	}
-	n.StopFn = func(ctx context.Context) error {
-		// TODO use a multierror for this
-		err2 := stop2(ctx)
-		err1 := stop1(ctx)
-		if err2 != nil {
-			return err2
+		minerOpts := []node.Option{
+			node.StorageMiner(&n.MinerApi),
+			node.Online(),
+			node.Repo(n.MinerRepo),
+			node.Override(new(api.FullNode), n.FullApi),
+			withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("miner_rpc", "0"))),
+			withMinerListenAddress(minerIP),
 		}
-		return err1
-	}
 
-	registerAndExportMetrics(minerAddr.String())
+		if t.StringParam("mining_mode") != "natural" {
+			mineBlock := make(chan func(bool, error))
+			minerOpts = append(minerOpts,
+				node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)))
 
-	// collect stats based on Travis' scripts
-	if t.InitContext.GroupSeq == 1 {
-		go collectStats(t, ctx, n.FullApi)
-	}
-
-	// Start listening on the full node.
-	fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	// err = n.MinerApi.NetConnect(ctx, fullNodeNetAddrs)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// add local storage for presealed sectors
-	err = n.MinerApi.StorageAddLocal(ctx, presealDir)
-	if err != nil {
-		n.StopFn(context.TODO())
-		return nil, err
-	}
-
-	// set the miner PeerID
-	minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
-	if err != nil {
-		return nil, err
-	}
-
-	changeMinerID := &types.Message{
-		To:       minerAddr,
-		From:     genMiner.Worker,
-		Method:   builtin.MethodsMiner.ChangePeerID,
-		Params:   minerIDEncoded,
-		Value:    types.NewInt(0),
-		GasPrice: types.NewInt(0),
-		GasLimit: 1000000,
-	}
-
-	_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
-	if err != nil {
-		n.StopFn(context.TODO())
-		return nil, err
-	}
-
-	t.RecordMessage("publish our address to the miners addr topic")
-	minerActor, err := n.MinerApi.ActorAddress(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	minerNetAddrs, err := n.MinerApi.NetAddrsListen(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	t.SyncClient.MustPublish(ctx, MinersAddrsTopic, MinerAddressesMsg{
-		FullNetAddrs:   fullNodeNetAddrs,
-		MinerNetAddrs:  minerNetAddrs,
-		MinerActorAddr: minerActor,
-	})
-
-	t.RecordMessage("connecting to all other miners")
-
-	// densely connect the miner's full nodes.
-	minerCh := make(chan *MinerAddressesMsg, 16)
-	sctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	t.SyncClient.MustSubscribe(sctx, MinersAddrsTopic, minerCh)
-	for i := 0; i < t.IntParam("miners"); i++ {
-		m := <-minerCh
-		if m.MinerActorAddr == minerActor {
-			// once I find myself, I stop connecting to others, to avoid a simopen problem.
-			break
+			n.MineOne = func(ctx context.Context, cb func(bool, error)) error {
+				select {
+				case mineBlock <- cb:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
 		}
-		err := n.FullApi.NetConnect(ctx, m.FullNetAddrs)
+
+		stop2, err := node.New(context.Background(), minerOpts...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to connect to miner %s on: %v", m.MinerActorAddr, m.FullNetAddrs)
+			stop1(context.TODO())
+			return err
 		}
-		t.RecordMessage("connected to full node of miner %s on %v", m.MinerActorAddr, m.FullNetAddrs)
+		n.StopFn = func(ctx context.Context) error {
+			// TODO use a multierror for this
+			t.RecordMessage("stopping storage miner")
+			err2 := stop2(ctx)
+			t.RecordMessage("storage miner stopped, stopping full node")
+			err1 := stop1(ctx)
+			t.RecordMessage("full node stopped")
+			if err2 != nil {
+				return err2
+			}
+			return err1
+		}
 
+		if firstRun {
+			registerAndExportMetrics(minerAddr.String())
+
+			// collect stats based on Travis' scripts
+			if t.InitContext.GroupSeq == 1 {
+				go collectStats(t, ctx, n.FullApi)
+			}
+		}
+
+		// Start listening on the full node.
+		fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
+		if err != nil {
+			panic(err)
+		}
+
+		// err = n.MinerApi.NetConnect(ctx, fullNodeNetAddrs)
+		// if err != nil {
+		// 	panic(err)
+		// }
+
+		// add local storage for presealed sectors
+		err = n.MinerApi.StorageAddLocal(ctx, presealDir)
+		if err != nil {
+			n.StopFn(context.TODO())
+			return err
+		}
+
+		// set the miner PeerID (first run only)
+		if firstRun {
+			var err error
+			minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
+			if err != nil {
+				return err
+			}
+
+			changeMinerID := &types.Message{
+				To:       minerAddr,
+				From:     genMiner.Worker,
+				Method:   builtin.MethodsMiner.ChangePeerID,
+				Params:   minerIDEncoded,
+				Value:    types.NewInt(0),
+				GasPrice: types.NewInt(0),
+				GasLimit: 1000000,
+			}
+
+			_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
+			if err != nil {
+				n.StopFn(context.TODO())
+				return err
+			}
+
+			t.RecordMessage("publish our address to the miners addr topic")
+			minerActor, err := n.MinerApi.ActorAddress(ctx)
+			if err != nil {
+				return err
+			}
+
+			minerNetAddrs, err := n.MinerApi.NetAddrsListen(ctx)
+			if err != nil {
+				return err
+			}
+
+			t.SyncClient.MustPublish(ctx, MinersAddrsTopic, MinerAddressesMsg{
+				FullNetAddrs:   fullNodeNetAddrs,
+				MinerNetAddrs:  minerNetAddrs,
+				MinerActorAddr: minerActor,
+			})
+
+			t.RecordMessage("connecting to all other miners")
+
+			// densely connect the miner's full nodes.
+			minerCh := make(chan *MinerAddressesMsg, 16)
+			sctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			t.SyncClient.MustSubscribe(sctx, MinersAddrsTopic, minerCh)
+			for i := 0; i < t.IntParam("miners"); i++ {
+				m := <-minerCh
+				if m.MinerActorAddr == minerActor {
+					// once I find myself, I stop connecting to others, to avoid a simopen problem.
+					break
+				}
+				err := n.FullApi.NetConnect(ctx, m.FullNetAddrs)
+				if err != nil {
+					return fmt.Errorf("failed to connect to miner %s on: %v", m.MinerActorAddr, m.FullNetAddrs)
+				}
+				t.RecordMessage("connected to full node of miner %s on %v", m.MinerActorAddr, m.FullNetAddrs)
+
+			}
+
+			t.RecordMessage("waiting for all nodes to be ready")
+			t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
+		}
+		return nil
 	}
 
-	t.RecordMessage("waiting for all nodes to be ready")
-	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
+	if err = n.StartFn(ctx); err != nil {
+		return nil, err
+	}
 
 	m := &LotusMiner{n, t}
 
-	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
+	err = startFullNodeAPIServer(t, n.FullRepo, n.FullApi)
 	if err != nil {
 		return nil, err
 	}
 
-	err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
+	err = startStorageMinerAPIServer(t, n.MinerRepo, n.MinerApi)
 	if err != nil {
 		return nil, err
 	}
@@ -434,18 +444,23 @@ func (m *LotusMiner) RunDefault() error {
 	return nil
 }
 
-
 func (m *LotusMiner) Halt() {
+	m.t.RecordMessage("halting miner")
 	err := m.StopFn(context.TODO())
 	if err != nil {
-		m.t.RecordMessage("failed to halt miner: %s", err)
+		panic(fmt.Errorf("failed to halt miner: %w", err))
 	} else {
 		m.t.RecordMessage("miner halted")
 	}
 }
 
 func (m *LotusMiner) Resume() {
-	m.t.RecordMessage("TODO: figure out how to resume a stopped miner...")
+	m.t.RecordMessage("resuming miner")
+	err := m.StartFn(context.TODO())
+	if err != nil {
+		panic(fmt.Errorf("failed to resume miner: %s", err))
+	}
+	m.t.RecordMessage("miner resumed")
 }
 
 func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) error {

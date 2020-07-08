@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/filecoin-project/lotus/build"
+
 	"github.com/filecoin-project/oni/lotus-soup/paych"
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
 

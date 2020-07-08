@@ -15,6 +15,7 @@ import (
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	modtest "github.com/filecoin-project/lotus/node/modules/testing"
+	"github.com/filecoin-project/lotus/node/repo"
 	tstats "github.com/filecoin-project/lotus/tools/stats"
 
 	"github.com/kpacha/opencensus-influxdb"
@@ -26,12 +27,17 @@ import (
 
 var PrepareNodeTimeout = time.Minute
 
+type LotusStartFn func(ctx context.Context) error
+
 type LotusNode struct {
-	FullApi  api.FullNode
-	MinerApi api.StorageMiner
-	StopFn   node.StopFunc
-	Wallet   *wallet.Key
-	MineOne  func(context.Context, func(bool, error)) error
+	FullApi   api.FullNode
+	MinerApi  api.StorageMiner
+	StopFn    node.StopFunc
+	StartFn   LotusStartFn
+	Wallet    *wallet.Key
+	FullRepo  repo.Repo
+	MinerRepo repo.Repo
+	MineOne   func(context.Context, func(bool, error)) error
 }
 
 func (n *LotusNode) setWallet(ctx context.Context, walletKey *wallet.Key) error {
