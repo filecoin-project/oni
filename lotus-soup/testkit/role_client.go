@@ -67,6 +67,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 		node.Repo(nodeRepo),
 		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
 		withGenesis(genesisMsg.Genesis),
+		withStaticAPISecret(),
 		withListenAddress(clientIP),
 		withBootstrapper(genesisMsg.Bootstrapper),
 		withPubsubConfig(false, pubsubTracer),
@@ -151,8 +152,10 @@ func startFullNodeAPIServer(t *TestEnvironment, repo *repo.MemRepo, api api.Full
 	rpcServer.Register("Filecoin", apistruct.PermissionedFullAPI(api))
 
 	ah := &auth.Handler{
-		Verify: api.AuthVerify,
-		Next:   rpcServer.ServeHTTP,
+		Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
+			return apistruct.AllPermissions, nil
+		},
+		Next: rpcServer.ServeHTTP,
 	}
 
 	http.Handle("/rpc/v0", ah)

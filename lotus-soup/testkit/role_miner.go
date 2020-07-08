@@ -176,6 +176,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		node.Online(),
 		node.Repo(nodeRepo),
 		withGenesis(genesisMsg.Genesis),
+		withStaticAPISecret(),
 		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
 		withListenAddress(minerIP),
 		withBootstrapper(genesisMsg.Bootstrapper),
@@ -198,6 +199,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		node.Online(),
 		node.Repo(minerRepo),
 		node.Override(new(api.FullNode), n.FullApi),
+		withStaticAPISecret(),
 		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("miner_rpc", "0"))),
 		withMinerListenAddress(minerIP),
 	}
@@ -452,8 +454,10 @@ func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi
 	mux.Handle("/debug/metrics", exporter)
 
 	ah := &auth.Handler{
-		Verify: minerApi.AuthVerify,
-		Next:   mux.ServeHTTP,
+		Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
+			return apistruct.AllPermissions, nil
+		},
+		Next: mux.ServeHTTP,
 	}
 
 	endpoint, err := repo.APIEndpoint()
