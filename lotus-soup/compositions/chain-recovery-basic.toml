@@ -6,8 +6,8 @@
   plan = "lotus-soup"
   case = "chain-recovery"
   total_instances = 6
-  builder = "docker:go"
-  runner = "local:docker"
+  builder = "exec:go"
+  runner = "local:exec"
 
 [global.build_config]
   enable_go_build_cache = true

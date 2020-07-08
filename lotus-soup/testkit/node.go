@@ -27,13 +27,10 @@ import (
 
 var PrepareNodeTimeout = time.Minute
 
-type LotusStartFn func(ctx context.Context) error
-
 type LotusNode struct {
 	FullApi   api.FullNode
 	MinerApi  api.StorageMiner
 	StopFn    node.StopFunc
-	StartFn   LotusStartFn
 	Wallet    *wallet.Key
 	FullRepo  repo.Repo
 	MinerRepo repo.Repo
