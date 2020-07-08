@@ -24,5 +24,5 @@ COPY --from=downloader /var/tmp/filecoin-proof-parameters /var/tmp/filecoin-proo
 COPY --from=downloader /usr/local/bin/lotus /usr/local/bin/lll
 COPY --from=downloader /usr/local/bin/lotus-storage-miner /usr/local/bin/lsm
 
-ENV FULLNODE_API_INFO=:/ip4/127.0.0.1/tcp/1234/http
-ENV STORAGE_API_INFO=:/ip4/127.0.0.1/tcp/2345/http
+ENV FULLNODE_API_INFO="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJyZWFkIiwid3JpdGUiLCJzaWduIiwiYWRtaW4iXX0.UYhed-XqqHEfSBZ1_hrwPvB3VBX3N06dPCGcZqYXObM:/ip4/127.0.0.1/tcp/1234/http"
+ENV STORAGE_API_INFO="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJyZWFkIiwid3JpdGUiLCJzaWduIiwiYWRtaW4iXX0.UYhed-XqqHEfSBZ1_hrwPvB3VBX3N06dPCGcZqYXObM:/ip4/127.0.0.1/tcp/2345/http"
