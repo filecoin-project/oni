@@ -64,7 +64,7 @@ testground daemon
 3. Run a composition for the baseline deals end-to-end test case
 
 ```
-testground run composition -f _compositions/composition.toml
+testground run composition -f _compositions/baseline.toml
 ```
 
 ## Team composition
