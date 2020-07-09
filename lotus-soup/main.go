@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/filecoin-project/lotus/build"
+
 	"github.com/filecoin-project/oni/lotus-soup/paych"
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
 
@@ -12,6 +14,12 @@ var cases = map[string]interface{}{
 	"deals-stress-test": testkit.WrapTestEnvironment(dealStressTest),
 	"drand-halting":     testkit.WrapTestEnvironment(dealsE2E),
 	"paych-stress":      testkit.WrapTestEnvironment(paych.Stress),
+	"chain-recovery":    testkit.WrapTestEnvironment(chainRecovery),
+}
+
+func init() {
+	build.BlockDelaySecs = 2
+	build.PropagationDelaySecs = 4
 }
 
 func main() {
