@@ -101,6 +101,22 @@ make
 testground run composition -f ./lotus-soup/_compositions/composition.toml
 ```
 
+## Debugging
+
+Find commands and how-to guide on how to debug test plans at [DELVING.md](https://github.com/filecoin-project/oni/blob/master/DELVING.md)
+
+1. Querying the Lotus RPC API
+
+2. Useful commands / checks
+
+* Making sure miners are on the same chain
+
+* Checking deals
+
+* Sector queries
+
+* Sector sealing errors
+
 ## `lotus-soup` Docker images history
 
 ### oni-buildbase
