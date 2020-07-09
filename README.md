@@ -82,7 +82,20 @@ pushd docker-images
 testground plan import --from ./lotus-soup
 ```
 
-5. Run a composition for the baseline deals end-to-end test case
+5. Init the `filecoin-ffi` Git submodule in the `extra` folder.
+
+```
+git submodule init
+```
+
+6. Compile the `filecoin-ffi` version locally (necessary if you use `local:exec`)
+
+```
+cd extra/filecoin-ffi
+make
+```
+
+7. Run a composition for the baseline deals end-to-end test case
 
 ```
 testground run composition -f ./lotus-soup/_compositions/composition.toml
