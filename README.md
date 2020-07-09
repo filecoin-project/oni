@@ -52,7 +52,7 @@ Here are the basics of how to run the baseline deals end-to-end test case:
 
 ### Running the baseline deals end-to-end test case
 
-1. Install Testground
+1. Compile and Install Testground from source code from the [`oni`](https://github.com/testground/testground/pull/1083) branch.
 
 2. Run a Testground daemon
 
