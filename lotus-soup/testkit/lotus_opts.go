@@ -3,19 +3,12 @@ package testkit
 import (
 	"fmt"
 
-	"errors"
-
-	"github.com/filecoin-project/go-jsonrpc/auth"
-	"github.com/filecoin-project/lotus/api/apistruct"
-	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/config"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/filecoin-project/lotus/node/modules/lp2p"
 	"github.com/filecoin-project/lotus/node/repo"
-	"github.com/gbrlsnchs/jwt/v3"
-	"golang.org/x/xerrors"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -74,44 +67,5 @@ func withApiEndpoint(addr string) node.Option {
 			return err
 		}
 		return lr.SetAPIEndpoint(apima)
-	})
-}
-
-type jwtPayload struct {
-	Allow []auth.Permission
-}
-
-func withStaticAPISecret() node.Option {
-	return node.Override(new(*dtypes.APIAlg), func(keystore types.KeyStore, lr repo.LockedRepo) (*dtypes.APIAlg, error) {
-		key, err := keystore.Get(modules.JWTSecretName)
-
-		if errors.Is(err, types.ErrKeyInfoNotFound) {
-			key = types.KeyInfo{
-				Type:       "jwt-hmac-secret",
-				PrivateKey: staticPrivateKey,
-			}
-
-			if err := keystore.Put(modules.JWTSecretName, key); err != nil {
-				return nil, xerrors.Errorf("writing API secret: %w", err)
-			}
-
-			// TODO: make this configurable
-			p := jwtPayload{
-				Allow: apistruct.AllPermissions,
-			}
-
-			cliToken, err := jwt.Sign(&p, jwt.NewHS256(key.PrivateKey))
-			if err != nil {
-				return nil, err
-			}
-
-			if err := lr.SetAPIToken(cliToken); err != nil {
-				return nil, err
-			}
-		} else if err != nil {
-			return nil, xerrors.Errorf("could not get JWT Token: %w", err)
-		}
-
-		return (*dtypes.APIAlg)(jwt.NewHS256(key.PrivateKey)), nil
 	})
 }

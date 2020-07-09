@@ -176,7 +176,6 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		node.Online(),
 		node.Repo(nodeRepo),
 		withGenesis(genesisMsg.Genesis),
-		withStaticAPISecret(),
 		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
 		withListenAddress(minerIP),
 		withBootstrapper(genesisMsg.Bootstrapper),
@@ -199,7 +198,6 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		node.Online(),
 		node.Repo(minerRepo),
 		node.Override(new(api.FullNode), n.FullApi),
-		withStaticAPISecret(),
 		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("miner_rpc", "0"))),
 		withMinerListenAddress(minerIP),
 	}
@@ -438,7 +436,7 @@ func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi
 	mux := mux.NewRouter()
 
 	rpcServer := jsonrpc.NewServer()
-	rpcServer.Register("Filecoin", apistruct.PermissionedStorMinerAPI(minerApi))
+	rpcServer.Register("Filecoin", minerApi)
 
 	mux.Handle("/rpc/v0", rpcServer)
 	mux.PathPrefix("/remote").HandlerFunc(minerApi.(*impl.StorageMinerAPI).ServeRemote)
