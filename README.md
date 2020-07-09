@@ -61,10 +61,31 @@ Here are the basics of how to run the baseline deals end-to-end test case:
 testground daemon
 ```
 
-3. Run a composition for the baseline deals end-to-end test case
+3. Download required Docker images for the `lotus-soup` test plan
 
 ```
-testground run composition -f _compositions/composition.toml
+docker pull iptestground/oni-buildbase:v4
+docker pull iptestground/oni-runtime:v2
+```
+
+Alternatively you can build them locally from the `docker-images` directory
+
+```
+pushd docker-images
+./build-buildbase.sh v4
+./build-runtime.sh v2
+```
+
+4. Import the `lotus-soup` test plan into your Testground home directory
+
+```
+testground plan import --from ./lotus-soup
+```
+
+5. Run a composition for the baseline deals end-to-end test case
+
+```
+testground run composition -f ./lotus-soup/_compositions/composition.toml
 ```
 
 ## Team composition
