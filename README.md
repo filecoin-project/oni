@@ -112,6 +112,7 @@ testground run composition -f ./lotus-soup/_compositions/baseline.toml
 
 ### Compositions part of `lotus-soup`
 
+* `baseline-docker-5-1.toml` - describe composition
 * `baseline-k8s-10-3.toml` - describe composition
 * `baseline-k8s-3-1.toml` - describe composition
 * `baseline-k8s-3-2.toml` - describe composition
