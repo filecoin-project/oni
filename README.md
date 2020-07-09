@@ -71,7 +71,7 @@ docker pull iptestground/oni-runtime:v2
 Alternatively you can build them locally from the `docker-images` directory
 
 ```
-pushd docker-images
+cd docker-images
 ./build-buildbase.sh v4
 ./build-runtime.sh v2
 ```
@@ -100,6 +100,20 @@ make
 ```
 testground run composition -f ./lotus-soup/_compositions/composition.toml
 ```
+
+## `lotus-soup` Docker images history
+
+### oni-buildbase
+
+* `v1` => initial image locking in Filecoin FFI commit ca281af0b6c00314382a75ae869e5cb22c83655b.
+* `v2` => no changes; released only for aligning both images to aesthetically please @nonsense :D
+* `v3` => locking in Filecoin FFI commit 5342c7c97d1a1df4650629d14f2823d52889edd9.
+* `v4` => locking in FFI commit 6a143e06f923f3a4f544c7a652e8b4df420a3d28.
+
+### oni-runtime
+
+* `v1` => initial image with 2048 parameters.
+* `v2` => adds auxiliary tools: `net-tools netcat traceroute iputils-ping wget vim curl telnet iproute2 dnsutils`.
 
 ## Team composition
 
