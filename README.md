@@ -50,32 +50,6 @@ We've designed the test cases so that you can run them via the `local:exec`, `lo
 
 Here are the basics of how to run the baseline deals end-to-end test case:
 
-## Available test plans, test cases and compositions
-
-### Test cases
-
-* `lotus-soup/manifest.toml - deals-e2e` - describe test case
-* `lotus-soup/manifest.toml - drand-halting` - describe test case
-* `lotus-soup/manifest.toml - deals-stress-test` - describe test case
-* `lotus-soup/manifest.toml - paych-stress` - describe test case
-
-### Compositions
-
-* `lotus-soup/_compositions/baseline-k8s-10-3.toml` - describe composition
-* `lotus-soup/_compositions/baseline-k8s-3-1.toml` - describe composition
-* `lotus-soup/_compositions/baseline-k8s-3-2.toml` - describe composition
-* `lotus-soup/_compositions/baseline.toml` - describe composition
-* `lotus-soup/_compositions/deals-stress-test-concurrent-natural-k8s.toml` - describe composition
-* `lotus-soup/_compositions/deals-stress-test-concurrent-natural.toml` - describe composition
-* `lotus-soup/_compositions/deals-stress-test-concurrent.toml` - describe composition
-* `lotus-soup/_compositions/deals-stress-test-serial-natural.toml` - describe composition
-* `lotus-soup/_compositions/deals-stress-test-serial.toml` - describe composition
-* `lotus-soup/_compositions/drand-halt.toml` - describe composition
-* `lotus-soup/_compositions/local-drand.toml` - describe composition
-* `lotus-soup/_compositions/natural.toml` - describe composition
-* `lotus-soup/_compositions/paych-stress.toml` - describe composition
-* `lotus-soup/_compositions/pubsub-tracer.toml` - describe composition
-
 ### Running the baseline deals end-to-end test case
 
 1. Compile and Install Testground from source code from the [`oni`](https://github.com/testground/testground/pull/1083) branch.
@@ -90,8 +64,34 @@ testground daemon
 3. Run a composition for the baseline deals end-to-end test case
 
 ```
-testground run composition -f _compositions/baseline.toml
+testground run composition -f lotus-soup/_compositions/baseline.toml
 ```
+
+## Available test plans, test cases and compositions
+
+### Test cases part of `lotus-soup`
+
+* `deals-e2e` - describe test case
+* `drand-halting` - describe test case
+* `deals-stress-test` - describe test case
+* `paych-stress` - describe test case
+
+### Compositions part of `lotus-soup`
+
+* `baseline-k8s-10-3.toml` - describe composition
+* `baseline-k8s-3-1.toml` - describe composition
+* `baseline-k8s-3-2.toml` - describe composition
+* `baseline.toml` - describe composition
+* `deals-stress-test-concurrent-natural-k8s.toml` - describe composition
+* `deals-stress-test-concurrent-natural.toml` - describe composition
+* `deals-stress-test-concurrent.toml` - describe composition
+* `deals-stress-test-serial-natural.toml` - describe composition
+* `deals-stress-test-serial.toml` - describe composition
+* `drand-halt.toml` - describe composition
+* `local-drand.toml` - describe composition
+* `natural.toml` - describe composition
+* `paych-stress.toml` - describe composition
+* `pubsub-tracer.toml` - describe composition
 
 ## Team composition
 
