@@ -14,10 +14,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-var (
-	staticPrivateKey = []byte{9, 162, 18, 103, 226, 253, 122, 98, 170, 221, 129, 49, 89, 74, 187, 6, 54, 87, 56, 36, 249, 154, 254, 214, 210, 209, 0, 32, 196, 103, 171, 116}
-)
-
 func withGenesis(gb []byte) node.Option {
 	return node.Override(new(modules.Genesis), modules.LoadGenesis(gb))
 }
