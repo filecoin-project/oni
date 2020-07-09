@@ -42,11 +42,11 @@ The source code for the various test cases can be found in the [`lotus-soup` dir
 
 ## Running the test cases
 
-If you are unfamiliar with Testground, we strongly suggest you read the [Testground Getting Started guide](https://docs.testground.ai/getting-started) in order to learn how to install Testground and how to use it.
+If you are unfamiliar with Testground, we strongly suggest you read the Testground [Getting Started guide](https://docs.testground.ai/getting-started) in order to learn how to install Testground and how to use it.
 
 You can find various [composition files](https://docs.testground.ai/running-test-plans#composition-runs) describing various test scenarios built as part of Project Oni at [`lotus-soup/compositions` directory](https://github.com/filecoin-project/oni/tree/master/lotus-soup/compositions).
 
-We've designed the test cases so that you can run them via the `local:exec`, `local:docker` and the `cluster:k8s` runners.
+We've designed the test cases so that you can run them via the `local:exec`, `local:docker` and the `cluster:k8s` runners. Note that Lotus miners are quite resource intensive, requiring gigabytes of memory. Hence you would have to run these test cases on a beafy machine (when using `local:docker` and `local:exec`), or on a Kubernetes cluster (when using `cluster:k8s`).
 
 Here are the basics of how to run the baseline deals end-to-end test case:
 
