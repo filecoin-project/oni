@@ -436,7 +436,7 @@ func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi
 	mux := mux.NewRouter()
 
 	rpcServer := jsonrpc.NewServer()
-	rpcServer.Register("Filecoin", apistruct.PermissionedStorMinerAPI(minerApi))
+	rpcServer.Register("Filecoin", minerApi)
 
 	mux.Handle("/rpc/v0", rpcServer)
 	mux.PathPrefix("/remote").HandlerFunc(minerApi.(*impl.StorageMinerAPI).ServeRemote)
@@ -452,8 +452,10 @@ func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi
 	mux.Handle("/debug/metrics", exporter)
 
 	ah := &auth.Handler{
-		Verify: minerApi.AuthVerify,
-		Next:   mux.ServeHTTP,
+		Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
+			return apistruct.AllPermissions, nil
+		},
+		Next: mux.ServeHTTP,
 	}
 
 	endpoint, err := repo.APIEndpoint()
