@@ -6,6 +6,16 @@ Our mandate is:
 
 ➡️  Find out more about our goals, requirements, execution plan, and team culture, in our [Project Description](https://docs.google.com/document/d/16jYL--EWYpJhxT9bakYq7ZBGLQ9SB940Wd1lTDOAbNE).
 
+## Table of Contents
+
+- [Testing topics](#testing-topics)
+- [Repository contents](#repository-contents)
+- [Running the test cases](#running-the-test-cases)
+- [Catalog](#catalog)
+- [Debugging](#debugging)
+- [Docker images changelog](#docker-images-changelog)
+- [Team](#team)
+
 ## Testing topics
 
 These are the topics we are currently centering our testing efforts on. Our testing efforts include fault induction, stress tests, and end-to-end testing.
@@ -101,7 +111,7 @@ make
 testground run composition -f ./lotus-soup/_compositions/baseline.toml
 ```
 
-## Available test plans, test cases and compositions
+## Catalog
 
 ### Test cases part of `lotus-soup`
 
@@ -131,7 +141,7 @@ testground run composition -f ./lotus-soup/_compositions/baseline.toml
 
 ## Debugging
 
-Find commands and how-to guide on how to debug test plans at [DELVING.md](https://github.com/filecoin-project/oni/blob/master/DELVING.md)
+Find commands and how-to guides on debugging test plans at [DELVING.md](https://github.com/filecoin-project/oni/blob/master/DELVING.md)
 
 1. Querying the Lotus RPC API
 
@@ -145,7 +155,7 @@ Find commands and how-to guide on how to debug test plans at [DELVING.md](https:
 
 * Sector sealing errors
 
-## `lotus-soup` Docker images history
+## Docker images changelog
 
 ### oni-buildbase
 
@@ -160,7 +170,7 @@ Find commands and how-to guide on how to debug test plans at [DELVING.md](https:
 * `v2` => adds auxiliary tools: `net-tools netcat traceroute iputils-ping wget vim curl telnet iproute2 dnsutils`.
 
 
-## Team composition
+## Team
 
 * [@raulk](https://github.com/raulk) (Captain + TL)
 * [@nonsense](https://github.com/nonsense) (Testground TG + engineer)
