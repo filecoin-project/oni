@@ -111,7 +111,13 @@ func dealsStress(t *testkit.TestEnvironment) error {
 				defer wg2.Done()
 				t.RecordMessage("retrieving data for deal %d", i)
 				t1 := time.Now()
-				testkit.RetrieveData(t, ctx, client, cids[i], true, data[i])
+				info, err := client.ClientGetDealInfo(ctx, *deals[i])
+				if err != nil {
+					panic(err)
+				}
+
+				testkit.RetrieveData(t, ctx, client, cids[i], &info.PieceCID, true, data[i])
+
 				t.RecordMessage("retrieved data for deal %d", i)
 				t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
 			}(i)

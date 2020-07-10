@@ -1,4 +1,4 @@
-package main
+package rfwp
 
 import (
 	"context"
@@ -9,47 +9,90 @@ import (
 	"time"
 
 	"github.com/filecoin-project/lotus/api"
-
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
 )
 
-// This is the baseline test; Filecoin 101.
-//
-// A network with a bootstrapper, a number of miners, and a number of clients/full nodes
-// is constructed and connected through the bootstrapper.
-// Some funds are allocated to each node and a number of sectors are presealed in the genesis block.
-//
-// The test plan:
-// One or more clients store content to one or more miners, testing storage deals.
-// The plan ensures that the storage deals hit the blockchain and measure the time it took.
-// Verification: one or more clients retrieve and verify the hashes of stored content.
-// The plan ensures that all (previously) published content can be correctly retrieved
-// and measures the time it took.
-//
-// Preparation of the genesis block: this is the responsibility of the bootstrapper.
-// In order to compute the genesis block, we need to collect identities and presealed
-// sectors from each node.
-// Then we create a genesis block that allocates some funds to each node and collects
-// the presealed sectors.
-func dealsE2E(t *testkit.TestEnvironment) error {
-	// Dispatch/forward non-client roles to defaults.
-	if t.Role != "client" {
+func RecoveryFromFailedWindowedPoStE2E(t *testkit.TestEnvironment) error {
+	switch t.Role {
+	case "bootstrapper":
 		return testkit.HandleDefaultRole(t)
+	case "client":
+		return handleClient(t)
+	case "miner":
+		return handleMiner(t)
+	case "miner-biserk":
+		return handleMinerBiserk(t)
 	}
 
-	// This is a client role
-	t.RecordMessage("running client")
+	return fmt.Errorf("unknown role: %s", t.Role)
+}
 
-	cl, err := testkit.PrepareClient(t)
+func handleMiner(t *testkit.TestEnvironment) error {
+	m, err := testkit.PrepareMiner(t)
 	if err != nil {
 		return err
 	}
 
 	ctx := context.Background()
+	myActorAddr, err := m.MinerApi.ActorAddress(ctx)
+	if err != nil {
+		return err
+	}
+
+	t.RecordMessage("running miner: %s", myActorAddr)
+
+	time.Sleep(3600 * time.Second)
+
+	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
+	return nil
+}
+
+func handleMinerBiserk(t *testkit.TestEnvironment) error {
+	m, err := testkit.PrepareMiner(t)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	myActorAddr, err := m.MinerApi.ActorAddress(ctx)
+	if err != nil {
+		return err
+	}
+
+	t.RecordMessage("running biserk miner: %s", myActorAddr)
+
+	time.Sleep(180 * time.Second)
+
+	t.RecordMessage("shutting down biserk miner: %s", myActorAddr)
+
+	err = m.StopFn(ctx)
+	if err != nil {
+		return err
+	}
+
+	t.RecordMessage("shutdown biserk miner: %s", myActorAddr)
+
+	time.Sleep(3600 * time.Second)
+
+	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
+	return nil
+}
+
+func handleClient(t *testkit.TestEnvironment) error {
+	cl, err := testkit.PrepareClient(t)
+	if err != nil {
+		return err
+	}
+
+	// This is a client role
+	t.RecordMessage("running client")
+
+	ctx := context.Background()
 	client := cl.FullApi
 
-	// select a random miner
-	minerAddr := cl.MinerAddrs[rand.Intn(len(cl.MinerAddrs))]
+	// select a miner based on our GroupSeq (client 1 -> miner 1 ; client 2 -> miner 2)
+	// this assumes that all miner instances receive the same sorted MinerAddrs slice
+	minerAddr := cl.MinerAddrs[t.InitContext.GroupSeq-1]
 	if err := client.NetConnect(ctx, minerAddr.MinerNetAddrs); err != nil {
 		return err
 	}
@@ -59,8 +102,8 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 
 	time.Sleep(2 * time.Second)
 
-	// generate 1600 bytes of random data
-	data := make([]byte, 1600)
+	// generate 1800 bytes of random data
+	data := make([]byte, 1800)
 	rand.New(rand.NewSource(time.Now().UnixNano())).Read(data)
 
 	file, err := ioutil.TempFile("/tmp", "data")
@@ -92,6 +135,10 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 	testkit.WaitDealSealed(t, ctx, client, deal)
 	t.D().ResettingHistogram("deal.sealed").Update(int64(time.Since(t1)))
 
+	t.SyncClient.MustSignalEntry(ctx, testkit.StateStopMining)
+
+	time.Sleep(180 * time.Second)
+
 	carExport := true
 
 	t.RecordMessage("trying to retrieve %s", fcid)
@@ -102,8 +149,6 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 
 	testkit.RetrieveData(t, ctx, client, fcid.Root, &info.PieceCID, carExport, data)
 	t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
-
-	t.SyncClient.MustSignalEntry(ctx, testkit.StateStopMining)
 
 	time.Sleep(10 * time.Second) // wait for metrics to be emitted
 

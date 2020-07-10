@@ -13,7 +13,7 @@ COPY /proof-parameters.json /
 RUN paramfetch 2048 /proof-parameters.json
 
 ## for debug purposes
-RUN apt update && apt install -y mesa-opencl-icd ocl-icd-opencl-dev gcc git bzr jq pkg-config curl && git clone https://github.com/filecoin-project/lotus.git && cd lotus/ && git checkout next && make clean && make all && make install
+RUN apt update && apt install -y mesa-opencl-icd ocl-icd-opencl-dev gcc git bzr jq pkg-config curl && git clone https://github.com/filecoin-project/lotus.git && cd lotus/ && git checkout 7c73dbf && make clean && make all && make install
 
 FROM ubuntu:18.04
 
