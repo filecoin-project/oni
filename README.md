@@ -105,28 +105,28 @@ testground run composition -f ./lotus-soup/_compositions/baseline.toml
 
 ### Test cases part of `lotus-soup`
 
-* `deals-e2e` - describe test case
-* `drand-halting` - describe test case
-* `deals-stress-test` - describe test case
-* `paych-stress` - describe test case
+* `deals-e2e` - Deals end-to-end test case. Clients pick a miner at random, start a deal, wait for it to be sealed, and try to retrieve from another random miner who offers back the data.
+* `drand-halting` - Test case that instructs Drand with a sequence of halt/resume/wait events, while running deals between clients and miners at the same time.
+* `deals-stress` - Deals stress test case. Clients pick a miner and send multiple deals (concurrently or serially) in order to test how many deals miners can handle.
+* `paych-stress` - A test case exercising various payment channel stress tests.
 
 ### Compositions part of `lotus-soup`
 
-* `baseline-docker-5-1.toml` - describe composition
-* `baseline-k8s-10-3.toml` - describe composition
-* `baseline-k8s-3-1.toml` - describe composition
-* `baseline-k8s-3-2.toml` - describe composition
-* `baseline.toml` - describe composition
-* `deals-stress-test-concurrent-natural-k8s.toml` - describe composition
-* `deals-stress-test-concurrent-natural.toml` - describe composition
-* `deals-stress-test-concurrent.toml` - describe composition
-* `deals-stress-test-serial-natural.toml` - describe composition
-* `deals-stress-test-serial.toml` - describe composition
-* `drand-halt.toml` - describe composition
-* `local-drand.toml` - describe composition
-* `natural.toml` - describe composition
-* `paych-stress.toml` - describe composition
-* `pubsub-tracer.toml` - describe composition
+* `baseline-docker-5-1.toml` - Runs a `baseline` test (deals e2e test) with a network of 5 clients and 1 miner targeting `local:docker`
+* `baseline-k8s-10-3.toml` - Runs a `baseline` test (deals e2e test) with a network of 10 clients and 3 miner targeting `cluster:k8s`
+* `baseline-k8s-3-1.toml` - Runs a `baseline` test (deals e2e test) with a network of 3 clients and 1 miner targeting `cluster:k8s`
+* `baseline-k8s-3-2.toml` - Runs a `baseline` test (deals e2e test) with a network of 3 clients and 2 miner targeting `cluster:k8s`
+* `baseline.toml` - Runs a `baseline` test (deals e2e test) with a network of 3 clients and 2 miner targeting `local:exec`
+* `deals-stress-concurrent-natural-k8s.toml`
+* `deals-stress-concurrent-natural.toml`
+* `deals-stress-concurrent.toml`
+* `deals-stress-serial-natural.toml`
+* `deals-stress-serial.toml`
+* `drand-halt.toml`
+* `local-drand.toml`
+* `natural.toml`
+* `paych-stress.toml`
+* `pubsub-tracer.toml`
 
 
 ## Debugging
