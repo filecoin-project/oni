@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	build.BlockDelaySecs = 2
+	build.BlockDelaySecs = 1
 	build.PropagationDelaySecs = 1
 
 	_ = log.SetLogLevel("*", "WARN")

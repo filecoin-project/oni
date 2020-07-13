@@ -41,6 +41,8 @@ func handleMiner(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("running miner: %s", myActorAddr)
 
+	go ChainState(t, m)
+
 	time.Sleep(3600 * time.Second)
 
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
@@ -60,6 +62,8 @@ func handleMinerBiserk(t *testkit.TestEnvironment) error {
 	}
 
 	t.RecordMessage("running biserk miner: %s", myActorAddr)
+
+	go ChainState(t, m)
 
 	time.Sleep(180 * time.Second)
 
