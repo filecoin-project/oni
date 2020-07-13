@@ -15,7 +15,7 @@ func ApplyNetworkParameters(t *TestEnvironment) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	ls := network.LinkShape{}

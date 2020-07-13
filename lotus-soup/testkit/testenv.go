@@ -95,7 +95,7 @@ type DurationRange struct {
 }
 
 func (r *DurationRange) ChooseRandom() time.Duration {
-	i := int64(r.Min) + rand.Int63n(int64(r.Max) - int64(r.Min))
+	i := int64(r.Min) + rand.Int63n(int64(r.Max)-int64(r.Min))
 	return time.Duration(i)
 }
 
@@ -126,7 +126,7 @@ type FloatRange struct {
 }
 
 func (r *FloatRange) ChooseRandom() float32 {
-	return r.Min + rand.Float32() * (r.Max - r.Min)
+	return r.Min + rand.Float32()*(r.Max-r.Min)
 }
 
 func (r *FloatRange) UnmarshalJSON(b []byte) error {
