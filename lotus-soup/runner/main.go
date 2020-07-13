@@ -13,14 +13,14 @@ import (
 )
 
 type jobDefinition struct {
-	runNumber int
+	runNumber       int
 	compositionPath string
-	outputDir string
-	skipStdout bool
+	outputDir       string
+	skipStdout      bool
 }
 
 type jobResult struct {
-	job jobDefinition
+	job      jobDefinition
 	runError error
 }
 
@@ -103,7 +103,6 @@ func main() {
 		go worker(w, jobs, results)
 	}
 
-
 	for j := 1; j <= *runs; j++ {
 		dir := path.Join(outdir, fmt.Sprintf("run-%d", j))
 		skipStdout := *parallelism != 1
@@ -112,7 +111,7 @@ func main() {
 	close(jobs)
 
 	for i := 0; i < *runs; i++ {
-		r := <- results
+		r := <-results
 		if r.runError != nil {
 			log.Printf("error running job %d: %s", r.job.runNumber, r.runError)
 		}
