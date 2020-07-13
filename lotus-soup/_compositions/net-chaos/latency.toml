@@ -5,7 +5,7 @@
 [global]
   plan = "lotus-soup"
   case = "deals-e2e"
-  total_instances = 6
+  total_instances = 7
   builder = "docker:go"
   runner = "local:docker"
 
@@ -19,11 +19,11 @@
   enable_go_build_cache = true
 
 [global.run.test_params]
-  clients = "3"
-  miners = "2"
+  clients = "5"
+  miners = "1"
   genesis_timestamp_offset = "0"
-  balance = "20000000.5" # These balances will work for maximum 100 nodes, as TotalFilecoin is 2B
-  sectors = "10"
+  balance = "20000000" # These balances will work for maximum 100 nodes, as TotalFilecoin is 2B
+  sectors = "5"
   random_beacon_type = "mock"
   mining_mode = "natural"
 
@@ -39,17 +39,19 @@
 [[groups]]
   id = "miners"
   [groups.instances]
-    count = 2
+    count = 1
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
       role = "miner"
+      latency_range = '["20ms", "300ms"]'
 
 [[groups]]
   id = "clients"
   [groups.instances]
-    count = 3
+    count = 5
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
       role = "client"
+      latency_range = '["100ms", "1500ms"]'
