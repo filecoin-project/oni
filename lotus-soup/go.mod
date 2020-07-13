@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/codeskyblue/go-sh v0.0.0-20200712050446-30169cf553fe
 	github.com/davecgh/go-spew v1.1.1
 	github.com/drand/drand v0.9.2-0.20200616080806-a94e9c1636a4
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
