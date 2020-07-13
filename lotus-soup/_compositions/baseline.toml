@@ -6,8 +6,8 @@
   plan = "lotus-soup"
   case = "deals-e2e"
   total_instances = 6
-  builder = "exec:go"
-  runner = "local:exec"
+  builder = "docker:go"
+  runner = "local:docker"
 
 [global.build]
   selectors = ["testground"]
@@ -44,6 +44,7 @@
   [groups.run]
     [groups.run.test_params]
       role = "miner"
+      latency_range = '["20ms", "500ms"]'
 
 [[groups]]
   id = "clients"

@@ -2,12 +2,14 @@ package testkit
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-
+	"github.com/testground/sdk-go/ptypes"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
@@ -32,6 +34,18 @@ func (t *TestEnvironment) DurationParam(name string) time.Duration {
 	return d
 }
 
+func (t *TestEnvironment) DurationRangeParam(name string) DurationRange {
+	var r DurationRange
+	t.JSONParam(name, &r)
+	return r
+}
+
+func (t *TestEnvironment) FloatRangeParam(name string) FloatRange {
+	r := FloatRange{}
+	t.JSONParam(name, &r)
+	return r
+}
+
 func (t *TestEnvironment) DebugSpew(format string, args ...interface{}) {
 	t.RecordMessage(spew.Sprintf(format, args...))
 }
@@ -51,4 +65,67 @@ func WrapTestEnvironment(f func(t *TestEnvironment) error) run.InitializedTestCa
 		t.Role = t.StringParam("role")
 		return f(t)
 	}
+}
+
+// parameter types (TODO: move somewhere sensible)
+
+type DurationRange struct {
+	Min time.Duration
+	Max time.Duration
+}
+
+func (r *DurationRange) ChooseRandom() time.Duration {
+	i := int64(r.Min) + rand.Int63n(int64(r.Max) - int64(r.Min))
+	return time.Duration(i)
+}
+
+func (r *DurationRange) UnmarshalJSON(b []byte) error {
+	var s []ptypes.Duration
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	if len(s) != 2 {
+		return fmt.Errorf("expected two-element array of duration strings, got array of length %d", len(s))
+	}
+	if s[0].Duration > s[1].Duration {
+		return fmt.Errorf("expected first element to be <= second element")
+	}
+	r.Min = s[0].Duration
+	r.Max = s[1].Duration
+	return nil
+}
+
+func (r *DurationRange) MarshalJSON() ([]byte, error) {
+	s := []ptypes.Duration{{r.Min}, {r.Max}}
+	return json.Marshal(s)
+}
+
+type FloatRange struct {
+	Min float32
+	Max float32
+}
+
+func (r *FloatRange) ChooseRandom() float32 {
+	return r.Min + rand.Float32() * (r.Max - r.Min)
+}
+
+func (r *FloatRange) UnmarshalJSON(b []byte) error {
+	var s []float32
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	if len(s) != 2 {
+		return fmt.Errorf("expected two-element array of floats, got array of length %d", len(s))
+	}
+	if s[0] > s[1] {
+		return fmt.Errorf("expected first element to be <= second element")
+	}
+	r.Min = s[0]
+	r.Max = s[1]
+	return nil
+}
+
+func (r *FloatRange) MarshalJSON() ([]byte, error) {
+	s := []float32{r.Min, r.Max}
+	return json.Marshal(s)
 }
