@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -63,7 +62,7 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 
 		snapshot := ChainSnapshot{
 			Height:      tipset.Height(),
-			MinerStates: make(map[address.Address]*MinerStateSnapshot),
+			MinerStates: make(map[string]*MinerStateSnapshot),
 		}
 
 		for _, maddr := range maddrs {
@@ -110,14 +109,14 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 				}
 				writeText(w, sectorInfo)
 
-				snapshot.MinerStates[maddr] = &MinerStateSnapshot{
+				snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
 					Info:        minerInfo,
 					Faults:      faultState,
 					ProvingInfo: provState,
 					Deadlines:   deadlines,
 					Sectors:     sectorInfo,
 				}
-				
+
 				return jsonEncoder.Encode(snapshot)
 			}()
 			if err != nil {
@@ -132,7 +131,7 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 type ChainSnapshot struct {
 	Height abi.ChainEpoch
 
-	MinerStates map[address.Address]*MinerStateSnapshot
+	MinerStates map[string]*MinerStateSnapshot
 }
 
 type MinerStateSnapshot struct {
@@ -144,12 +143,19 @@ type MinerStateSnapshot struct {
 }
 
 // writeText marshals m to text and writes to w, swallowing any errors along the way.
-func writeText(w io.Writer, m encoding.TextMarshaler) {
-	b, err := m.MarshalText()
+func writeText(w io.Writer, m plainTextMarshaler) {
+	b, err := m.MarshalPlainText()
 	if err == nil {
 		return
 	}
 	_, _ = w.Write(b)
+}
+
+// if we make our structs `encoding.TextMarshaler`s, they all get stringified when marshaling to JSON
+// instead of just using the default struct marshaler.
+// so here's encoding.TextMarshaler with a different name, so that doesn't happen.
+type plainTextMarshaler interface {
+	MarshalPlainText() ([]byte, error)
 }
 
 type ProvingFaultState struct {
@@ -158,7 +164,7 @@ type ProvingFaultState struct {
 	FaultedSectors map[int][]uint64
 }
 
-func (s *ProvingFaultState) MarshalText() ([]byte, error) {
+func (s *ProvingFaultState) MarshalPlainText() ([]byte, error) {
 	w := &bytes.Buffer{}
 
 	if len(s.FaultedSectors) == 0 {
@@ -250,7 +256,7 @@ type ProvingInfoState struct {
 	WPoStProvingPeriod abi.ChainEpoch
 }
 
-func (s *ProvingInfoState) MarshalText() ([]byte, error) {
+func (s *ProvingInfoState) MarshalPlainText() ([]byte, error) {
 	w := &bytes.Buffer{}
 	fmt.Fprintf(w, "Current Epoch:           %d\n", s.CurrentEpoch)
 	fmt.Fprintf(w, "Chain Period:            %d\n", s.CurrentEpoch/s.WPoStProvingPeriod)
@@ -389,7 +395,7 @@ type DeadlineInfo struct {
 	Current bool
 }
 
-func (d *ProvingDeadlines) MarshalText() ([]byte, error) {
+func (d *ProvingDeadlines) MarshalPlainText() ([]byte, error) {
 	w := new(bytes.Buffer)
 	tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
 	_, _ = fmt.Fprintln(tw, "deadline\tsectors\tpartitions\tproven")
@@ -503,7 +509,7 @@ type SectorInfo struct {
 	Proving []abi.SectorNumber
 }
 
-func (i *SectorInfo) MarshalText() ([]byte, error) {
+func (i *SectorInfo) MarshalPlainText() ([]byte, error) {
 	provingIDs := make(map[abi.SectorNumber]struct{}, len(i.Proving))
 	for _, id := range i.Proving {
 		provingIDs[id] = struct{}{}
@@ -616,7 +622,7 @@ type MinerInfo struct {
 	SectorStateCounts map[sealing.SectorState]int
 }
 
-func (i *MinerInfo) MarshalText() ([]byte, error) {
+func (i *MinerInfo) MarshalPlainText() ([]byte, error) {
 	w := new(bytes.Buffer)
 	fmt.Fprintf(w, "Miner: %s\n", i.MinerAddr)
 	fmt.Fprintf(w, "Sector Size: %s\n", i.SectorSize)
@@ -637,7 +643,7 @@ func (i *MinerInfo) MarshalText() ([]byte, error) {
 
 	fmt.Fprintf(w, "\tCommitted: %s\n", types.SizeStr(i.CommittedBytes))
 
-	if i.FaultyBytes.IsZero() {
+	if i.FaultyBytes.Int == nil || i.FaultyBytes.IsZero() {
 		fmt.Fprintf(w, "\tProving: %s\n", types.SizeStr(i.ProvingBytes))
 	} else {
 		fmt.Fprintf(w, "\tProving: %s (%s Faulty, %.2f%%)\n",
