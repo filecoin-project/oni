@@ -14,6 +14,7 @@ import (
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/repo"
+	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 )
 
@@ -60,7 +61,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 	nodeRepo := repo.NewMemory(nil)
 
 	// create the node
-	n := &LotusNode{}
+	n := &LotusNode{t: t}
 	stop, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
 		node.Online(),
@@ -113,7 +114,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 
 	// densely connect the client to the full node and the miners themselves.
 	for _, miner := range addrs {
-		if err := n.FullApi.NetConnect(ctx, miner.FullNetAddrs); err != nil {
+		if err := n.FullApi.NetConnect(ctx, miner.WorkerNetAddrs); err != nil {
 			return nil, fmt.Errorf("client failed to connect to full node of miner: %w", err)
 		}
 		if err := n.FullApi.NetConnect(ctx, miner.MinerNetAddrs); err != nil {
@@ -140,6 +141,25 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 }
 
 func (c *LotusClient) RunDefault() error {
+	// if we're running in synchronized mining, enroll this client
+	// in the global clock.
+	if c.t.StringParam("mining_mode") == "synchronized" {
+		gen, err := c.FullApi.ChainGetGenesis(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to get genesis: %w", err)
+		}
+
+		var (
+			genTime = time.Unix(int64(gen.MinTimestamp()), 0)
+			loopCh  = make(chan abi.ChainEpoch, 128)
+		)
+
+		c.SynchronizeClock(context.Background(), genTime, loopCh, loopCh)
+
+		// jumpstart the clock!
+		loopCh <- abi.ChainEpoch(1)
+	}
+
 	// run forever
 	c.t.RecordMessage("running default client forever")
 	c.t.WaitUntilAllDone()

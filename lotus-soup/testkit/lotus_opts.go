@@ -3,12 +3,16 @@ package testkit
 import (
 	"fmt"
 
+	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/config"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/filecoin-project/lotus/node/modules/lp2p"
 	"github.com/filecoin-project/lotus/node/repo"
+	"github.com/filecoin-project/specs-actors/actors/runtime"
+	"github.com/prometheus/common/log"
+	"go.uber.org/fx"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -63,5 +67,17 @@ func withApiEndpoint(addr string) node.Option {
 			return err
 		}
 		return lr.SetAPIEndpoint(apima)
+	})
+}
+
+// withChainStore takes a double pointer to a ChainStore, creates a new
+// ChainStore, and sets it under the pointer.
+func withChainStore(cs **store.ChainStore) node.Option {
+	return node.Override(new(*store.ChainStore), func(_ fx.Lifecycle, bs dtypes.ChainBlockstore, ds dtypes.MetadataDS, syscalls runtime.Syscalls) *store.ChainStore {
+		*cs = store.NewChainStore(bs, ds, syscalls)
+		if err := (*cs).Load(); err != nil {
+			log.Warnf("loading chain state from disk: %s", err)
+		}
+		return *cs
 	})
 }

@@ -10,9 +10,10 @@ require (
 	github.com/filecoin-project/go-fil-markets v0.4.0
 	github.com/filecoin-project/go-jsonrpc v0.1.1-0.20200602181149-522144ab4e24
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
-	github.com/filecoin-project/lotus v0.4.2-0.20200708212122-7d841dbfa81c
+	github.com/filecoin-project/lotus v0.4.2-0.20200713102953-973dbd6a1371
 	github.com/filecoin-project/specs-actors v0.7.1
 	github.com/gorilla/mux v1.7.4
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/influxdata/influxdb v1.8.0 // indirect
 	github.com/ipfs/go-cid v0.0.6
 	github.com/ipfs/go-datastore v0.4.4
@@ -28,8 +29,11 @@ require (
 	github.com/libp2p/go-libp2p-pubsub-tracer v0.0.0-20200626141350-e730b32bf1e6
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/multiformats/go-multiaddr-net v0.1.5
+	github.com/prometheus/common v0.10.0
+	github.com/raulk/clock v1.1.0
 	github.com/testground/sdk-go v0.2.3-0.20200706132230-6a65ddac2d8c
 	go.opencensus.io v0.22.4
+	go.uber.org/fx v1.9.0
 )
 
 // This will work in all build modes: docker:go, exec:go, and local go build.

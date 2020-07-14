@@ -8,14 +8,17 @@ import (
 	"sort"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/beacon"
+	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/metrics"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	modtest "github.com/filecoin-project/lotus/node/modules/testing"
 	tstats "github.com/filecoin-project/lotus/tools/stats"
+	"github.com/raulk/clock"
 
 	"github.com/kpacha/opencensus-influxdb"
 	ma "github.com/multiformats/go-multiaddr"
@@ -27,11 +30,16 @@ import (
 var PrepareNodeTimeout = time.Minute
 
 type LotusNode struct {
-	FullApi  api.FullNode
-	MinerApi api.StorageMiner
-	StopFn   node.StopFunc
-	Wallet   *wallet.Key
-	MineOne  func(context.Context, func(bool, error)) error
+	t *TestEnvironment
+
+	FullApi    api.FullNode
+	MinerApi   api.StorageMiner
+	Addresses  []address.Address // clients have only one; miners have two addresses (worker, miner)
+	StopFn     node.StopFunc
+	ChainStore *store.ChainStore
+	Wallet     *wallet.Key
+	MockClock  *clock.Mock
+	MineOne    func(context.Context, func(bool, error)) error
 }
 
 func (n *LotusNode) setWallet(ctx context.Context, walletKey *wallet.Key) error {

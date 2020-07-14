@@ -36,8 +36,9 @@ type PresealMsg struct {
 }
 
 type GenesisMsg struct {
-	Genesis      []byte
-	Bootstrapper []byte
+	Genesis       []byte
+	Bootstrapper  []byte
+	TimestampUnix uint64
 }
 
 type ClientAddressesMsg struct {
@@ -46,7 +47,7 @@ type ClientAddressesMsg struct {
 }
 
 type MinerAddressesMsg struct {
-	FullNetAddrs   peer.AddrInfo
+	WorkerNetAddrs peer.AddrInfo
 	MinerNetAddrs  peer.AddrInfo
 	MinerActorAddr address.Address
 }
