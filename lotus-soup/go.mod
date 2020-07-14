@@ -13,6 +13,7 @@ require (
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
 	github.com/filecoin-project/lotus v0.4.2-0.20200713113510-a77891780614
 	github.com/filecoin-project/specs-actors v0.7.3-0.20200713154918-038c676692ce
+	github.com/filecoin-project/storage-fsm v0.0.0-20200712045002-6e92d6a6f080
 	github.com/gorilla/mux v1.7.4
 	github.com/influxdata/influxdb v1.8.0 // indirect
 	github.com/ipfs/go-cid v0.0.6

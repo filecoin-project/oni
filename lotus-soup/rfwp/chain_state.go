@@ -5,20 +5,26 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"text/tabwriter"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/lib/adtutil"
 
 	"github.com/filecoin-project/go-bitfield"
+	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/apibstore"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
+
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/actors/builtin/power"
+	sealing "github.com/filecoin-project/storage-fsm"
 
 	rlepluslazy "github.com/filecoin-project/go-bitfield/rle"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -31,48 +37,54 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 	headlag := 3
 
 	ctx := context.Background()
-	api := m.FullApi
-	tipsetsCh, err := tstats.GetTips(ctx, api, abi.ChainEpoch(height), headlag)
+
+	tipsetsCh, err := tstats.GetTips(ctx, m.FullApi, abi.ChainEpoch(height), headlag)
 	if err != nil {
 		return err
 	}
 
 	for tipset := range tipsetsCh {
-		err := func() error {
-			err := faults(t, m, tipset.Height())
-			if err != nil {
-				return err
-			}
-
-			err = info(t, m, tipset.Height())
-			if err != nil {
-				return err
-			}
-
-			err = deadlines(t, m, tipset.Height())
-			if err != nil {
-				return err
-			}
-
-			err = sectors(t, m, tipset.Height())
-			if err != nil {
-				return err
-			}
-			return nil
-		}()
+		maddrs, err := m.FullApi.StateListMiners(ctx, tipset.Key())
 		if err != nil {
 			return err
+		}
+
+		for _, maddr := range maddrs {
+			err := info(t, m, maddr, tipset.Height())
+			if err != nil {
+				return err
+			}
+
+			err = provingFaults(t, m, maddr, tipset.Height())
+			if err != nil {
+				return err
+			}
+
+			err = provingInfo(t, m, maddr, tipset.Height())
+			if err != nil {
+				return err
+			}
+
+			err = provingDeadlines(t, m, maddr, tipset.Height())
+			if err != nil {
+				return err
+			}
+
+			err = sectorsList(t, m, maddr, tipset.Height())
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func faults(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.ChainEpoch) error {
+func provingFaults(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
 
-	filename := fmt.Sprintf("%s%cchain-state-%d-%d-faults", t.TestOutputsPath, os.PathSeparator, t.GlobalSeq, height)
+	filename := fmt.Sprintf("%s%cchain-state-%s-%d-faults", t.TestOutputsPath, os.PathSeparator, maddr, height)
 
 	f, err := os.Create(filename)
 	if err != nil {
@@ -82,11 +94,6 @@ func faults(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.ChainE
 
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-
-	maddr, err := m.MinerApi.ActorAddress(ctx)
-	if err != nil {
-		return err
-	}
 
 	var mas miner.State
 	{
@@ -134,11 +141,11 @@ func faults(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.ChainE
 	return nil
 }
 
-func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.ChainEpoch) error {
+func provingInfo(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
 
-	filename := fmt.Sprintf("%s%cchain-state-%d-%d-info", t.TestOutputsPath, os.PathSeparator, t.GlobalSeq, height)
+	filename := fmt.Sprintf("%s%cchain-state-%s-%d-proving-info", t.TestOutputsPath, os.PathSeparator, maddr, height)
 
 	f, err := os.Create(filename)
 	if err != nil {
@@ -148,11 +155,6 @@ func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.ChainEpo
 
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-
-	maddr, err := m.MinerApi.ActorAddress(ctx)
-	if err != nil {
-		return err
-	}
 
 	head, err := api.ChainHead(ctx)
 	if err != nil {
@@ -256,11 +258,11 @@ func epochTime(curr, e abi.ChainEpoch) string {
 	panic("math broke")
 }
 
-func deadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.ChainEpoch) error {
+func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
 
-	filename := fmt.Sprintf("%s%cchain-state-%d-%d-deadlines", t.TestOutputsPath, os.PathSeparator, t.GlobalSeq, height)
+	filename := fmt.Sprintf("%s%cchain-state-%s-%d-deadlines", t.TestOutputsPath, os.PathSeparator, maddr, height)
 
 	f, err := os.Create(filename)
 	if err != nil {
@@ -270,11 +272,6 @@ func deadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.Cha
 
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-
-	maddr, err := m.MinerApi.ActorAddress(ctx)
-	if err != nil {
-		return err
-	}
 
 	deadlines, err := api.StateMinerDeadlines(ctx, maddr, types.EmptyTSK)
 	if err != nil {
@@ -363,11 +360,11 @@ func deadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.Cha
 	return tw.Flush()
 }
 
-func sectors(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.ChainEpoch) error {
+func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
 
-	filename := fmt.Sprintf("%s%cchain-state-%d-%d-sectors", t.TestOutputsPath, os.PathSeparator, t.GlobalSeq, height)
+	filename := fmt.Sprintf("%s%cchain-state-%s-%d-sectors", t.TestOutputsPath, os.PathSeparator, maddr, height)
 
 	f, err := os.Create(filename)
 	if err != nil {
@@ -377,11 +374,6 @@ func sectors(t *testkit.TestEnvironment, m *testkit.LotusMiner, height abi.Chain
 
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-
-	maddr, err := m.MinerApi.ActorAddress(ctx)
-	if err != nil {
-		return err
-	}
 
 	list, err := m.MinerApi.SectorsList(ctx)
 	if err != nil {
@@ -441,4 +433,210 @@ func yesno(b bool) string {
 		return "YES"
 	}
 	return "NO"
+}
+
+func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
+	api := m.FullApi
+	ctx := context.Background()
+
+	filename := fmt.Sprintf("%s%cchain-state-%s-%d-info", t.TestOutputsPath, os.PathSeparator, maddr, height)
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+	defer w.Flush()
+
+	mact, err := api.StateGetActor(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return err
+	}
+	var mas miner.State
+	{
+		rmas, err := api.ChainReadObj(ctx, mact.Head)
+		if err != nil {
+			return err
+		}
+		if err := mas.UnmarshalCBOR(bytes.NewReader(rmas)); err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintf(w, "Miner: %s\n", maddr)
+
+	// Sector size
+	mi, err := api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(w, "Sector Size: %s\n", types.SizeStr(types.NewInt(uint64(mi.SectorSize))))
+
+	pow, err := api.StateMinerPower(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return err
+	}
+
+	rpercI := types.BigDiv(types.BigMul(pow.MinerPower.RawBytePower, types.NewInt(1000000)), pow.TotalPower.RawBytePower)
+	qpercI := types.BigDiv(types.BigMul(pow.MinerPower.QualityAdjPower, types.NewInt(1000000)), pow.TotalPower.QualityAdjPower)
+
+	fmt.Fprintf(w, "Byte Power:   %s / %s (%0.4f%%)\n",
+		types.SizeStr(pow.MinerPower.RawBytePower),
+		types.SizeStr(pow.TotalPower.RawBytePower),
+		float64(rpercI.Int64())/10000)
+
+	fmt.Fprintf(w, "Actual Power: %s / %s (%0.4f%%)\n",
+		types.DeciStr(pow.MinerPower.QualityAdjPower),
+		types.DeciStr(pow.TotalPower.QualityAdjPower),
+		float64(qpercI.Int64())/10000)
+
+	secCounts, err := api.StateMinerSectorCount(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return err
+	}
+	faults, err := api.StateMinerFaults(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return err
+	}
+
+	nfaults, err := faults.Count()
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(w, "\tCommitted: %s\n", types.SizeStr(types.BigMul(types.NewInt(secCounts.Sset), types.NewInt(uint64(mi.SectorSize)))))
+	if nfaults == 0 {
+		fmt.Fprintf(w, "\tProving: %s\n", types.SizeStr(types.BigMul(types.NewInt(secCounts.Pset), types.NewInt(uint64(mi.SectorSize)))))
+	} else {
+		var faultyPercentage float64
+		if secCounts.Sset != 0 {
+			faultyPercentage = float64(10000*nfaults/secCounts.Sset) / 100.
+		}
+		fmt.Fprintf(w, "\tProving: %s (%s Faulty, %.2f%%)\n",
+			types.SizeStr(types.BigMul(types.NewInt(secCounts.Pset), types.NewInt(uint64(mi.SectorSize)))),
+			types.SizeStr(types.BigMul(types.NewInt(nfaults), types.NewInt(uint64(mi.SectorSize)))),
+			faultyPercentage)
+	}
+
+	if pow.MinerPower.RawBytePower.LessThan(power.ConsensusMinerMinPower) {
+		fmt.Fprintf(w, "Below minimum power threshold, no blocks will be won")
+	} else {
+		expWinChance := float64(types.BigMul(qpercI, types.NewInt(build.BlocksPerEpoch)).Int64()) / 1000000
+		if expWinChance > 0 {
+			if expWinChance > 1 {
+				expWinChance = 1
+			}
+			winRate := time.Duration(float64(time.Second*time.Duration(build.BlockDelaySecs)) / expWinChance)
+			winPerDay := float64(time.Hour*24) / float64(winRate)
+
+			fmt.Print("Expected block win rate: ")
+			fmt.Fprintf(w, "%.4f/day (every %s)", winPerDay, winRate.Truncate(time.Second))
+		}
+	}
+
+	fmt.Println()
+
+	fmt.Fprintf(w, "Miner Balance: %s\n", types.FIL(mact.Balance))
+	fmt.Fprintf(w, "\tPreCommit:   %s\n", types.FIL(mas.PreCommitDeposits))
+	fmt.Fprintf(w, "\tLocked:      %s\n", types.FIL(mas.LockedFunds))
+	fmt.Fprintf(w, "\tAvailable:   %s", types.FIL(types.BigSub(mact.Balance, types.BigAdd(mas.LockedFunds, mas.PreCommitDeposits))))
+	wb, err := api.WalletBalance(ctx, mi.Worker)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "Worker Balance: %s", types.FIL(wb))
+
+	mb, err := api.StateMarketBalance(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "Market (Escrow):  %s\n", types.FIL(mb.Escrow))
+	fmt.Fprintf(w, "Market (Locked):  %s\n\n", types.FIL(mb.Locked))
+
+	fmt.Println("Sectors:")
+	err = sectorsInfo(ctx, w, m.MinerApi)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func sectorsInfo(ctx context.Context, w io.Writer, napi api.StorageMiner) error {
+	sectors, err := napi.SectorsList(ctx)
+	if err != nil {
+		return err
+	}
+
+	buckets := map[sealing.SectorState]int{
+		"Total": len(sectors),
+	}
+	for _, s := range sectors {
+		st, err := napi.SectorsStatus(ctx, s)
+		if err != nil {
+			return err
+		}
+
+		buckets[sealing.SectorState(st.State)]++
+	}
+
+	var sorted []stateMeta
+	for state, i := range buckets {
+		sorted = append(sorted, stateMeta{i: i, state: state})
+	}
+
+	sort.Slice(sorted, func(i, j int) bool {
+		return stateOrder[sorted[i].state].i < stateOrder[sorted[j].state].i
+	})
+
+	for _, s := range sorted {
+		_, _ = fmt.Fprintf(w, "\t%s: %d\n", s.state, s.i)
+	}
+
+	return nil
+}
+
+type stateMeta struct {
+	i     int
+	state sealing.SectorState
+}
+
+var stateOrder = map[sealing.SectorState]stateMeta{}
+var stateList = []stateMeta{
+	{state: "Total"},
+	{state: sealing.Proving},
+
+	{state: sealing.UndefinedSectorState},
+	{state: sealing.Empty},
+	{state: sealing.Packing},
+	{state: sealing.PreCommit1},
+	{state: sealing.PreCommit2},
+	{state: sealing.PreCommitting},
+	{state: sealing.PreCommitWait},
+	{state: sealing.WaitSeed},
+	{state: sealing.Committing},
+	{state: sealing.CommitWait},
+	{state: sealing.FinalizeSector},
+
+	{state: sealing.FailedUnrecoverable},
+	{state: sealing.SealPreCommit1Failed},
+	{state: sealing.SealPreCommit2Failed},
+	{state: sealing.PreCommitFailed},
+	{state: sealing.ComputeProofFailed},
+	{state: sealing.CommitFailed},
+	{state: sealing.PackingFailed},
+	{state: sealing.FinalizeFailed},
+	{state: sealing.Faulty},
+	{state: sealing.FaultReported},
+	{state: sealing.FaultedFinal},
+}
+
+func init() {
+	for i, state := range stateList {
+		stateOrder[state.state] = stateMeta{
+			i: i,
+		}
+	}
 }

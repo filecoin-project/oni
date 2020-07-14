@@ -41,7 +41,10 @@ func handleMiner(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("running miner: %s", myActorAddr)
 
-	go ChainState(t, m)
+	// only first miner should check state
+	if t.InitContext.GroupSeq == 1 {
+		go ChainState(t, m)
+	}
 
 	time.Sleep(3600 * time.Second)
 
@@ -63,13 +66,13 @@ func handleMinerBiserk(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("running biserk miner: %s", myActorAddr)
 
-	go ChainState(t, m)
-
 	time.Sleep(180 * time.Second)
 
 	t.RecordMessage("shutting down biserk miner: %s", myActorAddr)
 
-	err = m.StopFn(ctx)
+	ctxt, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	err = m.StopFn(ctxt)
 	if err != nil {
 		return err
 	}
