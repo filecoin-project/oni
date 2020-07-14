@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -46,10 +47,23 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 		return err
 	}
 
+	jsonFilename := fmt.Sprintf("%s%cchain-state.ndjson", t.TestOutputsPath, os.PathSeparator)
+	jsonFile, err := os.Create(jsonFilename)
+	if err != nil {
+		return err
+	}
+	defer jsonFile.Close()
+	jsonEncoder := json.NewEncoder(jsonFile)
+
 	for tipset := range tipsetsCh {
 		maddrs, err := m.FullApi.StateListMiners(ctx, tipset.Key())
 		if err != nil {
 			return err
+		}
+
+		snapshot := ChainSnapshot{
+			Height:      tipset.Height(),
+			MinerStates: make(map[address.Address]*MinerStateSnapshot),
 		}
 
 		for _, maddr := range maddrs {
@@ -95,7 +109,16 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 					return err
 				}
 				writeText(w, sectorInfo)
-				return nil
+
+				snapshot.MinerStates[maddr] = &MinerStateSnapshot{
+					Info:        minerInfo,
+					Faults:      faultState,
+					ProvingInfo: provState,
+					Deadlines:   deadlines,
+					Sectors:     sectorInfo,
+				}
+				
+				return jsonEncoder.Encode(snapshot)
 			}()
 			if err != nil {
 				return err
@@ -104,6 +127,20 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 	}
 
 	return nil
+}
+
+type ChainSnapshot struct {
+	Height abi.ChainEpoch
+
+	MinerStates map[address.Address]*MinerStateSnapshot
+}
+
+type MinerStateSnapshot struct {
+	Info *MinerInfo
+	Faults *ProvingFaultState
+	ProvingInfo *ProvingInfoState
+	Deadlines *ProvingDeadlines
+	Sectors *SectorInfo
 }
 
 // writeText marshals m to text and writes to w, swallowing any errors along the way.
