@@ -33,8 +33,13 @@ type ClockSyncMsg struct {
 // nodes participating in the test via the synchronization service.
 //
 // Once all miners and clients have advanced, this function releases the new
-// abi.ChainEpoch on the returned channel, thus signalling that all nodes are
-// ready to commence that chain epoch.
+// abi.ChainEpoch on the `globalEpochStartCh`, thus signalling that all nodes
+// are ready to commence that chain epoch.
+//
+// Essentially this behaviour can be assimilated to a distributed sempaphore,
+// where all miners and clients wait until they have locally advanced their
+// clocks. Once they all signal that fact via the relevant sync topic, the
+// semaphore fires and allows them all to proceed at once.
 //
 // All of this happens in a background goroutine.
 func (n *LotusNode) SynchronizeClock(ctx context.Context, genesisTime time.Time, localEpochStartCh <-chan abi.ChainEpoch, globalEpochStartCh chan<- abi.ChainEpoch) {
