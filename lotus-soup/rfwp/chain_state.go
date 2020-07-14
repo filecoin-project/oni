@@ -50,27 +50,45 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 		}
 
 		for _, maddr := range maddrs {
-			err := info(t, m, maddr, tipset.Height())
-			if err != nil {
-				return err
-			}
 
-			err = provingFaults(t, m, maddr, tipset.Height())
-			if err != nil {
-				return err
-			}
+			err := func() error {
+				filename := fmt.Sprintf("%s%cstate-%s-%d", t.TestOutputsPath, os.PathSeparator, maddr, tipset.Height())
 
-			err = provingInfo(t, m, maddr, tipset.Height())
-			if err != nil {
-				return err
-			}
+				f, err := os.Create(filename)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
 
-			err = provingDeadlines(t, m, maddr, tipset.Height())
-			if err != nil {
-				return err
-			}
+				w := bufio.NewWriter(f)
+				defer w.Flush()
 
-			err = sectorsList(t, m, maddr, tipset.Height())
+				err = info(t, m, maddr, w, tipset.Height())
+				if err != nil {
+					return err
+				}
+
+				err = provingFaults(t, m, maddr, w, tipset.Height())
+				if err != nil {
+					return err
+				}
+
+				err = provingInfo(t, m, maddr, w, tipset.Height())
+				if err != nil {
+					return err
+				}
+
+				err = provingDeadlines(t, m, maddr, w, tipset.Height())
+				if err != nil {
+					return err
+				}
+
+				err = sectorsList(t, m, maddr, w, tipset.Height())
+				if err != nil {
+					return err
+				}
+				return nil
+			}()
 			if err != nil {
 				return err
 			}
@@ -80,20 +98,9 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 	return nil
 }
 
-func provingFaults(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
+func provingFaults(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
-
-	filename := fmt.Sprintf("%s%cchain-state-%s-%d-faults", t.TestOutputsPath, os.PathSeparator, maddr, height)
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	w := bufio.NewWriter(f)
-	defer w.Flush()
 
 	var mas miner.State
 	{
@@ -141,20 +148,9 @@ func provingFaults(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr addr
 	return nil
 }
 
-func provingInfo(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
+func provingInfo(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
-
-	filename := fmt.Sprintf("%s%cchain-state-%s-%d-proving-info", t.TestOutputsPath, os.PathSeparator, maddr, height)
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	w := bufio.NewWriter(f)
-	defer w.Flush()
 
 	head, err := api.ChainHead(ctx)
 	if err != nil {
@@ -258,20 +254,9 @@ func epochTime(curr, e abi.ChainEpoch) string {
 	panic("math broke")
 }
 
-func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
+func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
-
-	filename := fmt.Sprintf("%s%cchain-state-%s-%d-deadlines", t.TestOutputsPath, os.PathSeparator, maddr, height)
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	w := bufio.NewWriter(f)
-	defer w.Flush()
 
 	deadlines, err := api.StateMinerDeadlines(ctx, maddr, types.EmptyTSK)
 	if err != nil {
@@ -360,20 +345,9 @@ func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr a
 	return tw.Flush()
 }
 
-func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
+func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
-
-	filename := fmt.Sprintf("%s%cchain-state-%s-%d-sectors", t.TestOutputsPath, os.PathSeparator, maddr, height)
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	w := bufio.NewWriter(f)
-	defer w.Flush()
 
 	list, err := m.MinerApi.SectorsList(ctx)
 	if err != nil {
@@ -435,20 +409,9 @@ func yesno(b bool) string {
 	return "NO"
 }
 
-func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) error {
+func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) error {
 	api := m.FullApi
 	ctx := context.Background()
-
-	filename := fmt.Sprintf("%s%cchain-state-%s-%d-info", t.TestOutputsPath, os.PathSeparator, maddr, height)
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	w := bufio.NewWriter(f)
-	defer w.Flush()
 
 	mact, err := api.StateGetActor(ctx, maddr, types.EmptyTSK)
 	if err != nil {
@@ -522,7 +485,7 @@ func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Addre
 	}
 
 	if pow.MinerPower.RawBytePower.LessThan(power.ConsensusMinerMinPower) {
-		fmt.Fprintf(w, "Below minimum power threshold, no blocks will be won")
+		fmt.Fprintf(w, "Below minimum power threshold, no blocks will be won\n")
 	} else {
 		expWinChance := float64(types.BigMul(qpercI, types.NewInt(build.BlocksPerEpoch)).Int64()) / 1000000
 		if expWinChance > 0 {
@@ -533,7 +496,7 @@ func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Addre
 			winPerDay := float64(time.Hour*24) / float64(winRate)
 
 			fmt.Print("Expected block win rate: ")
-			fmt.Fprintf(w, "%.4f/day (every %s)", winPerDay, winRate.Truncate(time.Second))
+			fmt.Fprintf(w, "%.4f/day (every %s)\n", winPerDay, winRate.Truncate(time.Second))
 		}
 	}
 
@@ -542,12 +505,12 @@ func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Addre
 	fmt.Fprintf(w, "Miner Balance: %s\n", types.FIL(mact.Balance))
 	fmt.Fprintf(w, "\tPreCommit:   %s\n", types.FIL(mas.PreCommitDeposits))
 	fmt.Fprintf(w, "\tLocked:      %s\n", types.FIL(mas.LockedFunds))
-	fmt.Fprintf(w, "\tAvailable:   %s", types.FIL(types.BigSub(mact.Balance, types.BigAdd(mas.LockedFunds, mas.PreCommitDeposits))))
+	fmt.Fprintf(w, "\tAvailable:   %s\n", types.FIL(types.BigSub(mact.Balance, types.BigAdd(mas.LockedFunds, mas.PreCommitDeposits))))
 	wb, err := api.WalletBalance(ctx, mi.Worker)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "Worker Balance: %s", types.FIL(wb))
+	fmt.Fprintf(w, "Worker Balance: %s\n", types.FIL(wb))
 
 	mb, err := api.StateMarketBalance(ctx, maddr, types.EmptyTSK)
 	if err != nil {
