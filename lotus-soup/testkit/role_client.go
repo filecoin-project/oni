@@ -18,7 +18,7 @@ import (
 )
 
 type LotusClient struct {
-	*LotusNode
+	*FullNode
 
 	t          *TestEnvironment
 	MinerAddrs []MinerAddressesMsg
@@ -60,7 +60,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 	nodeRepo := repo.NewMemory(nil)
 
 	// create the node
-	n := &LotusNode{}
+	n := &FullNode{}
 	stop, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
 		node.Online(),
@@ -133,7 +133,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 
 	cl := &LotusClient{
 		t:          t,
-		LotusNode:  n,
+		FullNode:   n,
 		MinerAddrs: addrs,
 	}
 	return cl, nil

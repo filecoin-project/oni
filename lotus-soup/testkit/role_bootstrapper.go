@@ -24,7 +24,7 @@ import (
 // Bootstrapper is a special kind of process that produces a genesis block with
 // the initial wallet balances and preseals for all enlisted miners and clients.
 type Bootstrapper struct {
-	*LotusNode
+	*FullNode
 
 	t *TestEnvironment
 }
@@ -114,7 +114,7 @@ func PrepareBootstrapper(t *TestEnvironment) (*Bootstrapper, error) {
 
 	bootstrapperIP := t.NetClient.MustGetDataNetworkIP().String()
 
-	n := &LotusNode{}
+	n := &FullNode{}
 	stop, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
 		node.Online(),

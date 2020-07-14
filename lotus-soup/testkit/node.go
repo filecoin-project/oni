@@ -26,15 +26,26 @@ import (
 
 var PrepareNodeTimeout = time.Minute
 
-type LotusNode struct {
+// FullNode represents a lotus instance, which may be a client, miner, or bootstrapper.
+type FullNode struct {
+	// FullApi is the public API for a lotus node (not including mining-related stuff).
 	FullApi  api.FullNode
+
+	// MinerApi is the public API for storage mining. May be nil if this FullNode is not a miner.
 	MinerApi api.StorageMiner
+
+	// StopFn may be called to graceully shutdown the lotus node. If this node is a miner, the StopFn
+	// will also shutdown the StorageMiner process.
 	StopFn   node.StopFunc
+
+	// Wallet is the nodes private wallet key
 	Wallet   *wallet.Key
+
+	// MineOne is used to advance the synchronized mining process. Will be nil if natural mining is used.
 	MineOne  func(context.Context, func(bool, error)) error
 }
 
-func (n *LotusNode) setWallet(ctx context.Context, walletKey *wallet.Key) error {
+func (n *FullNode) setWallet(ctx context.Context, walletKey *wallet.Key) error {
 	_, err := n.FullApi.WalletImport(ctx, &walletKey.KeyInfo)
 	if err != nil {
 		return err

@@ -46,15 +46,20 @@ const (
 	sealDelay = 30 * time.Second
 )
 
-type LotusMiner struct {
-	*LotusNode
+// MinerNode is a FullNode that supports storage mining. The embedded FullNode will have
+// a non-nil MinerApi that can be used to control / inspect the mining process.
+type MinerNode struct {
+	*FullNode
 
 	t *TestEnvironment
 
-	minerInstance *miner.Miner
+	// miner is a reference to the internal lotus component that controls the mining loop.
+	// We use it to start / stop the mining loop on command, since that functionality is
+	// not exposed via the public MinerApi.
+	miner *miner.Miner
 }
 
-func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
+func PrepareMiner(t *TestEnvironment) (*MinerNode, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
 	defer cancel()
 
@@ -123,9 +128,9 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 
 	// create the node
 	// we need both a full node _and_ and storage miner node
-	n := &LotusNode{}
+	n := &FullNode{}
 
-	m := &LotusMiner{LotusNode: n, t: t}
+	m := &MinerNode{FullNode: n, t: t}
 
 	// prepare the repo for the storage miner
 	minerRepo := repo.NewMemory(nil)
@@ -215,8 +220,8 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		// call through to default DI module, but capture a reference. gross, but seems to be the only way to get a direct ref to the miner.Miner
 		providerHook := func (lc fx.Lifecycle, ds dtypes.MetadataDS, api api.FullNode, epp gen.WinningPoStProver) (*miner.Miner, error) {
 			var err error
-			m.minerInstance, err = modules.SetupBlockProducer(lc, ds, api, epp)
-			return m.minerInstance, err
+			m.miner, err = modules.SetupBlockProducer(lc, ds, api, epp)
+			return m.miner, err
 		}
 		minerOpts = append(minerOpts, node.Override(new(*miner.Miner), providerHook))
 	} else {
@@ -224,8 +229,8 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 
 		// wrap the DI module returned by miner.NewTestMiner and grab a ref to the returned miner.Miner
 		providerHook := func(f api.FullNode, p gen.WinningPoStProver) *miner.Miner {
-			m.minerInstance = miner.NewTestMiner(mineBlock, minerAddr)(f, p)
-			return m.minerInstance
+			m.miner = miner.NewTestMiner(mineBlock, minerAddr)(f, p)
+			return m.miner
 		}
 
 		minerOpts = append(minerOpts,
@@ -374,7 +379,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	return m, err
 }
 
-func (m *LotusMiner) RunDefault() error {
+func (m *MinerNode) RunDefault() error {
 	var (
 		t       = m.t
 		clients = t.IntParam("clients")
@@ -462,21 +467,27 @@ func (m *LotusMiner) RunDefault() error {
 	return nil
 }
 
-func (m *LotusMiner) Halt() {
-	m.t.RecordMessage("halting miner")
+// Halt causes the MinerNode to stop mining blocks, but does not shutdown the full node
+// or storage miner processes. The node will continue to participate in pubsub, respond
+// to RPC calls, etc.
+// Halt will be invoked if a miner's `suspend_events` parameter includes a "halt" event.
+func (m *MinerNode) Halt() {
+	m.t.RecordMessage("halting miner block production loop")
 
-	if err := m.minerInstance.Stop(context.TODO()); err != nil {
+	if err := m.miner.Stop(context.TODO()); err != nil {
 		panic(err)
 	}
-	m.t.RecordMessage("miner halted")
+	m.t.RecordMessage("block production halted")
 }
 
-func (m *LotusMiner) Resume() {
-	m.t.RecordMessage("resuming miner")
-	if err := m.minerInstance.Start(context.TODO()); err != nil {
+// Resume causes the MinerNode to start mining blocks after a Halt.
+// Resume will be invoked if a miner's `suspend_events` parameter includes a "resume" event.
+func (m *MinerNode) Resume() {
+	m.t.RecordMessage("resuming miner block production loop")
+	if err := m.miner.Start(context.TODO()); err != nil {
 		panic(fmt.Errorf("failed to resume miner: %s", err))
 	}
-	m.t.RecordMessage("miner resumed")
+	m.t.RecordMessage("block production resumed")
 }
 
 func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) error {
