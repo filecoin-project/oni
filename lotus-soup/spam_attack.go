@@ -31,6 +31,7 @@ func runSpammer(t *testkit.TestEnvironment) error {
 	ctx := context.Background()
 	client := cl.FullApi
 
+	t.RecordMessage("sending funds to self")
 	zero := types.NewInt(0)
 	one := types.NewInt(1)
 	for {
@@ -39,7 +40,6 @@ func runSpammer(t *testkit.TestEnvironment) error {
 			break
 		}
 
-		t.RecordMessage("sending funds to self")
 		msg := &types.Message{
 			From:     cl.Wallet.Address,
 			To:       cl.Wallet.Address,
@@ -53,6 +53,7 @@ func runSpammer(t *testkit.TestEnvironment) error {
 		}
 		time.Sleep(100 * time.Microsecond)
 	}
+	t.RecordMessage("spammer is out of money")
 
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
 	return nil
