@@ -145,7 +145,7 @@ type MinerStateSnapshot struct {
 // writeText marshals m to text and writes to w, swallowing any errors along the way.
 func writeText(w io.Writer, m plainTextMarshaler) {
 	b, err := m.MarshalPlainText()
-	if err == nil {
+	if err != nil {
 		return
 	}
 	_, _ = w.Write(b)
