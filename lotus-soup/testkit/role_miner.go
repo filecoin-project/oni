@@ -382,7 +382,7 @@ func (m *LotusMiner) RunDefault() error {
 		)
 
 		m.SynchronizeClock(context.Background(), genTime, localEpochAdvanceCh, globalEpochStartCh)
-		m.SynchronizeMiner(context.Background(), globalEpochStartCh, localEpochAdvanceCh)
+		go m.SynchronizeMiner(context.Background(), globalEpochStartCh, localEpochAdvanceCh)
 
 		// jumpstart the clock!
 		localEpochAdvanceCh <- abi.ChainEpoch(1)
