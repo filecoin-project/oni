@@ -35,7 +35,7 @@ import (
 	tstats "github.com/filecoin-project/lotus/tools/stats"
 )
 
-func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
+func UpdateChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 	height := 0
 	headlag := 3
 
@@ -65,78 +65,82 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 			MinerStates: make(map[string]*MinerStateSnapshot),
 		}
 
-		// assert that balance got reduced with that much 5 times (sector fee)
-		// assert that balance got reduced with that much 2 times (termination fee)
-		// assert that balance got increased with that much 10 times (block reward)
-		// assert that power got increased with that much 1 times (after sector is sealed)
-		// assert that power got reduced with that much 1 times (after sector is announced faulty)
+		err = func() error {
+			cs.Lock()
+			defer cs.Unlock()
 
-		for _, maddr := range maddrs {
-			err := func() error {
-				filename := fmt.Sprintf("%s%cstate-%s-%d", t.TestOutputsPath, os.PathSeparator, maddr, tipset.Height())
+			for _, maddr := range maddrs {
+				err := func() error {
+					filename := fmt.Sprintf("%s%cstate-%s-%d", t.TestOutputsPath, os.PathSeparator, maddr, tipset.Height())
 
-				f, err := os.Create(filename)
+					f, err := os.Create(filename)
+					if err != nil {
+						return err
+					}
+					defer f.Close()
+
+					w := bufio.NewWriter(f)
+					defer w.Flush()
+
+					minerInfo, err := info(t, m, maddr, w, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, minerInfo)
+
+					if tipset.Height()%100 == 0 {
+						printDiff(t, minerInfo, tipset.Height())
+					}
+
+					faultState, err := provingFaults(t, m, maddr, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, faultState)
+
+					provState, err := provingInfo(t, m, maddr, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, provState)
+
+					// record diff
+					recordDiff(minerInfo, provState, tipset.Height())
+
+					deadlines, err := provingDeadlines(t, m, maddr, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, deadlines)
+
+					sectorInfo, err := sectorsList(t, m, maddr, w, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, sectorInfo)
+
+					snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
+						Info:        minerInfo,
+						Faults:      faultState,
+						ProvingInfo: provState,
+						Deadlines:   deadlines,
+						Sectors:     sectorInfo,
+					}
+
+					return jsonEncoder.Encode(snapshot)
+				}()
 				if err != nil {
 					return err
 				}
-				defer f.Close()
-
-				w := bufio.NewWriter(f)
-				defer w.Flush()
-
-				minerInfo, err := info(t, m, maddr, w, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, minerInfo)
-
-				if tipset.Height()%100 == 0 {
-					printDiff(t, minerInfo, tipset.Height())
-				}
-
-				faultState, err := provingFaults(t, m, maddr, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, faultState)
-
-				provState, err := provingInfo(t, m, maddr, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, provState)
-
-				// record diff
-				recordDiff(minerInfo, provState, tipset.Height())
-
-				deadlines, err := provingDeadlines(t, m, maddr, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, deadlines)
-
-				sectorInfo, err := sectorsList(t, m, maddr, w, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, sectorInfo)
-
-				snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
-					Info:        minerInfo,
-					Faults:      faultState,
-					ProvingInfo: provState,
-					Deadlines:   deadlines,
-					Sectors:     sectorInfo,
-				}
-
-				return jsonEncoder.Encode(snapshot)
-			}()
-			if err != nil {
-				return err
 			}
-		}
 
-		prevHeight = tipset.Height()
+			cs.PrevHeight = tipset.Height()
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
