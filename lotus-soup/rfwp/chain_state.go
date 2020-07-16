@@ -89,7 +89,6 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 					return err
 				}
 				writeText(w, minerInfo)
-				recordDiff(minerInfo, tipset.Height())
 
 				if tipset.Height()%100 == 0 {
 					printDiff(t, minerInfo, tipset.Height())
@@ -106,6 +105,9 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 					return err
 				}
 				writeText(w, provState)
+
+				// record diff
+				recordDiff(minerInfo, provState, tipset.Height())
 
 				deadlines, err := provingDeadlines(t, m, maddr, tipset.Height())
 				if err != nil {

@@ -16,7 +16,7 @@ var (
 	diffHeight = make(map[string]map[string]map[abi.ChainEpoch]big.Int)  // height -> value
 	diffValue  = make(map[string]map[string]map[string][]abi.ChainEpoch) // value -> []height
 	diffCmp    = make(map[string]map[string]map[string][]abi.ChainEpoch) // difference (height, height-1) -> []height
-	valueTypes = []string{"MinerPower", "CommittedBytes", "ProvingBytes", "FaultyBytes", "Balance", "PreCommitDeposits", "LockedFunds", "AvailableFunds", "WorkerBalance", "MarketEscrow", "MarketLocked"}
+	valueTypes = []string{"MinerPower", "CommittedBytes", "ProvingBytes", "Balance", "PreCommitDeposits", "LockedFunds", "AvailableFunds", "WorkerBalance", "MarketEscrow", "MarketLocked", "Faults", "ProvenSectors", "Recoveries", "NewSectors"}
 )
 
 func printDiff(t *testkit.TestEnvironment, mi *MinerInfo, height abi.ChainEpoch) {
@@ -47,7 +47,7 @@ func printDiff(t *testkit.TestEnvironment, mi *MinerInfo, height abi.ChainEpoch)
 	}
 }
 
-func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
+func recordDiff(mi *MinerInfo, ps *ProvingInfoState, height abi.ChainEpoch) {
 	maddr := mi.MinerAddr.String()
 	if _, ok := diffHeight[maddr]; !ok {
 		diffHeight[maddr] = make(map[string]map[abi.ChainEpoch]big.Int)
@@ -71,7 +71,7 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["MinerPower"][cmp.String()] = append(diffValue[maddr]["MinerPower"][cmp.String()], height)
+				diffCmp[maddr]["MinerPower"][cmp.String()] = append(diffCmp[maddr]["MinerPower"][cmp.String()], height)
 			}
 		}
 	}
@@ -86,7 +86,7 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["CommittedBytes"][cmp.String()] = append(diffValue[maddr]["CommittedBytes"][cmp.String()], height)
+				diffCmp[maddr]["CommittedBytes"][cmp.String()] = append(diffCmp[maddr]["CommittedBytes"][cmp.String()], height)
 			}
 		}
 	}
@@ -101,32 +101,14 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["ProvingBytes"][cmp.String()] = append(diffValue[maddr]["ProvingBytes"][cmp.String()], height)
-			}
-		}
-	}
-
-	{
-		if mi.FaultyBytes.Int != nil {
-			value := big.Int(mi.FaultyBytes)
-			diffHeight[maddr]["FaultyBytes"][height] = value
-			diffValue[maddr]["FaultyBytes"][value.String()] = append(diffValue[maddr]["FaultyBytes"][value.String()], height)
-
-			if prevHeight != -1 {
-				prevValue, ok := diffHeight[maddr]["FaultyBytes"][prevHeight]
-				if ok {
-					cmp := big.Zero()
-					cmp.Sub(value.Int, prevValue.Int) // value - prevValue
-					if big.Cmp(cmp, big.Zero()) != 0 {
-						diffCmp[maddr]["FaultyBytes"][cmp.String()] = append(diffValue[maddr]["FaultyBytes"][cmp.String()], height)
-					}
-				}
+				diffCmp[maddr]["ProvingBytes"][cmp.String()] = append(diffCmp[maddr]["ProvingBytes"][cmp.String()], height)
 			}
 		}
 	}
 
 	{
 		value := big.Int(mi.Balance)
+		roundBalance(&value)
 		diffHeight[maddr]["Balance"][height] = value
 		diffValue[maddr]["Balance"][value.String()] = append(diffValue[maddr]["Balance"][value.String()], height)
 
@@ -135,7 +117,7 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["Balance"][cmp.String()] = append(diffValue[maddr]["Balance"][cmp.String()], height)
+				diffCmp[maddr]["Balance"][cmp.String()] = append(diffCmp[maddr]["Balance"][cmp.String()], height)
 			}
 		}
 	}
@@ -150,13 +132,14 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["PreCommitDeposits"][cmp.String()] = append(diffValue[maddr]["PreCommitDeposits"][cmp.String()], height)
+				diffCmp[maddr]["PreCommitDeposits"][cmp.String()] = append(diffCmp[maddr]["PreCommitDeposits"][cmp.String()], height)
 			}
 		}
 	}
 
 	{
 		value := big.Int(mi.LockedFunds)
+		roundBalance(&value)
 		diffHeight[maddr]["LockedFunds"][height] = value
 		diffValue[maddr]["LockedFunds"][value.String()] = append(diffValue[maddr]["LockedFunds"][value.String()], height)
 
@@ -165,13 +148,14 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["LockedFunds"][cmp.String()] = append(diffValue[maddr]["LockedFunds"][cmp.String()], height)
+				diffCmp[maddr]["LockedFunds"][cmp.String()] = append(diffCmp[maddr]["LockedFunds"][cmp.String()], height)
 			}
 		}
 	}
 
 	{
 		value := big.Int(mi.AvailableFunds)
+		roundBalance(&value)
 		diffHeight[maddr]["AvailableFunds"][height] = value
 		diffValue[maddr]["AvailableFunds"][value.String()] = append(diffValue[maddr]["AvailableFunds"][value.String()], height)
 
@@ -180,7 +164,7 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["AvailableFunds"][cmp.String()] = append(diffValue[maddr]["AvailableFunds"][cmp.String()], height)
+				diffCmp[maddr]["AvailableFunds"][cmp.String()] = append(diffCmp[maddr]["AvailableFunds"][cmp.String()], height)
 			}
 		}
 	}
@@ -195,7 +179,7 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["WorkerBalance"][cmp.String()] = append(diffValue[maddr]["WorkerBalance"][cmp.String()], height)
+				diffCmp[maddr]["WorkerBalance"][cmp.String()] = append(diffCmp[maddr]["WorkerBalance"][cmp.String()], height)
 			}
 		}
 	}
@@ -210,7 +194,7 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["MarketEscrow"][cmp.String()] = append(diffValue[maddr]["MarketEscrow"][cmp.String()], height)
+				diffCmp[maddr]["MarketEscrow"][cmp.String()] = append(diffCmp[maddr]["MarketEscrow"][cmp.String()], height)
 			}
 		}
 	}
@@ -225,9 +209,73 @@ func recordDiff(mi *MinerInfo, height abi.ChainEpoch) {
 			cmp := big.Zero()
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
-				diffCmp[maddr]["MarketLocked"][cmp.String()] = append(diffValue[maddr]["MarketLocked"][cmp.String()], height)
+				diffCmp[maddr]["MarketLocked"][cmp.String()] = append(diffCmp[maddr]["MarketLocked"][cmp.String()], height)
 			}
 		}
 	}
 
+	{
+		value := big.NewInt(int64(ps.Faults))
+		diffHeight[maddr]["Faults"][height] = value
+		diffValue[maddr]["Faults"][value.String()] = append(diffValue[maddr]["Faults"][value.String()], height)
+
+		if prevHeight != -1 {
+			prevValue := diffHeight[maddr]["Faults"][prevHeight]
+			cmp := big.Zero()
+			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
+			if big.Cmp(cmp, big.Zero()) != 0 {
+				diffCmp[maddr]["Faults"][cmp.String()] = append(diffCmp[maddr]["Faults"][cmp.String()], height)
+			}
+		}
+	}
+
+	{
+		value := big.NewInt(int64(ps.ProvenSectors))
+		diffHeight[maddr]["ProvenSectors"][height] = value
+		diffValue[maddr]["ProvenSectors"][value.String()] = append(diffValue[maddr]["ProvenSectors"][value.String()], height)
+
+		if prevHeight != -1 {
+			prevValue := diffHeight[maddr]["ProvenSectors"][prevHeight]
+			cmp := big.Zero()
+			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
+			if big.Cmp(cmp, big.Zero()) != 0 {
+				diffCmp[maddr]["ProvenSectors"][cmp.String()] = append(diffCmp[maddr]["ProvenSectors"][cmp.String()], height)
+			}
+		}
+	}
+
+	{
+		value := big.NewInt(int64(ps.Recoveries))
+		diffHeight[maddr]["Recoveries"][height] = value
+		diffValue[maddr]["Recoveries"][value.String()] = append(diffValue[maddr]["Recoveries"][value.String()], height)
+
+		if prevHeight != -1 {
+			prevValue := diffHeight[maddr]["Recoveries"][prevHeight]
+			cmp := big.Zero()
+			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
+			if big.Cmp(cmp, big.Zero()) != 0 {
+				diffCmp[maddr]["Recoveries"][cmp.String()] = append(diffCmp[maddr]["Recoveries"][cmp.String()], height)
+			}
+		}
+	}
+
+	{
+		value := big.NewInt(int64(ps.NewSectors))
+		diffHeight[maddr]["NewSectors"][height] = value
+		diffValue[maddr]["NewSectors"][value.String()] = append(diffValue[maddr]["NewSectors"][value.String()], height)
+
+		if prevHeight != -1 {
+			prevValue := diffHeight[maddr]["NewSectors"][prevHeight]
+			cmp := big.Zero()
+			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
+			if big.Cmp(cmp, big.Zero()) != 0 {
+				diffCmp[maddr]["NewSectors"][cmp.String()] = append(diffCmp[maddr]["NewSectors"][cmp.String()], height)
+			}
+		}
+	}
+}
+
+func roundBalance(i *big.Int) {
+	*i = big.Div(*i, big.NewInt(1000000000000000))
+	*i = big.Mul(*i, big.NewInt(1000000000000000))
 }
