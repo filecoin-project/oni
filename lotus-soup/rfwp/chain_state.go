@@ -35,13 +35,13 @@ import (
 	tstats "github.com/filecoin-project/lotus/tools/stats"
 )
 
-func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
+func ChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 	height := 0
 	headlag := 3
 
 	ctx := context.Background()
 
-	tipsetsCh, err := tstats.GetTips(ctx, m.FullApi, abi.ChainEpoch(height), headlag)
+	tipsetsCh, err := tstats.GetTips(ctx, n.FullApi, abi.ChainEpoch(height), headlag)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 	jsonEncoder := json.NewEncoder(jsonFile)
 
 	for tipset := range tipsetsCh {
-		maddrs, err := m.FullApi.StateListMiners(ctx, tipset.Key())
+		maddrs, err := n.FullApi.StateListMiners(ctx, tipset.Key())
 		if err != nil {
 			return err
 		}
@@ -85,7 +85,7 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 				w := bufio.NewWriter(f)
 				defer w.Flush()
 
-				minerInfo, err := info(t, m, maddr, w, tipset.Height())
+				minerInfo, err := info(t, n, maddr, w, tipset.Height())
 				if err != nil {
 					return err
 				}
@@ -95,13 +95,13 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 					printDiff(t, minerInfo, tipset.Height())
 				}
 
-				faultState, err := provingFaults(t, m, maddr, tipset.Height())
+				faultState, err := provingFaults(t, n, maddr, tipset.Height())
 				if err != nil {
 					return err
 				}
 				writeText(w, faultState)
 
-				provState, err := provingInfo(t, m, maddr, tipset.Height())
+				provState, err := provingInfo(t, n, maddr, tipset.Height())
 				if err != nil {
 					return err
 				}
@@ -110,17 +110,20 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 				// record diff
 				recordDiff(minerInfo, provState, tipset.Height())
 
-				deadlines, err := provingDeadlines(t, m, maddr, tipset.Height())
+				deadlines, err := provingDeadlines(t, n, maddr, tipset.Height())
 				if err != nil {
 					return err
 				}
 				writeText(w, deadlines)
 
-				sectorInfo, err := sectorsList(t, m, maddr, w, tipset.Height())
-				if err != nil {
-					return err
+				var sectorInfo *SectorInfo
+				if n.MinerApi != nil {
+					sectorInfo, err = sectorsList(t, n, maddr, w, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, sectorInfo)
 				}
-				writeText(w, sectorInfo)
 
 				snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
 					Info:        minerInfo,
@@ -200,8 +203,8 @@ func (s *ProvingFaultState) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func provingFaults(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) (*ProvingFaultState, error) {
-	api := m.FullApi
+func provingFaults(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address.Address, height abi.ChainEpoch) (*ProvingFaultState, error) {
+	api := n.FullApi
 	ctx := context.Background()
 
 	var mas miner.State
@@ -297,8 +300,8 @@ func (s *ProvingInfoState) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func provingInfo(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) (*ProvingInfoState, error) {
-	api := m.FullApi
+func provingInfo(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address.Address, height abi.ChainEpoch) (*ProvingInfoState, error) {
+	api := n.FullApi
 	ctx := context.Background()
 
 	head, err := api.ChainHead(ctx)
@@ -426,8 +429,8 @@ func (d *ProvingDeadlines) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) (*ProvingDeadlines, error) {
-	api := m.FullApi
+func provingDeadlines(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address.Address, height abi.ChainEpoch) (*ProvingDeadlines, error) {
+	api := n.FullApi
 	ctx := context.Background()
 
 	deadlines, err := api.StateMinerDeadlines(ctx, maddr, types.EmptyTSK)
@@ -563,11 +566,11 @@ func (i *SectorInfo) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*SectorInfo, error) {
-	node := m.FullApi
+func sectorsList(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*SectorInfo, error) {
+	fullApi := n.FullApi
 	ctx := context.Background()
 
-	list, err := m.MinerApi.SectorsList(ctx)
+	list, err := n.MinerApi.SectorsList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +580,7 @@ func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr addres
 
 	i := SectorInfo{Sectors: list, SectorStates: make(map[abi.SectorNumber]api.SectorInfo, len(list))}
 
-	pset, err := node.StateMinerProvingSet(ctx, maddr, types.EmptyTSK)
+	pset, err := fullApi.StateMinerProvingSet(ctx, maddr, types.EmptyTSK)
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +588,7 @@ func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr addres
 		i.Proving = append(i.Proving, info.ID)
 	}
 
-	sset, err := node.StateMinerSectors(ctx, maddr, nil, true, types.EmptyTSK)
+	sset, err := fullApi.StateMinerSectors(ctx, maddr, nil, true, types.EmptyTSK)
 	if err != nil {
 		return nil, err
 	}
@@ -598,7 +601,7 @@ func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr addres
 	})
 
 	for _, s := range list {
-		st, err := m.MinerApi.SectorsStatus(ctx, s)
+		st, err := n.MinerApi.SectorsStatus(ctx, s)
 		if err != nil {
 			fmt.Fprintf(w, "%d:\tError: %s\n", s, err)
 			continue
@@ -709,8 +712,8 @@ func (i *MinerInfo) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*MinerInfo, error) {
-	api := m.FullApi
+func info(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*MinerInfo, error) {
+	api := n.FullApi
 	ctx := context.Background()
 
 	mact, err := api.StateGetActor(ctx, maddr, types.EmptyTSK)
@@ -785,23 +788,25 @@ func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Addre
 	i.MarketEscrow = mb.Escrow
 	i.MarketLocked = mb.Locked
 
-	sectors, err := m.MinerApi.SectorsList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	buckets := map[sealing.SectorState]int{
-		"Total": len(sectors),
-	}
-	for _, s := range sectors {
-		st, err := m.MinerApi.SectorsStatus(ctx, s)
+	if n.MinerApi != nil {
+		sectors, err := n.MinerApi.SectorsList(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		buckets[sealing.SectorState(st.State)]++
+		buckets := map[sealing.SectorState]int{
+			"Total": len(sectors),
+		}
+		for _, s := range sectors {
+			st, err := n.MinerApi.SectorsStatus(ctx, s)
+			if err != nil {
+				return nil, err
+			}
+
+			buckets[sealing.SectorState(st.State)]++
+		}
+		i.SectorStateCounts = buckets
 	}
-	i.SectorStateCounts = buckets
 
 	return &i, nil
 }

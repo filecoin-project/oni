@@ -41,8 +41,8 @@ func handleMiner(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("running miner: %s", myActorAddr)
 
-	// only first miner should check state
-	go ChainState(t, m)
+	// collect chain state
+	go ChainState(t, m.LotusNode)
 
 	time.Sleep(3600 * time.Second)
 
@@ -63,6 +63,8 @@ func handleMinerBiserk(t *testkit.TestEnvironment) error {
 	}
 
 	t.RecordMessage("running biserk miner: %s", myActorAddr)
+	// collect chain state
+	go ChainState(t, m.LotusNode)
 
 	time.Sleep(180 * time.Second)
 
@@ -94,6 +96,9 @@ func handleClient(t *testkit.TestEnvironment) error {
 
 	ctx := context.Background()
 	client := cl.FullApi
+
+	// collect chain state
+	go ChainState(t, cl.LotusNode)
 
 	// select a miner based on our GroupSeq (client 1 -> miner 1 ; client 2 -> miner 2)
 	// this assumes that all miner instances receive the same sorted MinerAddrs slice
