@@ -60,7 +60,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 	nodeRepo := repo.NewMemory(nil)
 
 	// create the node
-	n := &LotusNode{}
+	n := &LotusNode{t: t}
 	stop, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
 		node.Online(),
@@ -113,7 +113,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 
 	// densely connect the client to the full node and the miners themselves.
 	for _, miner := range addrs {
-		if err := n.FullApi.NetConnect(ctx, miner.FullNetAddrs); err != nil {
+		if err := n.FullApi.NetConnect(ctx, miner.WorkerNetAddrs); err != nil {
 			return nil, fmt.Errorf("client failed to connect to full node of miner: %w", err)
 		}
 		if err := n.FullApi.NetConnect(ctx, miner.MinerNetAddrs); err != nil {
@@ -140,6 +140,23 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 }
 
 func (c *LotusClient) RunDefault() error {
+	// if we're running in synchronized mining, enroll this client
+	// in the global clock.
+	if c.t.StringParam("mining_mode") == "synchronized" {
+		localAdvanceCh, globalEpochCh, err := c.SynchronizeClock(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to initiate clock synchronizer: %w", err)
+		}
+
+		go func() {
+			// for now, clients are always one epoch ahead locally with regards to miners.
+			// keeping the flywheel spinning!
+			for epoch := range globalEpochCh {
+				localAdvanceCh <- epoch + 1
+			}
+		}()
+	}
+
 	// run forever
 	c.t.RecordMessage("running default client forever")
 	c.t.WaitUntilAllDone()

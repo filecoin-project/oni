@@ -92,10 +92,12 @@ func PrepareBootstrapper(t *TestEnvironment) (*Bootstrapper, error) {
 		genesisMiners = append(genesisMiners, pm.Miner)
 	}
 
+	genesisTimestamp := uint64(time.Now().Unix()) - uint64(t.IntParam("genesis_timestamp_offset"))
+
 	genesisTemplate := genesis.Template{
 		Accounts:  genesisActors,
 		Miners:    genesisMiners,
-		Timestamp: uint64(time.Now().Unix()) - uint64(t.IntParam("genesis_timestamp_offset")), // this needs to be in the past
+		Timestamp: genesisTimestamp,
 	}
 
 	// dump the genesis block
@@ -114,7 +116,7 @@ func PrepareBootstrapper(t *TestEnvironment) (*Bootstrapper, error) {
 
 	bootstrapperIP := t.NetClient.MustGetDataNetworkIP().String()
 
-	n := &LotusNode{}
+	n := &LotusNode{t: t}
 	stop, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
 		node.Online(),
@@ -138,6 +140,7 @@ func PrepareBootstrapper(t *TestEnvironment) (*Bootstrapper, error) {
 		stop(context.TODO())
 		return nil, err
 	}
+
 	for _, a := range bootstrapperAddrs.Addrs {
 		ip, err := a.ValueForProtocol(ma.P_IP4)
 		if err != nil {
@@ -162,8 +165,9 @@ func PrepareBootstrapper(t *TestEnvironment) (*Bootstrapper, error) {
 	}
 
 	genesisMsg := &GenesisMsg{
-		Genesis:      genesisBuffer.Bytes(),
-		Bootstrapper: bootstrapperAddr.Bytes(),
+		Genesis:       genesisBuffer.Bytes(),
+		Bootstrapper:  bootstrapperAddr.Bytes(),
+		TimestampUnix: genesisTimestamp,
 	}
 	t.SyncClient.MustPublish(ctx, GenesisTopic, genesisMsg)
 

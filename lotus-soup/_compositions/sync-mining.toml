@@ -1,0 +1,41 @@
+[metadata]
+  name = "lotus-soup"
+  author = "raulk"
+
+[global]
+  plan = "lotus-soup"
+  case = "sync-mining"
+  total_instances = 4
+  builder = "exec:go"
+  runner = "local:exec"
+
+  build         = { selectors = ["testground"] }
+  build_config  = { enable_go_build_cache = true }
+  run_config    = { exposed_ports = ["6060", "1234", "2345"] }
+
+[global.run.test_params]
+  clients = "1"
+  miners = "2"
+  genesis_timestamp_offset = "0"
+  balance = "2000000000"
+  sectors = "10"
+  random_beacon_type = "mock"
+  mining_mode = "synchronized"
+
+[[groups]]
+  id = "bootstrapper"
+  instances = { count = 1 }
+  [groups.run.test_params]
+  role = "bootstrapper"
+
+[[groups]]
+  id = "miners"
+  instances = { count = 2 }
+  [groups.run.test_params]
+  role = "miner"
+
+[[groups]]
+  id = "clients"
+  instances = { count = 1 }
+  [groups.run.test_params]
+  role = "client"
