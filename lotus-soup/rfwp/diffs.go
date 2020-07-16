@@ -60,14 +60,14 @@ func printDiff(t *testkit.TestEnvironment, mi *MinerInfo, height abi.ChainEpoch)
 	sort.Strings(keys)
 
 	fmt.Fprintln(w, "=====", maddr, "=====")
-	for _, valueName := range keys {
-		fmt.Fprintln(w, "=====", valueName, "=====")
+	for i, valueName := range keys {
+		fmt.Fprintln(w, toCharStr(i), "=====", valueName, "=====")
 		if len(cs.DiffCmp[maddr][valueName]) > 0 {
-			fmt.Fprint(w, "diff of             |\n")
+			fmt.Fprintf(w, "%s diff of             |\n", toCharStr(i))
 		}
 
 		for difference, heights := range cs.DiffCmp[maddr][valueName] {
-			fmt.Fprintf(w, "diff of %30v at heights %v\n", difference, heights)
+			fmt.Fprintf(w, "%s diff of %30v at heights %v\n", toCharStr(i), difference, heights)
 		}
 	}
 }
@@ -303,4 +303,8 @@ func recordDiff(mi *MinerInfo, ps *ProvingInfoState, height abi.ChainEpoch) {
 func roundBalance(i *big.Int) {
 	*i = big.Div(*i, big.NewInt(1000000000000000))
 	*i = big.Mul(*i, big.NewInt(1000000000000000))
+}
+
+func toCharStr(i int) string {
+	return string('a' + i)
 }

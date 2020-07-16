@@ -72,10 +72,7 @@ func handleMiner(t *testkit.TestEnvironment) error {
 
 	// wait for slashing
 	select {
-	case err = <-waitForSlashing(t, slashedMiner.MinerActorAddr):
-		if err != nil {
-			return err
-		}
+	case <-waitForSlashing(t, slashedMiner.MinerActorAddr):
 	case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
 		if err != nil {
 			return err
@@ -87,21 +84,27 @@ func handleMiner(t *testkit.TestEnvironment) error {
 		return nil
 	}
 
-	time.Sleep(10 * time.Second) // wait for metrics to be emitted
+	t.RecordSuccess()
+	time.Sleep(110 * time.Second) // wait for metrics to be emitted
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
 	return nil
 }
 
-func waitForSlashing(t *testkit.TestEnvironment, slashedMiner address.Address) chan error {
+func waitForSlashing(t *testkit.TestEnvironment, slashedMiner address.Address) chan struct{} {
 	// assert that balance got reduced with that much 5 times (sector fee)
 	// assert that balance got reduced with that much 2 times (termination fee)
 	// assert that balance got increased with that much 10 times (block reward)
 	// assert that power got increased with that much 1 times (after sector is sealed)
 	// assert that power got reduced with that much 1 times (after sector is announced faulty)
 
-	retchan := make(chan error)
+	retchan := make(chan struct{})
 	go func() {
+		foundAllSlashedConditions := false
 		for range time.Tick(10 * time.Second) {
+			if foundAllSlashedConditions {
+				close(retchan)
+				return
+			}
 			t.RecordMessage("wait for slashing, tick")
 			func() {
 				cs.Lock()
@@ -136,6 +139,7 @@ func waitForSlashing(t *testkit.TestEnvironment, slashedMiner address.Address) c
 				// TODO: confirm the largest is > 18 filecoin
 				// TODO: confirm the next largest is > 9 filecoin
 				// etc.
+				foundAllSlashedConditions = true
 			}()
 		}
 	}()
