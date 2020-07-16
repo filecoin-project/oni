@@ -65,8 +65,13 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 			MinerStates: make(map[string]*MinerStateSnapshot),
 		}
 
-		for _, maddr := range maddrs {
+		// assert that balance got reduced with that much 5 times (sector fee)
+		// assert that balance got reduced with that much 2 times (termination fee)
+		// assert that balance got increased with that much 10 times (block reward)
+		// assert that power got increased with that much 1 times (after sector is sealed)
+		// assert that power got reduced with that much 1 times (after sector is announced faulty)
 
+		for _, maddr := range maddrs {
 			err := func() error {
 				filename := fmt.Sprintf("%s%cstate-%s-%d", t.TestOutputsPath, os.PathSeparator, maddr, tipset.Height())
 
@@ -84,6 +89,11 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 					return err
 				}
 				writeText(w, minerInfo)
+				recordDiff(minerInfo, tipset.Height())
+
+				if tipset.Height() == abi.ChainEpoch(1500) {
+					printDiff(minerInfo)
+				}
 
 				faultState, err := provingFaults(t, m, maddr, tipset.Height())
 				if err != nil {
@@ -135,11 +145,11 @@ type ChainSnapshot struct {
 }
 
 type MinerStateSnapshot struct {
-	Info *MinerInfo
-	Faults *ProvingFaultState
+	Info        *MinerInfo
+	Faults      *ProvingFaultState
 	ProvingInfo *ProvingInfoState
-	Deadlines *ProvingDeadlines
-	Sectors *SectorInfo
+	Deadlines   *ProvingDeadlines
+	Sectors     *SectorInfo
 }
 
 // writeText marshals m to text and writes to w, swallowing any errors along the way.
@@ -389,10 +399,10 @@ type ProvingDeadlines struct {
 }
 
 type DeadlineInfo struct {
-	Sectors uint64
+	Sectors    uint64
 	Partitions uint64
-	Proven uint64
-	Current bool
+	Proven     uint64
+	Current    bool
 }
 
 func (d *ProvingDeadlines) MarshalPlainText() ([]byte, error) {
@@ -503,10 +513,10 @@ func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr a
 }
 
 type SectorInfo struct {
-	Sectors []abi.SectorNumber
+	Sectors      []abi.SectorNumber
 	SectorStates map[abi.SectorNumber]api.SectorInfo
-	Committed []abi.SectorNumber
-	Proving []abi.SectorNumber
+	Committed    []abi.SectorNumber
+	Proving      []abi.SectorNumber
 }
 
 func (i *SectorInfo) MarshalPlainText() ([]byte, error) {
