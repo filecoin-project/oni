@@ -26,4 +26,8 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 COPY . .
 
-CMD panel serve --address 0.0.0.0 --port $LISTEN_PORT composer.ipynb
+# for serving the composer ui as a standalone webapp:
+# CMD panel serve --address 0.0.0.0 --port $LISTEN_PORT composer.ipynb
+
+# full jupyter server. uses a fixed token so we don't have to extract it at runtime.
+CMD jupyter notebook --ip=0.0.0.0 --NotebookApp.token='68be29c4c1a8451784252ffc6c936593'
