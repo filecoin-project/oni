@@ -41,8 +41,12 @@ func printDiff(t *testkit.TestEnvironment, mi *MinerInfo, height abi.ChainEpoch)
 	fmt.Fprintln(w, "=====", maddr, "=====")
 	for _, valueName := range keys {
 		fmt.Fprintln(w, "=====", valueName, "=====")
+		if len(diffCmp[maddr][valueName]) > 0 {
+			fmt.Fprint(w, "diff of             |\n")
+		}
+
 		for difference, heights := range diffCmp[maddr][valueName] {
-			fmt.Fprintf(w, "diff of %v at heights %v\n", difference, heights)
+			fmt.Fprintf(w, "diff of %30v at heights %v\n", difference, heights)
 		}
 	}
 }
