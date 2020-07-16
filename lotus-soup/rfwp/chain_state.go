@@ -91,8 +91,8 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 				writeText(w, minerInfo)
 				recordDiff(minerInfo, tipset.Height())
 
-				if tipset.Height() == abi.ChainEpoch(1500) {
-					printDiff(minerInfo)
+				if tipset.Height()%100 == 0 {
+					printDiff(t, minerInfo, tipset.Height())
 				}
 
 				faultState, err := provingFaults(t, m, maddr, tipset.Height())
@@ -133,6 +133,8 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 				return err
 			}
 		}
+
+		prevHeight = tipset.Height()
 	}
 
 	return nil
@@ -673,12 +675,11 @@ func (i *MinerInfo) MarshalPlainText() ([]byte, error) {
 			winRate := time.Duration(float64(time.Second*time.Duration(build.BlockDelaySecs)) / expWinChance)
 			winPerDay := float64(time.Hour*24) / float64(winRate)
 
-			fmt.Print("Expected block win rate: ")
+			fmt.Fprintln(w, "Expected block win rate: ")
 			fmt.Fprintf(w, "%.4f/day (every %s)\n", winPerDay, winRate.Truncate(time.Second))
 		}
 	}
 
-	fmt.Println()
 	fmt.Fprintf(w, "Miner Balance: %s\n", types.FIL(i.Balance))
 	fmt.Fprintf(w, "\tPreCommit:   %s\n", types.FIL(i.PreCommitDeposits))
 	fmt.Fprintf(w, "\tLocked:      %s\n", types.FIL(i.LockedFunds))
@@ -687,7 +688,6 @@ func (i *MinerInfo) MarshalPlainText() ([]byte, error) {
 	fmt.Fprintf(w, "Market (Escrow):  %s\n", types.FIL(i.MarketEscrow))
 	fmt.Fprintf(w, "Market (Locked):  %s\n\n", types.FIL(i.MarketLocked))
 
-	fmt.Println("Sectors:")
 	buckets := i.SectorStateCounts
 
 	var sorted []stateMeta
