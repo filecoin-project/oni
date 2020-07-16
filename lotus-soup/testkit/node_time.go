@@ -68,11 +68,14 @@ func (n *LotusNode) SynchronizeClock(ctx context.Context) (localAdvance chan<- a
 
 		minerCnt  = n.t.IntParam("miners")
 		clientCnt = n.t.IntParam("clients")
-		totalCnt  = minerCnt + clientCnt // miner is running a worker and a mining node.
+		totalCnt  = minerCnt + clientCnt
 
 		epoch         = abi.ChainEpoch(0) // current epoch: genesis
 		epochInterval = time.Duration(build.BlockDelaySecs) * time.Second
 
+		// ready tracks which nodes have advanced to the next round.
+		// when all nodes have advanced, we tick the global clock and reset
+		// this slice.
 		ready []string
 
 		signalCh = make(chan *ClockSyncMsg, 128)
