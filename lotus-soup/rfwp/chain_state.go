@@ -62,6 +62,7 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 
 		snapshot := ChainSnapshot{
 			Height:      tipset.Height(),
+			Tipset:      tipset,
 			MinerStates: make(map[string]*MinerStateSnapshot),
 		}
 
@@ -144,7 +145,7 @@ func ChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
 
 type ChainSnapshot struct {
 	Height abi.ChainEpoch
-
+	Tipset *types.TipSet
 	MinerStates map[string]*MinerStateSnapshot
 }
 
