@@ -43,7 +43,7 @@ type ClockSyncMsg struct {
 //
 // All of this happens in a background goroutine.
 func (n *LotusNode) SynchronizeClock(ctx context.Context, genesisTime time.Time, localEpochStartCh <-chan abi.ChainEpoch, globalEpochStartCh chan<- abi.ChainEpoch) {
-	// replace the clock, setting it to the genesis timestamp + 1 epoch
+	// replace the clock, setting it to the genesis timestamp epoch
 	// we are now ready to mine (and receive) the first block.
 	n.MockClock = clock.NewMock()
 	build.Clock = n.MockClock
