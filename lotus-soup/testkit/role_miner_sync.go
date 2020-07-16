@@ -12,7 +12,7 @@ import (
 // MinerSyncTopic is the topic where miner events are exchanged.
 var MinerSyncTopic = sync.NewTopic("miner_sync", &MiningSyncMsg{})
 
-// MiningSyncMsg represents a miner event.
+// MiningSyncMsg signals that the miner attempted to mine in a particular epoch (whether successful or not).
 type MiningSyncMsg struct {
 	Addr     address.Address
 	Produced bool // whether this miner produced a block.

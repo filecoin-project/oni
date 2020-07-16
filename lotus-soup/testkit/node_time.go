@@ -58,7 +58,7 @@ func (n *LotusNode) SynchronizeClock(ctx context.Context, genesisTime time.Time,
 		clientCnt = n.t.IntParam("clients")
 		totalCnt  = minerCnt + clientCnt // miner is running a worker and a mining node.
 
-		epoch         = abi.ChainEpoch(0) // current epoch
+		epoch         = abi.ChainEpoch(0) // current epoch: genesis
 		epochInterval = time.Duration(build.BlockDelaySecs) * time.Second
 
 		ready []string
