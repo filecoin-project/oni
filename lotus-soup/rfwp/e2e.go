@@ -42,9 +42,7 @@ func handleMiner(t *testkit.TestEnvironment) error {
 	t.RecordMessage("running miner: %s", myActorAddr)
 
 	// only first miner should check state
-	if t.InitContext.GroupSeq == 1 {
-		go ChainState(t, m)
-	}
+	go ChainState(t, m)
 
 	time.Sleep(3600 * time.Second)
 
