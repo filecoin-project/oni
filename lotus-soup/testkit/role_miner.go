@@ -303,6 +303,10 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return nil, err
 	}
 
+	n.Addresses[AddressMinerWorker] = genMiner.Worker
+	n.Addresses[AddressMinerID] = minerAddr
+	n.Addresses[AddressMinerActor] = minerActor
+
 	minerNetAddrs, err := n.MinerApi.NetAddrsListen(ctx)
 	if err != nil {
 		return nil, err

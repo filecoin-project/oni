@@ -29,12 +29,19 @@ import (
 
 var PrepareNodeTimeout = time.Minute
 
+const (
+	AddressWallet = iota
+	AddressMinerActor
+	AddressMinerID
+	AddressMinerWorker
+)
+
 type LotusNode struct {
 	t *TestEnvironment
 
 	FullApi    api.FullNode
 	MinerApi   api.StorageMiner
-	Addresses  []address.Address // clients have only one; miners have two addresses (worker, miner)
+	Addresses  [4]address.Address // indexed by Address* constants.
 	StopFn     node.StopFunc
 	ChainStore *store.ChainStore
 	Wallet     *wallet.Key
@@ -54,6 +61,7 @@ func (n *LotusNode) setWallet(ctx context.Context, walletKey *wallet.Key) error 
 	}
 
 	n.Wallet = walletKey
+	n.Addresses[AddressWallet] = walletKey.Address
 
 	return nil
 }
