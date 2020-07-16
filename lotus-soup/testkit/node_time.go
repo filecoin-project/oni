@@ -23,33 +23,45 @@ type ClockSyncMsg struct {
 // SynchronizeClock synchronizes this instance's clock with the clocks of all
 // miner and client nodes participating in this test scenario.
 //
-// This function takes a channel (localEpochStartCh) where we expect to receive
-// local signals to advance the clock to the next epoch. Such signals should
-// correspond to some local event that implies readiness to advance, such as
-// "mining round completed" events from synchronized mining.
+// This function returns two channels.
 //
-// Upon receiving a local advance signal, it forwards the clock by build.BlockDelaySecs,
-// thus progressing one chain epoch. It then signals this fact to all other
-// nodes participating in the test via the synchronization service.
+// The first channel (localAdvance) is where the user requests local advancement
+// to the next epoch. Such requests likely originate from some local event that
+// implies readiness to advance, such as "mining round completed" events from
+// synchronized mining. Upon receiving a local advance signal, the control
+// goroutine forwards the local clock by build.BlockDelaySecs, thus progressing
+// one chain epoch. It then signals this fact to all other nodes participating
+// in the test via the Testground synchronization service.
 //
-// Once all miners and clients have advanced, this function releases the new
-// abi.ChainEpoch on the `globalEpochStartCh`, thus signalling that all nodes
-// are ready to commence that chain epoch.
+// The second channel is where the global clock synchronizer signals every time
+// the entirety of test participants have progressed to the next epoch, thus
+// indicating that all nodes are eady to commence that chain epoch of
+// computation.
 //
-// Essentially this behaviour can be assimilated to a distributed sempaphore,
-// where all miners and clients wait until they have locally advanced their
-// clocks. Once they all signal that fact via the relevant sync topic, the
-// semaphore fires and allows them all to proceed at once.
+// Essentially this behaviour can be assimilated to a distributed sempaphore.
 //
-// All of this happens in a background goroutine.
-func (n *LotusNode) SynchronizeClock(ctx context.Context, genesisTime time.Time, localEpochStartCh <-chan abi.ChainEpoch, globalEpochStartCh chan<- abi.ChainEpoch) {
-	// replace the clock, setting it to the genesis timestamp epoch
-	// we are now ready to mine (and receive) the first block.
+// This method will return immediately, and will spawn a background goroutine
+// that performs the clock synchronisation work.
+func (n *LotusNode) SynchronizeClock(ctx context.Context) (localAdvance chan<- abi.ChainEpoch, globalEpoch <-chan abi.ChainEpoch, err error) {
 	n.MockClock = clock.NewMock()
 	build.Clock = n.MockClock
 
+	gen, err := n.FullApi.ChainGetGenesis(context.Background())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get genesis: %w", err)
+	}
+
 	// start at genesis.
+	genesisTime := time.Unix(int64(gen.MinTimestamp()), 0)
 	n.MockClock.Set(genesisTime)
+
+	var (
+		localEpochAdvanceCh = make(chan abi.ChainEpoch, 128)
+		globalEpochStartCh  = make(chan abi.ChainEpoch, 128)
+	)
+
+	// jumpstart the clock!
+	localEpochAdvanceCh <- abi.ChainEpoch(1)
 
 	var (
 		id = fmt.Sprintf("%s_%d", n.t.TestGroupID, n.t.GroupSeq)
@@ -72,7 +84,7 @@ func (n *LotusNode) SynchronizeClock(ctx context.Context, genesisTime time.Time,
 
 		for {
 			select {
-			case <-localEpochStartCh:
+			case <-localEpochAdvanceCh:
 				// move the local clock forward, and announce that fact to all other instances.
 				n.MockClock.Add(epochInterval)
 				epoch++
@@ -100,4 +112,6 @@ func (n *LotusNode) SynchronizeClock(ctx context.Context, genesisTime time.Time,
 			}
 		}
 	}()
+
+	return localEpochAdvanceCh, globalEpochStartCh, nil
 }

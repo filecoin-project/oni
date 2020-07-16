@@ -14,7 +14,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/repo"
-	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 )
 
@@ -144,20 +143,18 @@ func (c *LotusClient) RunDefault() error {
 	// if we're running in synchronized mining, enroll this client
 	// in the global clock.
 	if c.t.StringParam("mining_mode") == "synchronized" {
-		gen, err := c.FullApi.ChainGetGenesis(context.Background())
+		localAdvanceCh, globalEpochCh, err := c.SynchronizeClock(context.Background())
 		if err != nil {
-			return fmt.Errorf("failed to get genesis: %w", err)
+			return fmt.Errorf("failed to initiate clock synchronizer: %w", err)
 		}
 
-		var (
-			genTime = time.Unix(int64(gen.MinTimestamp()), 0)
-			loopCh  = make(chan abi.ChainEpoch, 128)
-		)
-
-		c.SynchronizeClock(context.Background(), genTime, loopCh, loopCh)
-
-		// jumpstart the clock!
-		loopCh <- abi.ChainEpoch(1)
+		go func() {
+			// for now, clients are always one epoch ahead locally with regards to miners.
+			// keeping the flywheel spinning!
+			for epoch := range globalEpochCh {
+				localAdvanceCh <- epoch + 1
+			}
+		}()
 	}
 
 	// run forever

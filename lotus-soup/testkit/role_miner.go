@@ -370,23 +370,11 @@ func (m *LotusMiner) RunDefault() error {
 	done := make(chan struct{})
 
 	if t.StringParam("mining_mode") != "natural" {
-		gen, err := m.FullApi.ChainGetGenesis(context.Background())
+		localAdvanceCh, globalEpochCh, err := m.SynchronizeClock(context.Background())
 		if err != nil {
-			return fmt.Errorf("failed to get genesis: %w", err)
+			return fmt.Errorf("failed to initiate clock synchronizer: %w", err)
 		}
-
-		var (
-			genTime             = time.Unix(int64(gen.MinTimestamp()), 0)
-			localEpochAdvanceCh = make(chan abi.ChainEpoch, 128)
-			globalEpochStartCh  = make(chan abi.ChainEpoch, 128)
-		)
-
-		m.SynchronizeClock(context.Background(), genTime, localEpochAdvanceCh, globalEpochStartCh)
-		go m.SynchronizeMiner(context.Background(), globalEpochStartCh, localEpochAdvanceCh)
-
-		// jumpstart the clock!
-		localEpochAdvanceCh <- abi.ChainEpoch(1)
-
+		go m.SynchronizeMiner(context.Background(), globalEpochCh, localAdvanceCh)
 	} else {
 		close(done)
 	}
