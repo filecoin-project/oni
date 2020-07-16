@@ -48,8 +48,8 @@ func (n *LotusNode) SynchronizeClock(ctx context.Context, genesisTime time.Time,
 	n.MockClock = clock.NewMock()
 	build.Clock = n.MockClock
 
-	// start at genesis + 100ms.
-	n.MockClock.Set(genesisTime.Add(100 * time.Millisecond))
+	// start at genesis.
+	n.MockClock.Set(genesisTime)
 
 	var (
 		id = fmt.Sprintf("%s_%d", n.t.TestGroupID, n.t.GroupSeq)
