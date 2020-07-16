@@ -456,7 +456,7 @@ func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr a
 		}
 	}
 
-	infos := make([]DeadlineInfo, len(deadlines.Due))
+	infos := make([]DeadlineInfo, 0, len(deadlines.Due))
 	for i, field := range deadlines.Due {
 		c, err := field.Count()
 		if err != nil {
