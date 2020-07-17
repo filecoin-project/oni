@@ -6,3 +6,6 @@ holoviews
 ansi2html
 matplotlib
 hvplot
+ipywidgets
+ipyfilechooser
+jupyter_bokeh

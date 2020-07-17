@@ -26,6 +26,9 @@ container_plans_dir="/testground/plans"
 jupyter_port=${JUPYTER_PORT:-8888}
 panel_port=${PANEL_PORT:-5006}
 
+host_test_outputs_dir=${TESTGROUND_OUTPUT_DIR:-"./outputs"}
+container_test_outputs_dir="/testground/test-output"
+
 poll_interval=30
 
 exists() {
@@ -113,13 +116,23 @@ echo "temp plans dir: $temp_plans_dir"
 # copy testplans from $TESTGROUND_HOME/plans to the temp dir
 update_plans ${temp_plans_dir}
 
+# make sure the outputs directory exists before we mount it, otherwise it will be created as root
+mkdir -p ${host_test_outputs_dir}
+
+docker_volumes="-v $(realpath ${host_test_outputs_dir}):${container_test_outputs_dir} "
+docker_volumes+="-v $(realpath ${temp_plans_dir}):${container_plans_dir}:ro "
+docker_volumes+="-v ${SCRIPT_DIR}:/usr/src/app "
+
+if [[ -d "${tg_home}/data/outputs" ]]; then
+  docker_volumes+="-v $(realpath ${tg_home}/data/outputs):/testground/data/outputs:ro "
+fi
+
 # run the container in detached mode and grab the id
 container_id=$(docker run -d \
   -e TESTGROUND_DAEMON_HOST=$(get_host_ip) \
   --user $(id -u):$(id -g) \
   -p ${jupyter_port}:8888 \
-  -v ${temp_plans_dir}:${container_plans_dir}:ro \
-  -v ${SCRIPT_DIR}:/usr/src/app:ro \
+  ${docker_volumes} \
   $image_full_name)
 
 echo "container $container_id started"

@@ -24,7 +24,6 @@ VOLUME /testground/plans
 
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-COPY . .
 
 # for serving the composer ui as a standalone webapp:
 # CMD panel serve --address 0.0.0.0 --port $LISTEN_PORT composer.ipynb
