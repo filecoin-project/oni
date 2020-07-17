@@ -10,7 +10,7 @@ enabled = true
 
 [builders."docker:go"]
 enabled = true
-build_base_image = "iptestground/oni-buildbase:v4"
+build_base_image = "iptestground/oni-buildbase:v5"
 runtime_image = "nonsens3/oni-runtime:v9-debug"
 
 [runners."local:exec"]
