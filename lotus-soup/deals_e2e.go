@@ -94,6 +94,8 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 
 	carExport := true
 
+	time.Sleep(180 * time.Second)
+
 	t.RecordMessage("trying to retrieve %s", fcid)
 	testkit.RetrieveData(t, ctx, client, fcid.Root, carExport, data)
 	t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
