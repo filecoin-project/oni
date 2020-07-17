@@ -38,7 +38,10 @@ func WaitDealSealed(t *TestEnvironment, ctx context.Context, client api.FullNode
 	height := 0
 	headlag := 3
 
-	tipsetsCh, err := tstats.GetTips(ctx, client, abi.ChainEpoch(height), headlag)
+	cctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	tipsetsCh, err := tstats.GetTips(cctx, client, abi.ChainEpoch(height), headlag)
 	if err != nil {
 		panic(err)
 	}
