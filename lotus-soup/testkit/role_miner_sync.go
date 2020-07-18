@@ -36,7 +36,7 @@ type MiningSyncMsg struct {
 //    all blocks that were produced in this epoch.
 //  * once that happens, we emit an epoch end signal, which the caller can
 //    interpret as a signal to advance the clock and begin a new epoch.
-func (m *LotusMiner) SynchronizeMiner(ctx context.Context, epochStart <-chan abi.ChainEpoch, epochEnd chan<- abi.ChainEpoch) {
+func (m *LotusMiner) SynchronizeMiner(ctx context.Context, mineTrigger <-chan abi.ChainEpoch, mineDone chan<- abi.ChainEpoch) {
 	defer run.HandlePanics()
 	defer m.t.RecordMessage("shutting down mining")
 
@@ -55,7 +55,7 @@ func (m *LotusMiner) SynchronizeMiner(ctx context.Context, epochStart <-chan abi
 
 	for {
 		select {
-		case e := <-epochStart:
+		case e := <-mineTrigger:
 			m.t.RecordMessage("epoch started: %d; mining", e)
 			epoch = e
 
@@ -101,7 +101,7 @@ func (m *LotusMiner) SynchronizeMiner(ctx context.Context, epochStart <-chan abi
 			}
 
 			// signal epoch end and loop over.
-			epochEnd <- epoch
+			mineDone <- epoch
 
 		case <-ctx.Done():
 			return
