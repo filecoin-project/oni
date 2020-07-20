@@ -89,20 +89,25 @@ func (n *LotusNode) SynchronizeClock(ctx context.Context) (localAdvance chan<- a
 			select {
 			case <-localEpochAdvanceCh:
 				// move the local clock forward, and announce that fact to all other instances.
-				n.MockClock.Add(epochInterval)
-				epoch++
-				n.t.RecordMessage("advanced local clock: %v [epoch=%d]", n.MockClock.Now(), epoch)
 				n.t.SyncClient.MustPublish(ctx, ClockSyncTopic, &ClockSyncMsg{
 					ID:    id,
 					Epoch: epoch,
 				})
 
-			case s := <-signalCh:
+			case s := <-signalCh: // this is the "global" one
 				// this is a clock event from another instance (or ourselves).
 				ready = append(ready, s.ID)
 				if len(ready) != totalCnt {
 					continue
 				}
+
+				// FIXME: Clock advancement should not be relative to previous
+				//  value but relative to the epoch we are instructing it to
+				//  simulate.
+				n.MockClock.Add(epochInterval)
+				epoch++
+				n.t.RecordMessage("advanced local clock: %v [epoch=%d]", n.MockClock.Now(), epoch)
+
 				// release the new epoch and reset the state.
 				globalEpochStartCh <- epoch
 				ready = ready[0:0]
