@@ -14,6 +14,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/build"
+	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/lib/adtutil"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 
@@ -31,38 +32,93 @@ import (
 
 	rlepluslazy "github.com/filecoin-project/go-bitfield/rle"
 	cbor "github.com/ipfs/go-ipld-cbor"
-
-	tstats "github.com/filecoin-project/lotus/tools/stats"
 )
 
 func ChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
-	height := 0
-	headlag := 3
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	ctx := context.Background()
-
-	tipsetsCh, err := tstats.GetTips(ctx, n.FullApi, abi.ChainEpoch(height), headlag)
+	notif, err := n.FullApi.ChainNotify(ctx)
 	if err != nil {
 		return err
 	}
+	// buffer the head changes to avoid blocking the notification channel
+	// we also add a timestamp to get an approximation of when the change was
+	// emitted
+	changeCh := make(chan []*HeadChange, 2048)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case changes := <-notif:
+				now := time.Now().UnixNano()
+				out := make([]*HeadChange, len(changes))
+				for i, c := range changes {
+					out[i] = &HeadChange{
+						ObservedAt: now,
+						Type:       c.Type,
+						TipsetKey:  c.Val.Key().String(),
+						Height:     c.Val.Height(),
+						tipset:     c.Val,
+					}
+				}
+				changeCh <- out
+			}
+		}
+	}()
 
-	jsonFilename := fmt.Sprintf("%s%cchain-state.ndjson", t.TestOutputsPath, os.PathSeparator)
-	jsonFile, err := os.Create(jsonFilename)
+	chainStateEnc, chainStateFile, err := makeJsonFile(t, "chain-state.ndjson")
 	if err != nil {
 		return err
 	}
-	defer jsonFile.Close()
-	jsonEncoder := json.NewEncoder(jsonFile)
+	defer chainStateFile.Close()
 
-	for tipset := range tipsetsCh {
-		maddrs, err := n.FullApi.StateListMiners(ctx, tipset.Key())
+	headStateEnc, headChangeFile, err := makeJsonFile(t, "chain-head-changes.ndjson")
+	if err != nil {
+		return err
+	}
+	defer headChangeFile.Close()
+
+	tipsetEnc, tipsetFile, err := makeJsonFile(t, "chain-tipsets.ndjson")
+	if err != nil {
+		return err
+	}
+	defer tipsetFile.Close()
+
+	recordHeadChange := func(change *HeadChange) error {
+		return headStateEnc.Encode(change)
+	}
+
+	recordedTipsets := make(map[string]struct{})
+	recordTipset := func(tipset *types.TipSet) error {
+		if _, ok := recordedTipsets[tipset.Key().String()]; ok {
+			return nil
+		}
+		return tipsetEnc.Encode(struct {
+			TipsetKey string
+			Tipset *types.TipSet
+		}{
+			TipsetKey: tipset.Key().String(),
+			Tipset: tipset,
+		})
+	}
+
+	recordedSnapshots := make(map[string]struct{})
+	recordChainSnapshot := func(tipset *types.TipSet) error {
+		tsk := tipset.Key()
+		if _, ok := recordedSnapshots[tsk.String()]; ok {
+			return nil
+		}
+
+		maddrs, err := n.FullApi.StateListMiners(ctx, tsk)
 		if err != nil {
 			return err
 		}
 
 		snapshot := ChainSnapshot{
 			Height:      tipset.Height(),
-			Tipset:      tipset,
+			TipsetKey:   tsk.String(),
 			MinerStates: make(map[string]*MinerStateSnapshot),
 		}
 
@@ -133,7 +189,7 @@ func ChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 					Sectors:     sectorInfo,
 				}
 
-				return jsonEncoder.Encode(snapshot)
+				return chainStateEnc.Encode(snapshot)
 			}()
 			if err != nil {
 				return err
@@ -141,14 +197,97 @@ func ChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 		}
 
 		prevHeight = tipset.Height()
+		recordedSnapshots[tsk.String()] = struct{}{}
+		return nil
 	}
 
-	return nil
+	for {
+		select {
+		case <-ctx.Done():
+			break
+
+		case changes := <-changeCh:
+			for _, change := range changes {
+				if err := recordHeadChange(change); err != nil {
+					return err
+				}
+				switch change.Type {
+				case store.HCCurrent:
+					tipsets, err := loadTipsets(ctx, n.FullApi, change.tipset, 0)
+					if err != nil {
+						return err
+					}
+
+					for _, tipset := range tipsets {
+						if err := recordTipset(tipset); err != nil {
+							return err
+						}
+						if err := recordChainSnapshot(tipset); err != nil {
+							return err
+						}
+					}
+				case store.HCApply:
+					if err := recordTipset(change.tipset); err != nil {
+						return err
+					}
+					if err := recordChainSnapshot(change.tipset); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+}
+
+func makeJsonFile(t *testkit.TestEnvironment, filename string) (enc *json.Encoder, close io.Closer, err error) {
+	filePath := fmt.Sprintf("%s%c%s", t.TestOutputsPath, os.PathSeparator, filename)
+	f, err := os.Create(filePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	return json.NewEncoder(f), f, err
+}
+
+func loadTipsets(ctx context.Context, api api.FullNode, curr *types.TipSet, lowestHeight abi.ChainEpoch) ([]*types.TipSet, error) {
+	tipsets := []*types.TipSet{}
+	for {
+		if curr.Height() == 0 {
+			break
+		}
+
+		if curr.Height() <= lowestHeight {
+			break
+		}
+
+		tipsets = append(tipsets, curr)
+
+		tsk := curr.Parents()
+		prev, err := api.ChainGetTipSet(ctx, tsk)
+		if err != nil {
+			return tipsets, err
+		}
+
+		curr = prev
+	}
+
+	for i, j := 0, len(tipsets)-1; i < j; i, j = i+1, j-1 {
+		tipsets[i], tipsets[j] = tipsets[j], tipsets[i]
+	}
+
+	return tipsets, nil
+}
+
+type HeadChange struct {
+	Type       string
+	TipsetKey  string
+	Height     abi.ChainEpoch
+	ObservedAt int64
+	tipset     *types.TipSet
 }
 
 type ChainSnapshot struct {
-	Height abi.ChainEpoch
-	Tipset *types.TipSet
+	Height      abi.ChainEpoch
+	TipsetKey   string
 	MinerStates map[string]*MinerStateSnapshot
 }
 
