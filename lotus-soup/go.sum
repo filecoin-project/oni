@@ -265,6 +265,8 @@ github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b 
 github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b/go.mod h1:Q0GQOBtKf1oE10eSXSlhN45kDBdGvEcVOqMiffqX+N8=
 github.com/filecoin-project/lotus v0.4.2-0.20200716234857-389d148a60c1 h1:hFB4Y+S5JDBq6ANjRTjEome6SfrN3w8QW0RiKZIf4Bs=
 github.com/filecoin-project/lotus v0.4.2-0.20200716234857-389d148a60c1/go.mod h1:J2fEYKSZV9gjdouhz1XEhwBUalAywKDwrmxqqSMC4Hc=
+github.com/filecoin-project/lotus v0.4.2-0.20200720081501-c07a561b6b08 h1:uXT+q7fPGZtpJgdbEhhWM8DKBdeVn2CWxx2k5XWt4c0=
+github.com/filecoin-project/lotus v0.4.2-0.20200720081501-c07a561b6b08/go.mod h1:J2fEYKSZV9gjdouhz1XEhwBUalAywKDwrmxqqSMC4Hc=
 github.com/filecoin-project/sector-storage v0.0.0-20200615154852-728a47ab99d6/go.mod h1:M59QnAeA/oV+Z8oHFLoNpGMv0LZ8Rll+vHVXX7GirPM=
 github.com/filecoin-project/sector-storage v0.0.0-20200712023225-1d67dcfa3c15/go.mod h1:salgVdX7qeXFo/xaiEQE29J4pPkjn71T0kt0n+VDBzo=
 github.com/filecoin-project/sector-storage v0.0.0-20200716210653-a846ac9b39ff h1:Hdk6IsANKd3sJEqpaOuI98jAuDWnffmOCQmlrd89/Hc=
@@ -279,6 +281,8 @@ github.com/filecoin-project/specs-actors v0.7.2 h1:zMOU6LJS3gz7E9rwPPiPgTVawe7yp
 github.com/filecoin-project/specs-actors v0.7.2/go.mod h1:oJMdZvXSDZWWvjDxCkAywNz2MhgxV6dBzSCVg4vNf4o=
 github.com/filecoin-project/specs-actors v0.7.3-0.20200713154918-038c676692ce h1:VstDBGwI0Nyhd5L3bHk5DxYSimGtCzV0FYdmEUgzpcw=
 github.com/filecoin-project/specs-actors v0.7.3-0.20200713154918-038c676692ce/go.mod h1:oJMdZvXSDZWWvjDxCkAywNz2MhgxV6dBzSCVg4vNf4o=
+github.com/filecoin-project/specs-actors v0.7.3-0.20200716165342-c7b0eadba7e7 h1:hspNBB0uLWIaR/pDvzXaGkndfQwX6Jj65B8914Q/NlU=
+github.com/filecoin-project/specs-actors v0.7.3-0.20200716165342-c7b0eadba7e7/go.mod h1:oJMdZvXSDZWWvjDxCkAywNz2MhgxV6dBzSCVg4vNf4o=
 github.com/filecoin-project/specs-storage v0.1.0/go.mod h1:Pr5ntAaxsh+sLG/LYiL4tKzvA83Vk5vLODYhfNwOg7k=
 github.com/filecoin-project/specs-storage v0.1.1-0.20200622113353-88a9704877ea h1:iixjULRQFPn7Q9KlIqfwLJnlAXO10bbkI+xy5GKGdLY=
 github.com/filecoin-project/specs-storage v0.1.1-0.20200622113353-88a9704877ea/go.mod h1:Pr5ntAaxsh+sLG/LYiL4tKzvA83Vk5vLODYhfNwOg7k=
