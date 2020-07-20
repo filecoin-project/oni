@@ -290,7 +290,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		Params:   minerIDEncoded,
 		Value:    types.NewInt(0),
 		GasPrice: types.NewInt(0),
-		GasLimit: 1000000,
+		GasLimit: 0, // lotus will set to correct value
 	}
 
 	_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
