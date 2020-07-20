@@ -44,6 +44,10 @@ const (
 type LotusMiner struct {
 	*LotusNode
 
+	MinerRepo *repo.MemRepo
+	NodeRepo  *repo.MemRepo
+	MinerAddr address.Address
+
 	t *TestEnvironment
 }
 
@@ -340,7 +344,213 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
 
-	m := &LotusMiner{n, t}
+	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
+	if err != nil {
+		return nil, err
+	}
+
+	err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
+	if err != nil {
+		return nil, err
+	}
+
+	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, t}
+
+	return m, nil
+}
+
+func RestoreMiner(t *TestEnvironment, minerRepo *repo.MemRepo, nodeRepo *repo.MemRepo, minerAddr address.Address) (*LotusMiner, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
+	defer cancel()
+
+	//pubsubTracer, err := GetPubsubTracerMaddr(ctx, t)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//drandOpt, err := GetRandomBeaconOpts(ctx, t)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	minerIP := t.NetClient.MustGetDataNetworkIP().String()
+
+	// create the node
+	// we need both a full node _and_ and storage miner node
+	n := &LotusNode{}
+
+	//nodeRepo := repo.NewMemory(nil)
+
+	stop1, err := node.New(context.Background(),
+		node.FullAPI(&n.FullApi),
+		node.Online(),
+		node.Repo(nodeRepo),
+		//withGenesis(genesisMsg.Genesis),
+		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
+		withListenAddress(minerIP),
+		//withBootstrapper(genesisMsg.Bootstrapper),
+		//withPubsubConfig(false, pubsubTracer),
+		//drandOpt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// set the wallet
+	//err = n.setWallet(ctx, walletKey)
+	//if err != nil {
+	//stop1(context.TODO())
+	//return nil, err
+	//}
+
+	minerOpts := []node.Option{
+		node.StorageMiner(&n.MinerApi),
+		node.Online(),
+		node.Repo(minerRepo),
+		node.Override(new(api.FullNode), n.FullApi),
+		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("miner_rpc", "0"))),
+		withMinerListenAddress(minerIP),
+	}
+
+	if t.StringParam("mining_mode") != "natural" {
+		mineBlock := make(chan func(bool, error))
+		minerOpts = append(minerOpts,
+			node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)))
+
+		n.MineOne = func(ctx context.Context, cb func(bool, error)) error {
+			select {
+			case mineBlock <- cb:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	stop2, err := node.New(context.Background(), minerOpts...)
+	if err != nil {
+		stop1(context.TODO())
+		return nil, err
+	}
+	n.StopFn = func(ctx context.Context) error {
+		// TODO use a multierror for this
+		err2 := stop2(ctx)
+		err1 := stop1(ctx)
+		if err2 != nil {
+			return err2
+		}
+		return err1
+	}
+
+	registerAndExportMetrics(minerAddr.String())
+
+	// collect stats based on Travis' scripts
+	if t.InitContext.GroupSeq == 1 {
+		go collectStats(t, ctx, n.FullApi)
+	}
+
+	// Start listening on the full node.
+	//fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
+	//if err != nil {
+	//panic(err)
+	//}
+
+	// err = n.MinerApi.NetConnect(ctx, fullNodeNetAddrs)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// set seal delay to lower value than 1 hour
+	//err = n.MinerApi.SectorSetSealDelay(ctx, sealDelay)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	// set expected seal duration to 1 minute
+	//err = n.MinerApi.SectorSetExpectedSealDuration(ctx, 1*time.Minute)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	// print out the admin auth token
+	//token, err := n.MinerApi.AuthNew(ctx, apistruct.AllPermissions)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//t.RecordMessage("Auth token: %s", string(token))
+
+	// add local storage for presealed sectors
+	//err = n.MinerApi.StorageAddLocal(ctx, presealDir)
+	//if err != nil {
+	//n.StopFn(context.TODO())
+	//return nil, err
+	//}
+
+	// set the miner PeerID
+	//minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//changeMinerID := &types.Message{
+	//To:       minerAddr,
+	//From:     genMiner.Worker,
+	//Method:   builtin.MethodsMiner.ChangePeerID,
+	//Params:   minerIDEncoded,
+	//Value:    types.NewInt(0),
+	//GasPrice: types.NewInt(0),
+	//GasLimit: 1000000,
+	//}
+
+	//_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
+	//if err != nil {
+	//n.StopFn(context.TODO())
+	//return nil, err
+	//}
+
+	//t.RecordMessage("publish our address to the miners addr topic")
+	//minerActor, err := n.MinerApi.ActorAddress(ctx)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//minerNetAddrs, err := n.MinerApi.NetAddrsListen(ctx)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//t.SyncClient.MustPublish(ctx, MinersAddrsTopic, MinerAddressesMsg{
+	//FullNetAddrs:   fullNodeNetAddrs,
+	//MinerNetAddrs:  minerNetAddrs,
+	//MinerActorAddr: minerActor,
+	//})
+
+	//t.RecordMessage("connecting to all other miners")
+
+	//// densely connect the miner's full nodes.
+	//minerCh := make(chan *MinerAddressesMsg, 16)
+	//sctx, cancel := context.WithCancel(ctx)
+	//defer cancel()
+	//t.SyncClient.MustSubscribe(sctx, MinersAddrsTopic, minerCh)
+	//for i := 0; i < t.IntParam("miners"); i++ {
+	//m := <-minerCh
+	//if m.MinerActorAddr == minerActor {
+	//// once I find myself, I stop connecting to others, to avoid a simopen problem.
+	//break
+	//}
+	//err := n.FullApi.NetConnect(ctx, m.FullNetAddrs)
+	//if err != nil {
+	//return nil, fmt.Errorf("failed to connect to miner %s on: %v", m.MinerActorAddr, m.FullNetAddrs)
+	//}
+	//t.RecordMessage("connected to full node of miner %s on %v", m.MinerActorAddr, m.FullNetAddrs)
+
+	//}
+
+	//t.RecordMessage("waiting for all nodes to be ready")
+	//t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
+
+	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, t}
 
 	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
 	if err != nil {

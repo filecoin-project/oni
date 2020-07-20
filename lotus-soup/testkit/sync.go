@@ -20,13 +20,11 @@ var (
 )
 
 var (
-	StateReady                 = sync.State("ready")
-	StateDone                  = sync.State("done")
-	StateStopMining            = sync.State("stop-mining")
-	StateClientExpectsSlashing = sync.State("client-expects-slashing")
-	StateMinersWaitForSlashing = sync.State("miners-wait-for-slashing")
-	StateMinerPickSeqNum       = sync.State("miner-pick-seq-num")
-	StateAbortTest             = sync.State("abort-test")
+	StateReady           = sync.State("ready")
+	StateDone            = sync.State("done")
+	StateStopMining      = sync.State("stop-mining")
+	StateMinerPickSeqNum = sync.State("miner-pick-seq-num")
+	StateAbortTest       = sync.State("abort-test")
 )
 
 type InitialBalanceMsg struct {
