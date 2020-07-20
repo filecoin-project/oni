@@ -48,6 +48,7 @@ type LotusMiner struct {
 	NodeRepo     *repo.MemRepo
 	MinerAddr    address.Address
 	FullNetAddrs []peer.AddrInfo
+	GenesisMsg   *GenesisMsg
 
 	t *TestEnvironment
 }
@@ -357,7 +358,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return nil, err
 	}
 
-	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, t}
+	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, t}
 
 	return m, nil
 }
@@ -370,6 +371,7 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 	nodeRepo := m.NodeRepo
 	minerAddr := m.MinerAddr
 	fullNetAddrs := m.FullNetAddrs
+	genesisMsg := m.GenesisMsg
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
 
@@ -386,7 +388,7 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 		//withGenesis(genesisMsg.Genesis),
 		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
 		withListenAddress(minerIP),
-		//withBootstrapper(genesisMsg.Bootstrapper),
+		withBootstrapper(genesisMsg.Bootstrapper),
 		//withPubsubConfig(false, pubsubTracer),
 		//drandOpt,
 	)
@@ -447,7 +449,7 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
 	}
 
-	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, t}
+	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, t}
 
 	return pm, err
 }
