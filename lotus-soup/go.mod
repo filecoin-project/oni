@@ -11,9 +11,9 @@ require (
 	github.com/filecoin-project/go-fil-markets v0.4.1-0.20200715201050-c141144ea312
 	github.com/filecoin-project/go-jsonrpc v0.1.1-0.20200602181149-522144ab4e24
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
-	github.com/filecoin-project/lotus v0.4.2-0.20200720084913-8a72e2ed4090
-	github.com/filecoin-project/specs-actors v0.7.3-0.20200716165342-c7b0eadba7e7
-	github.com/filecoin-project/storage-fsm v0.0.0-20200715191202-7e92e888bf41
+	github.com/filecoin-project/lotus v0.4.2-0.20200720132907-e1c9c4297bcd
+	github.com/filecoin-project/specs-actors v0.8.1-0.20200720115956-cd051eabf328
+	github.com/filecoin-project/storage-fsm v0.0.0-20200717125541-d575c3a5f7f2
 	github.com/gorilla/mux v1.7.4
 	github.com/influxdata/influxdb v1.8.0 // indirect
 	github.com/ipfs/go-cid v0.0.6
