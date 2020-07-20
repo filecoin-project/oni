@@ -5,7 +5,7 @@ import pandas as pd
 import hvplot.pandas # noqa - for side effects, don't remove
 import panel as pn
 
-from typing import List, Optional, NamedTuple
+from typing import List, Optional, NamedTuple, Any
 
 MINER_STATE_COL_RENAMES = {
     'Info.MinerAddr': 'Miner',
@@ -54,18 +54,56 @@ def atto_to_fil(x):
     return float(x) * pow(10, -18)
 
 
-class ChainDataFrames(NamedTuple):
+class ChainDataFrames(object):
+
+    # miner_states only includes state snapshots for tipsets that were included in the final chain
     miner_states: pd.DataFrame
+
+    # transient_miner_states has state snapshots that were not included in the final chain (tipset reverted)
+    transient_miner_states: pd.DataFrame
+
+    # all_miner_states has all state snapshots, whether included in the final chain or not
+    all_miner_states: pd.DataFrame
+
+    # tipsets has all tipsets, whether included in the final chain or not
     tipsets: pd.DataFrame
 
+    # head_changes has a sequence of apply/revert operations that result in the final chain
+    head_changes: pd.DataFrame
+
+    def __init__(self, all_miner_states: pd.DataFrame, tipsets: pd.DataFrame, head_changes: pd.DataFrame):
+        # annotate each tipset with whether it was included in the "final" chain
+        # we determine this by summing up the "apply"/"revert" commands that have the same TipsetKey
+        # using +1 for apply and -1 for revert. Any tipset with a positive score is considered included
+
+        head_changes['apply_score'] = head_changes['Type'].apply(lambda t: -1 if t == 'revert' else 1)
+        df = head_changes[['TipsetKey', 'apply_score']].groupby('TipsetKey').sum()
+
+        joined = tipsets.join(df, on='TipsetKey')
+        joined['included'] = joined['apply_score'] > 0
+        tipsets['included'] = joined['included']
+
+        joined = all_miner_states.join(df, on='TipsetKey')
+        joined['included'] = joined['apply_score'] > 0
+        all_miner_states['included'] = joined['included']
+
+        # head_changes.drop(columns=['apply_score'], inplace=True)
+
+        self.miner_states = all_miner_states.where(all_miner_states['included']).dropna()
+        self.transient_miner_states = all_miner_states.where(all_miner_states['included'] != True).dropna()
+        self.all_miner_states = all_miner_states
+        self.tipsets = tipsets
+        self.head_changes = head_changes
+
     def to_pickle(self, dir_path: str):
-        self.miner_states.to_pickle(os.path.join(dir_path, 'miner_states.gz'))
+        self.all_miner_states.to_pickle(os.path.join(dir_path, 'all_miner_states.gz'))
         self.tipsets.to_pickle(os.path.join(dir_path, 'tipsets.gz'))
+        self.head_changes.to_pickle(os.path.join(dir_path, 'head_changes.gz'))
 
     @classmethod
     def read_pickle(cls, dir_path: str) -> 'ChainDataFrames':
         d = dict()
-        for table in ['miner_states', 'tipsets']:
+        for table in ['all_miner_states', 'tipsets', 'head_changes']:
             p = os.path.join(dir_path, '{}.gz'.format(table))
             if not os.path.exists(p):
                 raise ValueError('no file found at ' + p)
@@ -74,26 +112,27 @@ class ChainDataFrames(NamedTuple):
 
 
     @classmethod
-    def from_ndjson_file(cls, statefile: str) -> 'ChainDataFrames':
+    def from_ndjson_files(cls, dir_path: str) -> 'ChainDataFrames':
+        all_miner_states = cls.load_miner_state_ndjson(os.path.join(dir_path, 'chain-state.ndjson'))
+        tipsets = cls.load_tipsets_ndjson(os.path.join(dir_path, 'chain-tipsets.ndjson'))
+        head_changes = cls.load_head_changes_ndjson(os.path.join(dir_path, 'chain-head-changes.ndjson'))
+        return ChainDataFrames(all_miner_states=all_miner_states, tipsets=tipsets, head_changes=head_changes)
+
+    @classmethod
+    def load_miner_state_ndjson(cls, statefile: str) -> pd.DataFrame:
         miner_states = None
-        tipsets = None
 
         with open(statefile, 'rt') as f:
             for line in f.readlines():
                 j = json.loads(line)
                 chain_height = j['Height']
-                t = j.get('Tipset', None)
-                if t is not None:
-                    df = pd.json_normalize(t)
-                    if tipsets is None:
-                        tipsets = df
-                    else:
-                        tipsets = tipsets.append(df, ignore_index=True)
+                tipset_key = j['TipsetKey']
 
                 miners = j['MinerStates']
                 for m in miners.values():
                     df = pd.json_normalize(m)
                     df['Height'] = chain_height
+                    df['TipsetKey'] = tipset_key
                     df.rename(columns=MINER_STATE_COL_RENAMES, inplace=True)
                     if miner_states is None:
                         miner_states = df
@@ -116,7 +155,33 @@ class ChainDataFrames(NamedTuple):
             return len(x)
         miner_states['CommittedSectors'] = miner_states['Sectors.Committed'].apply(count)
         miner_states['ProvingSectors'] = miner_states['Sectors.Proving'].apply(count)
-        return ChainDataFrames(miner_states=miner_states, tipsets=tipsets)
+        return miner_states
+
+    @classmethod
+    def load_tipsets_ndjson(cls, tipset_file: str) -> pd.DataFrame:
+        tipsets = None
+        with open(tipset_file, 'rt') as f:
+            for line in f.readlines():
+                j = json.loads(line)
+                df = pd.json_normalize(j)
+                if tipsets is None:
+                    tipsets = df
+                else:
+                    tipsets = tipsets.append(df, ignore_index=True)
+        return tipsets
+
+    @classmethod
+    def load_head_changes_ndjson(cls, head_change_file: str) -> pd.DataFrame:
+        changes = None
+        with open(head_change_file, 'rt') as f:
+            for line in f.readlines():
+                j = json.loads(line)
+                df = pd.json_normalize(j)
+                if changes is None:
+                    changes = df
+                else:
+                    changes = changes.append(df, ignore_index=True)
+        return changes
 
 
 def tick_formatter(col: str) -> Optional[str]:
@@ -129,9 +194,10 @@ class ChainState(object):
     def __init__(self, pandas_data: ChainDataFrames):
         self.pandas = pandas_data
 
+
     @classmethod
-    def from_ndjson(cls, filename: str):
-        return ChainState(ChainDataFrames.from_ndjson_file(filename))
+    def from_ndjson_files(cls, dir_path: str):
+        return ChainState(ChainDataFrames.from_ndjson_files(dir_path))
 
     @classmethod
     def from_pickle(cls, dir_path: str) -> 'ChainState':
