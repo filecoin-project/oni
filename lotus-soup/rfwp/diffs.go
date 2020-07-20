@@ -28,7 +28,7 @@ func NewChainState() *ChainState {
 	cs.DiffHeight = make(map[string]map[string]map[abi.ChainEpoch]big.Int) // height -> value
 	cs.DiffValue = make(map[string]map[string]map[string][]abi.ChainEpoch) // value -> []height
 	cs.DiffCmp = make(map[string]map[string]map[string][]abi.ChainEpoch)   // difference (height, height-1) -> []height
-	cs.valueTypes = []string{"MinerPower", "CommittedBytes", "ProvingBytes", "Balance", "PreCommitDeposits", "LockedFunds", "AvailableFunds", "WorkerBalance", "MarketEscrow", "MarketLocked", "Faults", "ProvenSectors", "Recoveries", "NewSectors"}
+	cs.valueTypes = []string{"MinerPower", "CommittedBytes", "ProvingBytes", "Balance", "PreCommitDeposits", "LockedFunds", "AvailableFunds", "WorkerBalance", "MarketEscrow", "MarketLocked", "Faults", "ProvenSectors", "Recoveries"}
 	return cs
 }
 
@@ -280,21 +280,6 @@ func recordDiff(mi *MinerInfo, ps *ProvingInfoState, height abi.ChainEpoch) {
 			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
 			if big.Cmp(cmp, big.Zero()) != 0 {
 				cs.DiffCmp[maddr]["Recoveries"][cmp.String()] = append(cs.DiffCmp[maddr]["Recoveries"][cmp.String()], height)
-			}
-		}
-	}
-
-	{
-		value := big.NewInt(int64(ps.NewSectors))
-		cs.DiffHeight[maddr]["NewSectors"][height] = value
-		cs.DiffValue[maddr]["NewSectors"][value.String()] = append(cs.DiffValue[maddr]["NewSectors"][value.String()], height)
-
-		if cs.PrevHeight != -1 {
-			prevValue := cs.DiffHeight[maddr]["NewSectors"][cs.PrevHeight]
-			cmp := big.Zero()
-			cmp.Sub(value.Int, prevValue.Int) // value - prevValue
-			if big.Cmp(cmp, big.Zero()) != 0 {
-				cs.DiffCmp[maddr]["NewSectors"][cmp.String()] = append(cs.DiffCmp[maddr]["NewSectors"][cmp.String()], height)
 			}
 		}
 	}
