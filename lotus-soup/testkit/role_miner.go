@@ -44,9 +44,10 @@ const (
 type LotusMiner struct {
 	*LotusNode
 
-	MinerRepo *repo.MemRepo
-	NodeRepo  *repo.MemRepo
-	MinerAddr address.Address
+	MinerRepo    *repo.MemRepo
+	NodeRepo     *repo.MemRepo
+	MinerAddr    address.Address
+	FullNetAddrs []peer.AddrInfo
 
 	t *TestEnvironment
 }
@@ -327,6 +328,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	sctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	t.SyncClient.MustSubscribe(sctx, MinersAddrsTopic, minerCh)
+	var fullNetAddrs []peer.AddrInfo
 	for i := 0; i < t.IntParam("miners"); i++ {
 		m := <-minerCh
 		if m.MinerActorAddr == minerActor {
@@ -339,6 +341,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		}
 		t.RecordMessage("connected to full node of miner %s on %v", m.MinerActorAddr, m.FullNetAddrs)
 
+		fullNetAddrs = append(fullNetAddrs, m.FullNetAddrs)
 	}
 
 	t.RecordMessage("waiting for all nodes to be ready")
@@ -354,24 +357,19 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return nil, err
 	}
 
-	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, t}
+	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, t}
 
 	return m, nil
 }
 
-func RestoreMiner(t *TestEnvironment, minerRepo *repo.MemRepo, nodeRepo *repo.MemRepo, minerAddr address.Address) (*LotusMiner, error) {
+func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
 	defer cancel()
 
-	//pubsubTracer, err := GetPubsubTracerMaddr(ctx, t)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//drandOpt, err := GetRandomBeaconOpts(ctx, t)
-	//if err != nil {
-	//return nil, err
-	//}
+	minerRepo := m.MinerRepo
+	nodeRepo := m.NodeRepo
+	minerAddr := m.MinerAddr
+	fullNetAddrs := m.FullNetAddrs
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
 
@@ -395,13 +393,6 @@ func RestoreMiner(t *TestEnvironment, minerRepo *repo.MemRepo, nodeRepo *repo.Me
 	if err != nil {
 		return nil, err
 	}
-
-	// set the wallet
-	//err = n.setWallet(ctx, walletKey)
-	//if err != nil {
-	//stop1(context.TODO())
-	//return nil, err
-	//}
 
 	minerOpts := []node.Option{
 		node.StorageMiner(&n.MinerApi),
@@ -433,7 +424,6 @@ func RestoreMiner(t *TestEnvironment, minerRepo *repo.MemRepo, nodeRepo *repo.Me
 		return nil, err
 	}
 	n.StopFn = func(ctx context.Context) error {
-		// TODO use a multierror for this
 		err2 := stop2(ctx)
 		err1 := stop1(ctx)
 		if err2 != nil {
@@ -449,120 +439,17 @@ func RestoreMiner(t *TestEnvironment, minerRepo *repo.MemRepo, nodeRepo *repo.Me
 		go collectStats(t, ctx, n.FullApi)
 	}
 
-	// Start listening on the full node.
-	//fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
-	//if err != nil {
-	//panic(err)
-	//}
-
-	// err = n.MinerApi.NetConnect(ctx, fullNodeNetAddrs)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// set seal delay to lower value than 1 hour
-	//err = n.MinerApi.SectorSetSealDelay(ctx, sealDelay)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	// set expected seal duration to 1 minute
-	//err = n.MinerApi.SectorSetExpectedSealDuration(ctx, 1*time.Minute)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	// print out the admin auth token
-	//token, err := n.MinerApi.AuthNew(ctx, apistruct.AllPermissions)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//t.RecordMessage("Auth token: %s", string(token))
-
-	// add local storage for presealed sectors
-	//err = n.MinerApi.StorageAddLocal(ctx, presealDir)
-	//if err != nil {
-	//n.StopFn(context.TODO())
-	//return nil, err
-	//}
-
-	// set the miner PeerID
-	//minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//changeMinerID := &types.Message{
-	//To:       minerAddr,
-	//From:     genMiner.Worker,
-	//Method:   builtin.MethodsMiner.ChangePeerID,
-	//Params:   minerIDEncoded,
-	//Value:    types.NewInt(0),
-	//GasPrice: types.NewInt(0),
-	//GasLimit: 1000000,
-	//}
-
-	//_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
-	//if err != nil {
-	//n.StopFn(context.TODO())
-	//return nil, err
-	//}
-
-	//t.RecordMessage("publish our address to the miners addr topic")
-	//minerActor, err := n.MinerApi.ActorAddress(ctx)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//minerNetAddrs, err := n.MinerApi.NetAddrsListen(ctx)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//t.SyncClient.MustPublish(ctx, MinersAddrsTopic, MinerAddressesMsg{
-	//FullNetAddrs:   fullNodeNetAddrs,
-	//MinerNetAddrs:  minerNetAddrs,
-	//MinerActorAddr: minerActor,
-	//})
-
-	//t.RecordMessage("connecting to all other miners")
-
-	//// densely connect the miner's full nodes.
-	//minerCh := make(chan *MinerAddressesMsg, 16)
-	//sctx, cancel := context.WithCancel(ctx)
-	//defer cancel()
-	//t.SyncClient.MustSubscribe(sctx, MinersAddrsTopic, minerCh)
-	//for i := 0; i < t.IntParam("miners"); i++ {
-	//m := <-minerCh
-	//if m.MinerActorAddr == minerActor {
-	//// once I find myself, I stop connecting to others, to avoid a simopen problem.
-	//break
-	//}
-	//err := n.FullApi.NetConnect(ctx, m.FullNetAddrs)
-	//if err != nil {
-	//return nil, fmt.Errorf("failed to connect to miner %s on: %v", m.MinerActorAddr, m.FullNetAddrs)
-	//}
-	//t.RecordMessage("connected to full node of miner %s on %v", m.MinerActorAddr, m.FullNetAddrs)
-
-	//}
-
-	//t.RecordMessage("waiting for all nodes to be ready")
-	//t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
-
-	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, t}
-
-	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
-	if err != nil {
-		return nil, err
+	for i := 0; i < len(fullNetAddrs); i++ {
+		err := n.FullApi.NetConnect(ctx, fullNetAddrs[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to miner %d on: %v", i, fullNetAddrs[i])
+		}
+		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
 	}
 
-	err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
-	if err != nil {
-		return nil, err
-	}
+	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, t}
 
-	return m, err
+	return pm, err
 }
 
 func (m *LotusMiner) RunDefault() error {
