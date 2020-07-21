@@ -2,10 +2,13 @@
 import os
 import json
 import pandas as pd
+import holoviews as hv
 import hvplot.pandas # noqa - for side effects, don't remove
 import panel as pn
+from typing import List, Optional, NamedTuple, Any, Union
+from collections import defaultdict
 
-from typing import List, Optional, NamedTuple, Any
+from .util import archive_temp_dir, extract_archive
 
 MINER_STATE_COL_RENAMES = {
     'Info.MinerAddr': 'Miner',
@@ -71,10 +74,16 @@ class ChainDataFrames(object):
     # head_changes has a sequence of apply/revert operations that result in the final chain
     head_changes: pd.DataFrame
 
-    def __init__(self, all_miner_states: pd.DataFrame, tipsets: pd.DataFrame, head_changes: pd.DataFrame):
+    def __init__(self, all_miner_states: pd.DataFrame, tipsets: pd.DataFrame, head_changes: pd.DataFrame, instance_id: Optional[str]):
         # annotate each tipset with whether it was included in the "final" chain
         # we determine this by summing up the "apply"/"revert" commands that have the same TipsetKey
         # using +1 for apply and -1 for revert. Any tipset with a positive score is considered included
+
+        self.instance_id = instance_id
+        if instance_id is not None:
+            all_miner_states['test_instance'] = instance_id
+            tipsets['test_instance'] = instance_id
+            head_changes['test_instance'] = instance_id
 
         head_changes['apply_score'] = head_changes['Type'].apply(lambda t: -1 if t == 'revert' else 1)
         df = head_changes[['TipsetKey', 'apply_score']].groupby('TipsetKey').sum()
@@ -101,22 +110,24 @@ class ChainDataFrames(object):
         self.head_changes.to_pickle(os.path.join(dir_path, 'head_changes.gz'))
 
     @classmethod
-    def read_pickle(cls, dir_path: str) -> 'ChainDataFrames':
+    def read_pickle(cls, dir_path: str, instance_id: Optional[str]) -> 'ChainDataFrames':
         d = dict()
         for table in ['all_miner_states', 'tipsets', 'head_changes']:
             p = os.path.join(dir_path, '{}.gz'.format(table))
             if not os.path.exists(p):
                 raise ValueError('no file found at ' + p)
             d[table] = pd.read_pickle(p)
+        d['instance_id'] = instance_id
         return ChainDataFrames(**d)
 
 
     @classmethod
-    def from_ndjson_files(cls, dir_path: str) -> 'ChainDataFrames':
+    def from_ndjson_files(cls, dir_path: str, instance_id: Optional[str]) -> 'ChainDataFrames':
         all_miner_states = cls.load_miner_state_ndjson(os.path.join(dir_path, 'chain-state.ndjson'))
         tipsets = cls.load_tipsets_ndjson(os.path.join(dir_path, 'chain-tipsets.ndjson'))
         head_changes = cls.load_head_changes_ndjson(os.path.join(dir_path, 'chain-head-changes.ndjson'))
-        return ChainDataFrames(all_miner_states=all_miner_states, tipsets=tipsets, head_changes=head_changes)
+        return ChainDataFrames(all_miner_states=all_miner_states, tipsets=tipsets, head_changes=head_changes,
+                               instance_id=instance_id)
 
     @classmethod
     def load_miner_state_ndjson(cls, statefile: str) -> pd.DataFrame:
@@ -153,8 +164,10 @@ class ChainDataFrames(object):
             if isinstance(x, int):
                 return x
             return len(x)
-        miner_states['CommittedSectors'] = miner_states['Sectors.Committed'].apply(count)
-        miner_states['ProvingSectors'] = miner_states['Sectors.Proving'].apply(count)
+        if 'Sectors.Committed' in miner_states.columns:
+            miner_states['CommittedSectors'] = miner_states['Sectors.Committed'].apply(count)
+        if 'Sectors.Proving' in miner_states.columns:
+            miner_states['ProvingSectors'] = miner_states['Sectors.Proving'].apply(count)
         return miner_states
 
     @classmethod
@@ -194,14 +207,13 @@ class ChainState(object):
     def __init__(self, pandas_data: ChainDataFrames):
         self.pandas = pandas_data
 
+    @classmethod
+    def from_ndjson_files(cls, dir_path: str, instance_id: Optional[str]):
+        return ChainState(ChainDataFrames.from_ndjson_files(dir_path, instance_id=instance_id))
 
     @classmethod
-    def from_ndjson_files(cls, dir_path: str):
-        return ChainState(ChainDataFrames.from_ndjson_files(dir_path))
-
-    @classmethod
-    def from_pickle(cls, dir_path: str) -> 'ChainState':
-        return ChainState(ChainDataFrames.read_pickle(dir_path))
+    def from_pickle(cls, dir_path: str, instance_id: Optional[str]) -> 'ChainState':
+        return ChainState(ChainDataFrames.read_pickle(dir_path, instance_id=instance_id))
 
     def to_pickle(self, dir_path):
         self.pandas.to_pickle(dir_path)
@@ -231,3 +243,90 @@ class ChainState(object):
         df = df.div(df.sum(1), axis=0)
         df.columns = df.columns.get_level_values(1)
         return df.hvplot.area(title=title)
+
+    def effective_height_table(self):
+        hc = self.pandas.head_changes.copy()
+        hc['effective_height'] = hc['ChainHeight'] + hc['apply_score'] - 1
+        hc['ObservedAt'] = hc['ObservedAt'].apply(pd.to_datetime)
+        hc.set_index('ObservedAt', inplace=True)
+        return hc.drop(columns=['apply_score'])
+
+    def head_change_step_chart(self):
+        hc = self.effective_height_table()
+
+        cols = ['effective_height', 'TipsetKey']
+        hover_cols = ['TipsetKey', 'ObservedAt']
+        if 'test_instance' in hc.columns:
+            cols.append('test_instance')
+            hover_cols.append('test_instance')
+
+        effective = hc[cols].hvplot.step(hover_cols=hover_cols)
+
+        steps = hc['ChainHeight'].hvplot.step(legend=False, hover=False)
+        return effective * steps
+
+
+class TestResults(object):
+    """
+    TestResults represents the output from a single test run. It includes data from all participants.
+    """
+
+    def __init__(self, output_dir_or_archive: str):
+        if os.path.isdir(output_dir_or_archive):
+            self.output_dir = output_dir_or_archive
+        else:
+            self.temp_dir = archive_temp_dir()
+            self.output_dir = self.temp_dir.name()
+            extract_archive(output_dir_or_archive, self.output_dir)
+
+        groups = []
+        instances = []
+        with os.scandir(self.output_dir) as it:
+            for entry in it:
+                if entry.is_dir():
+                    groups.append(entry.name)
+
+        for g in groups:
+            with os.scandir(os.path.join(self.output_dir, g)) as it:
+                for entry in it:
+                    if entry.is_dir():
+                        instances.append('{}/{}'.format(g, entry.name))
+
+        self.groups = groups
+        self.instances = instances
+        self.states = dict()
+        self._load()
+
+    def _load(self):
+        for i in self.instances:
+            if i in self.states:
+                continue
+            p = os.path.join(self.output_dir, i)
+            if not os.path.exists(os.path.join(p, 'chain-state.ndjson')):
+                print('no state found for {}, ignoring'.format(i))
+                continue
+            print('loading state for {}'.format(i))
+            cs = ChainState.from_ndjson_files(p, instance_id=i)
+            self.states[i] = cs
+
+    def cleanup(self):
+        if self.temp_dir is not None:
+            self.temp_dir.cleanup()
+
+    def effective_heights(self) -> pd.DataFrame:
+        df: pd.DataFrame = None
+        for i, cs in self.states.items():
+            if df is None:
+                df = cs.effective_height_table()
+            else:
+                df = df.append(cs.effective_height_table())
+        return df
+
+    def head_change_step_chart(self):
+        cols = ['effective_height', 'test_instance']
+        eh = self.effective_heights()
+        effective = eh[cols].hvplot.step(by='test_instance')
+        logical = eh[['ChainHeight']].hvplot.step()
+        return logical * effective
+
+
