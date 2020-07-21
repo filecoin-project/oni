@@ -11,9 +11,9 @@ import (
 var cases = map[string]interface{}{
 	"deals-e2e":                     testkit.WrapTestEnvironment(dealsE2E),
 	"recovery-failed-windowed-post": testkit.WrapTestEnvironment(rfwp.RecoveryFromFailedWindowedPoStE2E),
-	//"deals-stress":                  testkit.WrapTestEnvironment(dealsStress),
-	"drand-halting": testkit.WrapTestEnvironment(dealsE2E),
-	"paych-stress":  testkit.WrapTestEnvironment(paych.Stress),
+	"deals-stress":                  testkit.WrapTestEnvironment(dealsStress),
+	"drand-halting":                 testkit.WrapTestEnvironment(dealsE2E),
+	"paych-stress":                  testkit.WrapTestEnvironment(paych.Stress),
 }
 
 func main() {
