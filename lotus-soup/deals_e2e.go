@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/filecoin-project/lotus/api"
+	"github.com/testground/sdk-go/sync"
 
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
 )
@@ -92,6 +93,9 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 	t.RecordMessage("waiting for deal to be sealed")
 	testkit.WaitDealSealed(t, ctx, client, deal)
 	t.D().ResettingHistogram("deal.sealed").Update(int64(time.Since(t1)))
+
+	// wait for all client deals to be sealed before trying to retrieve
+	t.SyncClient.MustSignalAndWait(ctx, sync.State("done-sealing"), t.IntParam("clients"))
 
 	carExport := true
 

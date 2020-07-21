@@ -11,7 +11,7 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.1.1-0.20200602181149-522144ab4e24
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
 	github.com/filecoin-project/lotus v0.4.2-0.20200721105801-e21ea5355f64
-	github.com/filecoin-project/specs-actors v0.8.1-0.20200720115956-cd051eabf328
+	github.com/filecoin-project/specs-actors v0.8.1-0.20200721133408-d1ddf5fc315b
 	github.com/gorilla/mux v1.7.4
 	github.com/influxdata/influxdb v1.8.0 // indirect
 	github.com/ipfs/go-cid v0.0.6
