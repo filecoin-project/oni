@@ -38,7 +38,8 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 	}
 
 	// This is a client role
-	t.RecordMessage("running client")
+	fastRetrieval := t.BooleanParam("fast_retrieval")
+	t.RecordMessage("running client, with fast retrieval set to: %v", fastRetrieval)
 
 	cl, err := testkit.PrepareClient(t)
 	if err != nil {
@@ -82,7 +83,7 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 
 	// start deal
 	t1 := time.Now()
-	deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, fcid.Root)
+	deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, fcid.Root, fastRetrieval)
 	t.RecordMessage("started deal: %s", deal)
 
 	// TODO: this sleep is only necessary because deals don't immediately get logged in the dealstore, we should fix this

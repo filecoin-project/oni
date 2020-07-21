@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-func StartDeal(ctx context.Context, minerActorAddr address.Address, client api.FullNode, fcid cid.Cid) *cid.Cid {
+func StartDeal(ctx context.Context, minerActorAddr address.Address, client api.FullNode, fcid cid.Cid, fastRetrieval bool) *cid.Cid {
 	addr, err := client.WalletDefaultAddress(ctx)
 	if err != nil {
 		panic(err)
@@ -24,7 +24,7 @@ func StartDeal(ctx context.Context, minerActorAddr address.Address, client api.F
 		Miner:             minerActorAddr,
 		EpochPrice:        types.NewInt(1000000),
 		MinBlocksDuration: 1000,
-		FastRetrieval:     false,
+		FastRetrieval:     fastRetrieval,
 	})
 	if err != nil {
 		panic(err)
