@@ -314,6 +314,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		FullNetAddrs:   fullNodeNetAddrs,
 		MinerNetAddrs:  minerNetAddrs,
 		MinerActorAddr: minerActor,
+		WalletAddr:     walletKey.Address,
 	})
 
 	t.RecordMessage("connecting to all other miners")

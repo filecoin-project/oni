@@ -49,6 +49,7 @@ type MinerAddressesMsg struct {
 	FullNetAddrs   peer.AddrInfo
 	MinerNetAddrs  peer.AddrInfo
 	MinerActorAddr address.Address
+	WalletAddr     address.Address
 }
 
 type PubsubTracerMsg struct {
