@@ -172,7 +172,7 @@ func handleMinerFullSlash(t *testkit.TestEnvironment) error {
 	t.RecordMessage("running miner, full slash: %s", myActorAddr)
 
 	// TODO: wait until we have sealed a deal for a client
-	time.Sleep(180 * time.Second)
+	time.Sleep(1800 * time.Second)
 
 	t.RecordMessage("shutting down miner, full slash: %s", myActorAddr)
 
@@ -227,7 +227,7 @@ func handleMinerPartialSlash(t *testkit.TestEnvironment) error {
 		MinerActorAddr: myActorAddr,
 	})
 
-	time.Sleep(40 * time.Second)
+	time.Sleep(120 * time.Second)
 
 	rm, err := testkit.RestoreMiner(t, m)
 	if err != nil {
