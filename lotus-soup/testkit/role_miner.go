@@ -241,7 +241,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	registerAndExportMetrics(minerAddr.String())
 
 	// collect stats based on Travis' scripts
-	if t.InitContext.GroupSeq == 1 {
+	if t.Role != "miner-parial-slash" {
 		go collectStats(t, ctx, n.FullApi)
 	}
 
@@ -475,9 +475,9 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 	}
 
 	// collect stats based on Travis' scripts
-	if t.InitContext.GroupSeq == 1 {
-		go collectStats(t, ctx, n.FullApi)
-	}
+	//if t.InitContext.GroupSeq == 1 {
+	//go collectStats(t, ctx, n.FullApi)
+	//}
 
 	for i := 0; i < len(fullNetAddrs); i++ {
 		err := n.FullApi.NetConnect(ctx, fullNetAddrs[i])
