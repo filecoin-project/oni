@@ -67,8 +67,7 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 
 	// INIT PAYMENT CHANNEL
 	recv := minerAddr
-	balance := big.Zero()
-	balance = big.Add(filToAttoFil(t.FloatParam("balance")), balance)
+	balance := filToAttoFil(10)
 	t.RecordMessage("my balance: %d", balance)
 	t.RecordMessage("creating payment channel; from=%s, to=%s, funds=%d", cl.Wallet.Address, recv.WalletAddr, balance)
 
