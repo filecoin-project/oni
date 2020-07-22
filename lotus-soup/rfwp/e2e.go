@@ -47,6 +47,10 @@ func handleMiner(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("running miner: %s", myActorAddr)
 
+	if t.GroupSeq == 1 {
+		go FetchChainState(t, m)
+	}
+
 	go UpdateChainState(t, m)
 
 	// wait for a signal from 1 client to expect slashing
