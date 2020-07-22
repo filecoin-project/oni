@@ -116,7 +116,7 @@ func dealsStress(t *testkit.TestEnvironment) error {
 					panic(err)
 				}
 
-				testkit.RetrieveData(t, ctx, client, cids[i], &info.PieceCID, true, data[i])
+				_ = testkit.RetrieveData(t, ctx, client, cids[i], &info.PieceCID, true, data[i])
 
 				t.RecordMessage("retrieved data for deal %d", i)
 				t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
@@ -138,7 +138,7 @@ func dealsStress(t *testkit.TestEnvironment) error {
 
 		for i := 0; i < deals; i++ {
 			t.RecordMessage("retrieving data for deal %d", i)
-			testkit.RetrieveData(t, ctx, client, cids[i], true, data[i])
+			_ = testkit.RetrieveData(t, ctx, client, cids[i], true, data[i])
 			t.RecordMessage("retrieved data for deal %d", i)
 		}
 	}

@@ -45,6 +45,11 @@ const (
 type LotusMiner struct {
 	*LotusNode
 
+	MinerRepo    *repo.MemRepo
+	NodeRepo     *repo.MemRepo
+	MinerAddr    address.Address
+	FullNetAddrs []peer.AddrInfo
+
 	t *TestEnvironment
 }
 
@@ -326,6 +331,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	sctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	t.SyncClient.MustSubscribe(sctx, MinersAddrsTopic, minerCh)
+	var fullNetAddrs []peer.AddrInfo
 	for i := 0; i < t.IntParam("miners"); i++ {
 		m := <-minerCh
 		if m.MinerActorAddr == minerActor {
@@ -343,12 +349,11 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		}
 		t.RecordMessage("connected to full node of miner %s on %v", m.MinerActorAddr, m.FullNetAddrs)
 
+		fullNetAddrs = append(fullNetAddrs, m.FullNetAddrs)
 	}
 
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
-
-	m := &LotusMiner{n, t}
 
 	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
 	if err != nil {
@@ -360,7 +365,99 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return nil, err
 	}
 
-	return m, err
+	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, t}
+
+	return m, nil
+}
+
+func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
+	defer cancel()
+
+	minerRepo := m.MinerRepo
+	nodeRepo := m.NodeRepo
+	minerAddr := m.MinerAddr
+	fullNetAddrs := m.FullNetAddrs
+
+	minerIP := t.NetClient.MustGetDataNetworkIP().String()
+
+	// create the node
+	// we need both a full node _and_ and storage miner node
+	n := &LotusNode{}
+
+	//nodeRepo := repo.NewMemory(nil)
+
+	stop1, err := node.New(context.Background(),
+		node.FullAPI(&n.FullApi),
+		node.Online(),
+		node.Repo(nodeRepo),
+		//withGenesis(genesisMsg.Genesis),
+		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
+		withListenAddress(minerIP),
+		//withBootstrapper(genesisMsg.Bootstrapper),
+		//withPubsubConfig(false, pubsubTracer),
+		//drandOpt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	minerOpts := []node.Option{
+		node.StorageMiner(&n.MinerApi),
+		node.Online(),
+		node.Repo(minerRepo),
+		node.Override(new(api.FullNode), n.FullApi),
+		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("miner_rpc", "0"))),
+		withMinerListenAddress(minerIP),
+	}
+
+	if t.StringParam("mining_mode") != "natural" {
+		mineBlock := make(chan func(bool, error))
+		minerOpts = append(minerOpts,
+			node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)))
+
+		n.MineOne = func(ctx context.Context, cb func(bool, error)) error {
+			select {
+			case mineBlock <- cb:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	stop2, err := node.New(context.Background(), minerOpts...)
+	if err != nil {
+		stop1(context.TODO())
+		return nil, err
+	}
+	n.StopFn = func(ctx context.Context) error {
+		err2 := stop2(ctx)
+		err1 := stop1(ctx)
+		if err2 != nil {
+			return err2
+		}
+		return err1
+	}
+
+	registerAndExportMetrics(minerAddr.String())
+
+	// collect stats based on Travis' scripts
+	if t.InitContext.GroupSeq == 1 {
+		go collectStats(t, ctx, n.FullApi)
+	}
+
+	for i := 0; i < len(fullNetAddrs); i++ {
+		err := n.FullApi.NetConnect(ctx, fullNetAddrs[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to miner %d on: %v", i, fullNetAddrs[i])
+		}
+		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
+	}
+
+	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, t}
+
+	return pm, err
 }
 
 func (m *LotusMiner) RunDefault() error {

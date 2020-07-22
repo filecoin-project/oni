@@ -18,7 +18,6 @@ import (
 	"github.com/filecoin-project/lotus/lib/adtutil"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 
-	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/apibstore"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -30,14 +29,12 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
 	sealing "github.com/filecoin-project/storage-fsm"
 
-	rlepluslazy "github.com/filecoin-project/go-bitfield/rle"
 	cbor "github.com/ipfs/go-ipld-cbor"
 )
 
-func ChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func UpdateChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 	notif, err := n.FullApi.ChainNotify(ctx)
 	if err != nil {
 		return err
@@ -122,83 +119,79 @@ func ChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 			MinerStates: make(map[string]*MinerStateSnapshot),
 		}
 
-		// assert that balance got reduced with that much 5 times (sector fee)
-		// assert that balance got reduced with that much 2 times (termination fee)
-		// assert that balance got increased with that much 10 times (block reward)
-		// assert that power got increased with that much 1 times (after sector is sealed)
-		// assert that power got reduced with that much 1 times (after sector is announced faulty)
+		return func() error {
+			cs.Lock()
+			defer cs.Unlock()
 
-		for _, maddr := range maddrs {
-			err := func() error {
-				filename := fmt.Sprintf("%s%cstate-%s-%d", t.TestOutputsPath, os.PathSeparator, maddr, tipset.Height())
+			for _, maddr := range maddrs {
+				err := func() error {
+					filename := fmt.Sprintf("%s%cstate-%s-%d", t.TestOutputsPath, os.PathSeparator, maddr, tipset.Height())
 
-				f, err := os.Create(filename)
-				if err != nil {
-					return err
-				}
-				defer f.Close()
+					f, err := os.Create(filename)
+					if err != nil {
+						return err
+					}
+					defer f.Close()
 
-				w := bufio.NewWriter(f)
-				defer w.Flush()
+					w := bufio.NewWriter(f)
+					defer w.Flush()
 
-				minerInfo, err := info(t, n, maddr, w, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, minerInfo)
+					minerInfo, err := info(t, n, maddr, w, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, minerInfo)
 
-				if tipset.Height()%100 == 0 {
-					printDiff(t, minerInfo, tipset.Height())
-				}
+					if tipset.Height()%100 == 0 {
+						printDiff(t, minerInfo, tipset.Height())
+					}
 
-				faultState, err := provingFaults(t, n, maddr, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, faultState)
+					faultState, err := provingFaults(t, n, maddr, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, faultState)
 
-				provState, err := provingInfo(t, n, maddr, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, provState)
+					provState, err := provingInfo(t, n, maddr, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, provState)
 
-				// record diff
-				recordDiff(minerInfo, provState, tipset.Height())
+					// record diff
+					recordDiff(minerInfo, provState, tipset.Height())
 
-				deadlines, err := provingDeadlines(t, n, maddr, tipset.Height())
-				if err != nil {
-					return err
-				}
-				writeText(w, deadlines)
+					deadlines, err := provingDeadlines(t, n, maddr, tipset.Height())
+					if err != nil {
+						return err
+					}
+					writeText(w, deadlines)
 
-				var sectorInfo *SectorInfo
-				if n.MinerApi != nil {
-					sectorInfo, err = sectorsList(t, n, maddr, w, tipset.Height())
+					sectorInfo, err := sectorsList(t, n, maddr, w, tipset.Height())
 					if err != nil {
 						return err
 					}
 					writeText(w, sectorInfo)
-				}
 
-				snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
-					Info:        minerInfo,
-					Faults:      faultState,
-					ProvingInfo: provState,
-					Deadlines:   deadlines,
-					Sectors:     sectorInfo,
-				}
+					snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
+						Info:        minerInfo,
+						Faults:      faultState,
+						ProvingInfo: provState,
+						Deadlines:   deadlines,
+						Sectors:     sectorInfo,
+					}
 
-				return chainStateEnc.Encode(snapshot)
-			}()
-			if err != nil {
-				return err
+					return chainStateEnc.Encode(snapshot)
+				}()
+				if err != nil {
+					return err
+				}
 			}
-		}
 
-		prevHeight = tipset.Height()
-		recordedSnapshots[tsk.String()] = struct{}{}
-		return nil
+			cs.PrevHeight = tipset.Height()
+
+			return nil
+		}()
 	}
 
 	for {
@@ -346,30 +339,8 @@ func provingFaults(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr addre
 	api := n.FullApi
 	ctx := context.Background()
 
-	var mas miner.State
-	{
-		mact, err := api.StateGetActor(ctx, maddr, types.EmptyTSK)
-		if err != nil {
-			return nil, err
-		}
-		rmas, err := api.ChainReadObj(ctx, mact.Head)
-		if err != nil {
-			return nil, err
-		}
-		if err := mas.UnmarshalCBOR(bytes.NewReader(rmas)); err != nil {
-			return nil, err
-		}
-	}
-	faults, err := mas.Faults.All(100000000000)
-	if err != nil {
-		return nil, err
-	}
-
 	s := ProvingFaultState{FaultedSectors: make(map[int][]uint64)}
 
-	if len(faults) == 0 {
-		return &s, nil
-	}
 	head, err := api.ChainHead(ctx)
 	if err != nil {
 		return nil, err
@@ -378,17 +349,24 @@ func provingFaults(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr addre
 	if err != nil {
 		return nil, err
 	}
-
-	for deadline, sectors := range deadlines.Due {
-		intersectSectors, _ := bitfield.IntersectBitField(sectors, mas.Faults)
-		if intersectSectors != nil {
-			allSectors, _ := intersectSectors.All(100000000000)
-			for _, num := range allSectors {
-				s.FaultedSectors[deadline] = append(s.FaultedSectors[deadline], num)
-			}
+	for dlIdx := range deadlines {
+		partitions, err := api.StateMinerPartitions(ctx, maddr, uint64(dlIdx), types.EmptyTSK)
+		if err != nil {
+			return nil, err
 		}
 
+		for _, partition := range partitions {
+			faulty, err := partition.Faults.All(10000000)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, num := range faulty {
+				s.FaultedSectors[dlIdx] = append(s.FaultedSectors[dlIdx], num)
+			}
+		}
 	}
+
 	return &s, nil
 }
 
@@ -401,7 +379,6 @@ type ProvingInfoState struct {
 	ProvenSectors uint64
 	FaultPercent  float64
 	Recoveries    uint64
-	NewSectors    uint64
 
 	DeadlineIndex       uint64
 	DeadlineSectors     uint64
@@ -426,7 +403,7 @@ func (s *ProvingInfoState) MarshalPlainText() ([]byte, error) {
 
 	fmt.Fprintf(w, "Faults:      %d (%.2f%%)\n", s.Faults, s.FaultPercent)
 	fmt.Fprintf(w, "Recovering:  %d\n", s.Recoveries)
-	fmt.Fprintf(w, "New Sectors: %d\n\n", s.NewSectors)
+	//fmt.Fprintf(w, "New Sectors: %d\n\n", s.NewSectors)
 
 	fmt.Fprintf(w, "Deadline Index:       %d\n", s.DeadlineIndex)
 	fmt.Fprintf(w, "Deadline Sectors:     %d\n", s.DeadlineSectors)
@@ -473,43 +450,54 @@ func provingInfo(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address
 		}
 	}
 
-	newSectors, err := mas.NewSectors.Count()
-	if err != nil {
-		return nil, err
-	}
-
-	faults, err := mas.Faults.Count()
-	if err != nil {
-		return nil, err
-	}
-
-	recoveries, err := mas.Recoveries.Count()
-	if err != nil {
-		return nil, err
-	}
-
-	var provenSectors uint64
-	for _, d := range deadlines.Due {
-		c, err := d.Count()
+	parts := map[uint64][]*miner.Partition{}
+	for dlIdx := range deadlines {
+		part, err := api.StateMinerPartitions(ctx, maddr, uint64(dlIdx), types.EmptyTSK)
 		if err != nil {
 			return nil, err
 		}
-		provenSectors += c
+
+		parts[uint64(dlIdx)] = part
+	}
+
+	proving := uint64(0)
+	faults := uint64(0)
+	recovering := uint64(0)
+
+	for _, partitions := range parts {
+		for _, partition := range partitions {
+			sc, err := partition.Sectors.Count()
+			if err != nil {
+				return nil, err
+			}
+			proving += sc
+
+			fc, err := partition.Faults.Count()
+			if err != nil {
+				return nil, err
+			}
+			faults += fc
+
+			rc, err := partition.Faults.Count()
+			if err != nil {
+				return nil, err
+			}
+			recovering += rc
+		}
 	}
 
 	var faultPerc float64
-	if provenSectors > 0 {
-		faultPerc = float64(faults*10000/provenSectors) / 100
+	if proving > 0 {
+		faultPerc = float64(faults*10000/proving) / 100
 	}
 
 	s := ProvingInfoState{
 		CurrentEpoch:        cd.CurrentEpoch,
 		ProvingPeriodStart:  cd.PeriodStart,
 		Faults:              faults,
-		ProvenSectors:       provenSectors,
+		ProvenSectors:       proving,
 		FaultPercent:        faultPerc,
-		Recoveries:          recoveries,
-		NewSectors:          newSectors,
+		Recoveries:          recovering,
 		DeadlineIndex:       cd.Index,
 		DeadlineOpen:        cd.Open,
 		DeadlineClose:       cd.Close,
@@ -517,12 +505,15 @@ func provingInfo(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address
 		DeadlineFaultCutoff: cd.FaultCutoff,
 		WPoStProvingPeriod:  miner.WPoStProvingPeriod,
 	}
-	if cd.Index < uint64(len(deadlines.Due)) {
-		curDeadlineSectors, err := deadlines.Due[cd.Index].Count()
-		if err != nil {
-			return nil, err
+
+	if cd.Index < miner.WPoStPeriodDeadlines {
+		for _, partition := range parts[cd.Index] {
+			sc, err := partition.Sectors.Count()
+			if err != nil {
+				return nil, err
+			}
+			s.DeadlineSectors += sc
 		}
-		s.DeadlineSectors = curDeadlineSectors
 	}
 
 	return &s, nil
@@ -547,7 +538,7 @@ type ProvingDeadlines struct {
 
 type DeadlineInfo struct {
 	Sectors    uint64
-	Partitions uint64
+	Partitions int
 	Proven     uint64
 	Current    bool
 }
@@ -583,7 +574,6 @@ func provingDeadlines(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr ad
 	}
 
 	var mas miner.State
-	var info *miner.MinerInfo
 	{
 		mact, err := api.StateGetActor(ctx, maddr, types.EmptyTSK)
 		if err != nil {
@@ -597,63 +587,37 @@ func provingDeadlines(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr ad
 			return nil, err
 		}
 
-		info, err = mas.GetInfo(adtutil.NewStore(ctx, cbor.NewCborStore(apibstore.NewAPIBlockstore(api))))
+		_, err = mas.GetInfo(adtutil.NewStore(ctx, cbor.NewCborStore(apibstore.NewAPIBlockstore(api))))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	infos := make([]DeadlineInfo, 0, len(deadlines.Due))
-	for i, field := range deadlines.Due {
-		c, err := field.Count()
+	infos := make([]DeadlineInfo, 0, len(deadlines))
+	for dlIdx, deadline := range deadlines {
+		partitions, err := api.StateMinerPartitions(ctx, maddr, uint64(dlIdx), types.EmptyTSK)
 		if err != nil {
 			return nil, err
 		}
 
-		firstPartition, sectorCount, err := miner.PartitionsForDeadline(deadlines, info.WindowPoStPartitionSectors, uint64(i))
+		provenPartitions, err := deadline.PostSubmissions.Count()
 		if err != nil {
 			return nil, err
 		}
 
-		partitionCount := (sectorCount + info.WindowPoStPartitionSectors - 1) / info.WindowPoStPartitionSectors
-
-		var provenPartitions uint64
-		{
-			var maskRuns []rlepluslazy.Run
-			if firstPartition > 0 {
-				maskRuns = append(maskRuns, rlepluslazy.Run{
-					Val: false,
-					Len: firstPartition,
-				})
-			}
-			maskRuns = append(maskRuns, rlepluslazy.Run{
-				Val: true,
-				Len: partitionCount,
-			})
-
-			ppbm, err := bitfield.NewFromIter(&rlepluslazy.RunSliceIterator{Runs: maskRuns})
-			if err != nil {
-				return nil, err
-			}
-
-			pp, err := bitfield.IntersectBitField(ppbm, mas.PostSubmissions)
-			if err != nil {
-				return nil, err
-			}
-
-			provenPartitions, err = pp.Count()
-			if err != nil {
-				return nil, err
-			}
+		var cur string
+		if di.Index == uint64(dlIdx) {
+			cur += "\t(current)"
 		}
 
 		outInfo := DeadlineInfo{
-			Sectors:    c,
-			Partitions: partitionCount,
+			//Sectors:    c,
+			Partitions: len(partitions),
 			Proven:     provenPartitions,
-			Current:    di.Index == uint64(i),
+			Current:    di.Index == uint64(dlIdx),
 		}
 		infos = append(infos, outInfo)
+		//_, _ = fmt.Fprintf(tw, "%d\t%d\t%d%s\n", dlIdx, len(partitions), provenPartitions, cur)
 	}
 
 	return &ProvingDeadlines{Deadlines: infos}, nil
@@ -713,31 +677,30 @@ func sectorsList(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(list, func(i, j int) bool {
-		return list[i] < list[j]
-	})
 
-	i := SectorInfo{Sectors: list, SectorStates: make(map[abi.SectorNumber]api.SectorInfo, len(list))}
-
-	pset, err := fullApi.StateMinerProvingSet(ctx, maddr, types.EmptyTSK)
+	activeSet, err := fullApi.StateMinerActiveSectors(ctx, maddr, types.EmptyTSK)
 	if err != nil {
 		return nil, err
 	}
-	for _, info := range pset {
-		i.Proving = append(i.Proving, info.ID)
+	activeIDs := make(map[abi.SectorNumber]struct{}, len(activeSet))
+	for _, info := range activeSet {
+		activeIDs[info.ID] = struct{}{}
 	}
 
 	sset, err := fullApi.StateMinerSectors(ctx, maddr, nil, true, types.EmptyTSK)
 	if err != nil {
 		return nil, err
 	}
+	commitedIDs := make(map[abi.SectorNumber]struct{}, len(activeSet))
 	for _, info := range sset {
-		i.Committed = append(i.Committed, info.ID)
+		commitedIDs[info.ID] = struct{}{}
 	}
 
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] < list[j]
 	})
+
+	i := SectorInfo{Sectors: list, SectorStates: make(map[abi.SectorNumber]api.SectorInfo, len(list))}
 
 	for _, s := range list {
 		st, err := n.MinerApi.SectorsStatus(ctx, s)
@@ -899,12 +862,12 @@ func info(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address.Addres
 		return nil, err
 	}
 
-	i.CommittedBytes = types.BigMul(types.NewInt(secCounts.Sset), types.NewInt(uint64(mi.SectorSize)))
-	i.ProvingBytes = types.BigMul(types.NewInt(secCounts.Pset), types.NewInt(uint64(mi.SectorSize)))
+	i.CommittedBytes = types.BigMul(types.NewInt(secCounts.Sectors), types.NewInt(uint64(mi.SectorSize)))
+	i.ProvingBytes = types.BigMul(types.NewInt(secCounts.Active), types.NewInt(uint64(mi.SectorSize)))
 
 	if nfaults != 0 {
-		if secCounts.Sset != 0 {
-			i.FaultyPercentage = float64(10000*nfaults/secCounts.Sset) / 100.
+		if secCounts.Sectors != 0 {
+			i.FaultyPercentage = float64(10000*nfaults/secCounts.Sectors) / 100.
 		}
 		i.FaultyBytes = types.BigMul(types.NewInt(nfaults), types.NewInt(uint64(mi.SectorSize)))
 	}

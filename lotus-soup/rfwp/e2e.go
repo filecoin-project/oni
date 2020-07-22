@@ -2,14 +2,20 @@ package rfwp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
+	"github.com/filecoin-project/specs-actors/actors/abi"
+	"github.com/filecoin-project/specs-actors/actors/abi/big"
+	"golang.org/x/sync/errgroup"
 )
 
 func RecoveryFromFailedWindowedPoStE2E(t *testkit.TestEnvironment) error {
@@ -20,8 +26,10 @@ func RecoveryFromFailedWindowedPoStE2E(t *testkit.TestEnvironment) error {
 		return handleClient(t)
 	case "miner":
 		return handleMiner(t)
-	case "miner-biserk":
-		return handleMinerBiserk(t)
+	case "miner-full-slash":
+		return handleMinerFullSlash(t)
+	case "miner-partial-slash":
+		return handleMinerPartialSlash(t)
 	}
 
 	return fmt.Errorf("unknown role: %s", t.Role)
@@ -41,16 +49,115 @@ func handleMiner(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("running miner: %s", myActorAddr)
 
-	// collect chain state
-	go ChainState(t, m.LotusNode)
+	go UpdateChainState(t, m.LotusNode)
 
-	time.Sleep(3600 * time.Second)
+	minersToBeSlashed := 2
+	ch := make(chan testkit.SlashedMinerMsg)
+	sub := t.SyncClient.MustSubscribe(ctx, testkit.SlashedMinerTopic, ch)
+	var eg errgroup.Group
+
+	for i := 0; i < minersToBeSlashed; i++ {
+		select {
+		case slashedMiner := <-ch:
+			// wait for slash
+			eg.Go(func() error {
+				select {
+				case <-waitForSlash(t, slashedMiner):
+				case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
+					if err != nil {
+						return err
+					}
+					return errors.New("got abort signal, exitting")
+				}
+				return nil
+			})
+		case err := <-sub.Done():
+			return fmt.Errorf("got error while waiting for slashed miners: %w", err)
+		case err := <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
+			if err != nil {
+				return err
+			}
+			return errors.New("got abort signal, exitting")
+		}
+	}
+
+	errc := make(chan error)
+	go func() {
+		errc <- eg.Wait()
+	}()
+
+	select {
+	case err := <-errc:
+		if err != nil {
+			return err
+		}
+	case err := <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
+		if err != nil {
+			return err
+		}
+		return errors.New("got abort signal, exitting")
+	}
 
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
 	return nil
 }
 
-func handleMinerBiserk(t *testkit.TestEnvironment) error {
+func waitForSlash(t *testkit.TestEnvironment, msg testkit.SlashedMinerMsg) chan error {
+	// assert that balance got reduced with that much 5 times (sector fee)
+	// assert that balance got reduced with that much 2 times (termination fee)
+	// assert that balance got increased with that much 10 times (block reward)
+	// assert that power got increased with that much 1 times (after sector is sealed)
+	// assert that power got reduced with that much 1 times (after sector is announced faulty)
+	slashedMiner := msg.MinerActorAddr
+
+	errc := make(chan error)
+	go func() {
+		foundSlashConditions := false
+		for range time.Tick(10 * time.Second) {
+			if foundSlashConditions {
+				close(errc)
+				return
+			}
+			t.RecordMessage("wait for slashing, tick")
+			func() {
+				cs.Lock()
+				defer cs.Unlock()
+
+				negativeAmounts := []big.Int{}
+				negativeDiffs := make(map[big.Int][]abi.ChainEpoch)
+
+				for am, heights := range cs.DiffCmp[slashedMiner.String()]["LockedFunds"] {
+					amount, err := big.FromString(am)
+					if err != nil {
+						errc <- fmt.Errorf("cannot parse LockedFunds amount: %w:", err)
+						return
+					}
+
+					// amount is negative => slash condition
+					if big.Cmp(amount, big.Zero()) < 0 {
+						negativeDiffs[amount] = heights
+						negativeAmounts = append(negativeAmounts, amount)
+					}
+				}
+
+				t.RecordMessage("negative diffs: %d", len(negativeDiffs))
+				if len(negativeDiffs) < 3 {
+					return
+				}
+
+				sort.Slice(negativeAmounts, func(i, j int) bool { return big.Cmp(negativeAmounts[i], negativeAmounts[j]) > 0 })
+
+				// TODO: confirm the largest is > 18 filecoin
+				// TODO: confirm the next largest is > 9 filecoin
+				foundSlashConditions = true
+			}()
+		}
+	}()
+
+	return errc
+}
+
+func handleMinerFullSlash(t *testkit.TestEnvironment) error {
 	m, err := testkit.PrepareMiner(t)
 	if err != nil {
 		return err
@@ -62,24 +169,78 @@ func handleMinerBiserk(t *testkit.TestEnvironment) error {
 		return err
 	}
 
-	t.RecordMessage("running biserk miner: %s", myActorAddr)
-	// collect chain state
-	go ChainState(t, m.LotusNode)
+	go UpdateChainState(t, m.LotusNode)
+	t.RecordMessage("running miner, full slash: %s", myActorAddr)
 
+	// TODO: wait until we have sealed a deal for a client
 	time.Sleep(180 * time.Second)
 
-	t.RecordMessage("shutting down biserk miner: %s", myActorAddr)
+	t.RecordMessage("shutting down miner, full slash: %s", myActorAddr)
 
 	ctxt, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	err = m.StopFn(ctxt)
 	if err != nil {
+		//return err
+		t.RecordMessage("err from StopFn: %s", err.Error()) // TODO: expect this to be fixed on Lotus
+	}
+
+	t.RecordMessage("shutdown miner, full slash: %s", myActorAddr)
+
+	t.SyncClient.MustPublish(ctx, testkit.SlashedMinerTopic, testkit.SlashedMinerMsg{
+		MinerActorAddr: myActorAddr,
+	})
+
+	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
+	return nil
+}
+
+func handleMinerPartialSlash(t *testkit.TestEnvironment) error {
+	m, err := testkit.PrepareMiner(t)
+	if err != nil {
 		return err
 	}
 
-	t.RecordMessage("shutdown biserk miner: %s", myActorAddr)
+	ctx := context.Background()
+	myActorAddr, err := m.MinerApi.ActorAddress(ctx)
+	if err != nil {
+		return err
+	}
 
-	time.Sleep(3600 * time.Second)
+	t.RecordMessage("running miner, partial slash: %s", myActorAddr)
+
+	// TODO: wait until we have sealed a deal for a client
+	time.Sleep(40 * time.Second)
+
+	t.RecordMessage("shutting down miner, partial slash: %s", myActorAddr)
+
+	ctxt, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	err = m.StopFn(ctxt)
+	if err != nil {
+		//return err
+		t.RecordMessage("err from StopFn: %s", err.Error()) // TODO: expect this to be fixed on Lotus
+	}
+
+	t.RecordMessage("shutdown miner, partial slash: %s", myActorAddr)
+
+	t.SyncClient.MustPublish(ctx, testkit.SlashedMinerTopic, testkit.SlashedMinerMsg{
+		MinerActorAddr: myActorAddr,
+	})
+
+	time.Sleep(40 * time.Second)
+
+	rm, err := testkit.RestoreMiner(t, m)
+	if err != nil {
+		return err
+	}
+
+	myActorAddr, err = rm.MinerApi.ActorAddress(ctx)
+	if err != nil {
+		return err
+	}
+
+	t.RecordMessage("running miner again, partial slash: %s", myActorAddr)
 
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
 	return nil
@@ -98,7 +259,7 @@ func handleClient(t *testkit.TestEnvironment) error {
 	client := cl.FullApi
 
 	// collect chain state
-	go ChainState(t, cl.LotusNode)
+	go UpdateChainState(t, cl.LotusNode)
 
 	// select a miner based on our GroupSeq (client 1 -> miner 1 ; client 2 -> miner 2)
 	// this assumes that all miner instances receive the same sorted MinerAddrs slice
@@ -138,18 +299,15 @@ func handleClient(t *testkit.TestEnvironment) error {
 	deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, fcid.Root)
 	t.RecordMessage("started deal: %s", deal)
 
-	// TODO: this sleep is only necessary because deals don't immediately get logged in the dealstore, we should fix this
+	// this sleep is only necessary because deals don't immediately get logged in the dealstore, we should fix this
 	time.Sleep(2 * time.Second)
 
 	t.RecordMessage("waiting for deal to be sealed")
 	testkit.WaitDealSealed(t, ctx, client, deal)
 	t.D().ResettingHistogram("deal.sealed").Update(int64(time.Since(t1)))
 
-	t.SyncClient.MustSignalEntry(ctx, testkit.StateStopMining)
-
+	// TODO: wait to stop miner (ideally get a signal, rather than sleep)
 	time.Sleep(180 * time.Second)
-
-	carExport := true
 
 	t.RecordMessage("trying to retrieve %s", fcid)
 	info, err := client.ClientGetDealInfo(ctx, *deal)
@@ -157,14 +315,26 @@ func handleClient(t *testkit.TestEnvironment) error {
 		return err
 	}
 
-	testkit.RetrieveData(t, ctx, client, fcid.Root, &info.PieceCID, carExport, data)
-	t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
+	carExport := true
+	err = testkit.RetrieveData(t, ctx, client, fcid.Root, &info.PieceCID, carExport, data)
+	if err != nil && strings.Contains(err.Error(), "cannot make retrieval deal for zero bytes") {
+		t.D().Counter("deal.expect-slashing").Inc(1)
+	} else if err != nil {
+		// unknown error => fail test
+		t.RecordFailure(err)
 
+		// send signal to abort test
+		t.SyncClient.MustSignalEntry(ctx, testkit.StateAbortTest)
+
+		t.D().ResettingHistogram("deal.retrieved.err").Update(int64(time.Since(t1)))
+		time.Sleep(10 * time.Second) // wait for metrics to be emitted
+
+		return nil
+	}
+
+	t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
 	time.Sleep(10 * time.Second) // wait for metrics to be emitted
 
-	// TODO broadcast published content CIDs to other clients
-	// TODO select a random piece of content published by some other client and retrieve it
-
-	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
+	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount) // TODO: not sure about this
 	return nil
 }
