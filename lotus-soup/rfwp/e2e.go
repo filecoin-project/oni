@@ -231,7 +231,7 @@ func handleMinerPartialSlash(t *testkit.TestEnvironment) error {
 		MinerActorAddr: myActorAddr,
 	})
 
-	time.Sleep(120 * time.Second)
+	time.Sleep(100 * time.Second)
 
 	rm, err := testkit.RestoreMiner(t, m)
 	if err != nil {

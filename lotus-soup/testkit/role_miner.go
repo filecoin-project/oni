@@ -26,6 +26,7 @@ import (
 	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/repo"
+	"github.com/filecoin-project/sector-storage/stores"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	saminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
@@ -44,11 +45,12 @@ const (
 type LotusMiner struct {
 	*LotusNode
 
-	MinerRepo    *repo.MemRepo
-	NodeRepo     *repo.MemRepo
+	MinerRepo    repo.Repo
+	NodeRepo     repo.Repo
 	MinerAddr    address.Address
 	FullNetAddrs []peer.AddrInfo
 	GenesisMsg   *GenesisMsg
+	PresealDir   string
 
 	t *TestEnvironment
 }
@@ -121,52 +123,75 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	// prepare the repo
-	minerRepo := repo.NewMemory(nil)
-
-	lr, err := minerRepo.Lock(repo.StorageMiner)
+	minerRepoDir, err := ioutil.TempDir("", "miner-repo-dir")
 	if err != nil {
 		return nil, err
 	}
 
-	ks, err := lr.KeyStore()
+	minerRepo, err := repo.NewFS(minerRepoDir)
 	if err != nil {
 		return nil, err
 	}
 
-	kbytes, err := priv.Bytes()
+	err = minerRepo.Init(repo.StorageMiner)
 	if err != nil {
 		return nil, err
 	}
 
-	err = ks.Put("libp2p-host", types.KeyInfo{
-		Type:       "libp2p-host",
-		PrivateKey: kbytes,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ds, err := lr.Datastore("/metadata")
-	if err != nil {
-		return nil, err
-	}
-
-	err = ds.Put(datastore.NewKey("miner-address"), minerAddr.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	nic := storedcounter.New(ds, datastore.NewKey(modules.StorageCounterDSPrefix))
-	for i := 0; i < (sectors + 1); i++ {
-		_, err = nic.Next()
+	{
+		lr, err := minerRepo.Lock(repo.StorageMiner)
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	err = lr.Close()
-	if err != nil {
-		return nil, err
+		ks, err := lr.KeyStore()
+		if err != nil {
+			return nil, err
+		}
+
+		kbytes, err := priv.Bytes()
+		if err != nil {
+			return nil, err
+		}
+
+		err = ks.Put("libp2p-host", types.KeyInfo{
+			Type:       "libp2p-host",
+			PrivateKey: kbytes,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		ds, err := lr.Datastore("/metadata")
+		if err != nil {
+			return nil, err
+		}
+
+		err = ds.Put(datastore.NewKey("miner-address"), minerAddr.Bytes())
+		if err != nil {
+			return nil, err
+		}
+
+		nic := storedcounter.New(ds, datastore.NewKey(modules.StorageCounterDSPrefix))
+		for i := 0; i < (sectors + 1); i++ {
+			_, err = nic.Next()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var localPaths []stores.LocalPath
+
+		if err := lr.SetStorage(func(sc *stores.StorageConfig) {
+			sc.StoragePaths = append(sc.StoragePaths, localPaths...)
+		}); err != nil {
+			return nil, err
+		}
+
+		err = lr.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
@@ -175,7 +200,21 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	// we need both a full node _and_ and storage miner node
 	n := &LotusNode{}
 
-	nodeRepo := repo.NewMemory(nil)
+	// prepare the repo
+	nodeRepoDir, err := ioutil.TempDir("", "node-repo-dir")
+	if err != nil {
+		return nil, err
+	}
+
+	nodeRepo, err := repo.NewFS(nodeRepoDir)
+	if err != nil {
+		return nil, err
+	}
+
+	err = nodeRepo.Init(repo.FullNode)
+	if err != nil {
+		return nil, err
+	}
 
 	stop1, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
@@ -358,7 +397,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	//return nil, err
 	//}
 
-	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, t}
+	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
 
 	return m, nil
 }
@@ -372,6 +411,7 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 	minerAddr := m.MinerAddr
 	fullNetAddrs := m.FullNetAddrs
 	genesisMsg := m.GenesisMsg
+	presealDir := m.PresealDir
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
 
@@ -433,12 +473,12 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 	//panic(err)
 	//}
 
-	// add local storage for presealed sectors
-	//err = n.MinerApi.StorageAddLocal(ctx, presealDir)
-	//if err != nil {
-	//n.StopFn(context.TODO())
-	//return nil, err
-	//}
+	//add local storage for presealed sectors
+	err = n.MinerApi.StorageAddLocal(ctx, presealDir)
+	if err != nil {
+		n.StopFn(context.TODO())
+		return nil, err
+	}
 
 	//// set the miner PeerID
 	//minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
@@ -487,7 +527,7 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
 	}
 
-	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, t}
+	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
 
 	return pm, err
 }
@@ -575,7 +615,7 @@ func (m *LotusMiner) RunDefault() error {
 	return nil
 }
 
-func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi api.StorageMiner) error {
+func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) error {
 	mux := mux.NewRouter()
 
 	rpcServer := jsonrpc.NewServer()

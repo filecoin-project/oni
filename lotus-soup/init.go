@@ -15,11 +15,10 @@ import (
 )
 
 func init() {
-	build.BlockDelaySecs = 2
+	build.BlockDelaySecs = 1
 	build.PropagationDelaySecs = 1
 
-	_ = log.SetLogLevel("*", "INFO")
-	_ = log.SetLogLevel("drand", "WARN")
+	_ = log.SetLogLevel("*", "WARN")
 	_ = log.SetLogLevel("dht/RtRefreshManager", "ERROR") // noisy
 	_ = log.SetLogLevel("bitswap", "ERROR")              // noisy
 
