@@ -5,7 +5,7 @@
 [global]
   plan = "lotus-soup"
   case = "deals-e2e"
-  total_instances = 7
+  total_instances = 12
   builder = "docker:go"
   runner = "local:docker"
 
@@ -20,7 +20,7 @@
 
 [global.run.test_params]
   clients = "5"
-  miners = "1"
+  miners = "6"
   genesis_timestamp_offset = "0"
   balance = "20000000" # These balances will work for maximum 100 nodes, as TotalFilecoin is 2B
   sectors = "5"
@@ -39,12 +39,22 @@
 [[groups]]
   id = "miners"
   [groups.instances]
-    count = 1
+    count = 3
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
       role = "miner"
       latency_range = '["20ms", "300ms"]'
+
+[[groups]]
+  id = "slow-miners"
+  [groups.instances]
+    count = 3
+    percentage = 0.0
+  [groups.run]
+    [groups.run.test_params]
+      role = "miner"
+      latency_range = '["300ms", "800ms"]'
 
 [[groups]]
   id = "clients"
@@ -54,4 +64,4 @@
   [groups.run]
     [groups.run.test_params]
       role = "client"
-      latency_range = '["100ms", "1500ms"]'
+      latency_range = '["100ms", "500ms"]'

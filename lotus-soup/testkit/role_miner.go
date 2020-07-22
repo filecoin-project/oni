@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
+	"github.com/avast/retry-go"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
@@ -331,7 +332,12 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 			// once I find myself, I stop connecting to others, to avoid a simopen problem.
 			break
 		}
-		err := n.FullApi.NetConnect(ctx, m.FullNetAddrs)
+		err := retry.Do(func() error {
+			return n.FullApi.NetConnect(ctx, m.FullNetAddrs)
+		},
+			retry.Attempts(3),
+			retry.Delay(time.Second),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to miner %s on: %v", m.MinerActorAddr, m.FullNetAddrs)
 		}

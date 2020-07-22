@@ -71,6 +71,9 @@ class ChainDataFrames(object):
     # tipsets has all tipsets, whether included in the final chain or not
     tipsets: pd.DataFrame
 
+    # included_tipsets has tipsets that were in the final chain (were never reverted)
+    included_tipsets: pd.DataFrame
+
     # head_changes has a sequence of apply/revert operations that result in the final chain
     head_changes: pd.DataFrame
 
@@ -96,12 +99,11 @@ class ChainDataFrames(object):
         joined['included'] = joined['apply_score'] > 0
         all_miner_states['included'] = joined['included']
 
-        # head_changes.drop(columns=['apply_score'], inplace=True)
-
         self.miner_states = all_miner_states.where(all_miner_states['included']).dropna()
         self.transient_miner_states = all_miner_states.where(all_miner_states['included'] != True).dropna()
         self.all_miner_states = all_miner_states
         self.tipsets = tipsets
+        self.included_tipsets = tipsets.where(tipsets['included']).dropna()
         self.head_changes = head_changes
 
     def to_pickle(self, dir_path: str):

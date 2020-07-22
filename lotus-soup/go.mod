@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/avast/retry-go v2.6.0+incompatible
 	github.com/codeskyblue/go-sh v0.0.0-20200712050446-30169cf553fe
 	github.com/davecgh/go-spew v1.1.1
 	github.com/drand/drand v1.0.3-0.20200714175734-29705eaf09d4
