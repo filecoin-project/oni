@@ -278,8 +278,9 @@ class TestResults(object):
             self.output_dir = output_dir_or_archive
         else:
             self.temp_dir = archive_temp_dir()
-            self.output_dir = self.temp_dir.name()
-            extract_archive(output_dir_or_archive, self.output_dir)
+            extract_archive(output_dir_or_archive, self.temp_dir.name)
+            inner = os.listdir(self.temp_dir.name)[0]
+            self.output_dir = os.path.join(self.temp_dir.name, inner)
 
         groups = []
         instances = []

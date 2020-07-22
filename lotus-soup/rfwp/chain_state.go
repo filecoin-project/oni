@@ -33,8 +33,10 @@ import (
 )
 
 func UpdateChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t.RecordMessage("subscribing to chain notifications")
 	notif, err := n.FullApi.ChainNotify(ctx)
 	if err != nil {
 		return err
@@ -42,7 +44,7 @@ func UpdateChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 	// buffer the head changes to avoid blocking the notification channel
 	// we also add a timestamp to get an approximation of when the change was
 	// emitted
-	changeCh := make(chan []*HeadChange, 2048)
+	changeCh := make(chan []*HeadChange, 4096)
 	go func() {
 		for {
 			select {
@@ -83,6 +85,8 @@ func UpdateChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 	}
 	defer tipsetFile.Close()
 
+	t.RecordMessage("created chain json files")
+
 	recordHeadChange := func(change *HeadChange) error {
 		return headStateEnc.Encode(change)
 	}
@@ -94,10 +98,10 @@ func UpdateChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 		}
 		return tipsetEnc.Encode(struct {
 			TipsetKey string
-			Tipset *types.TipSet
+			Tipset    *types.TipSet
 		}{
 			TipsetKey: tipset.Key().String(),
-			Tipset: tipset,
+			Tipset:    tipset,
 		})
 	}
 
@@ -171,7 +175,9 @@ func UpdateChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 					if err != nil {
 						return err
 					}
-					writeText(w, sectorInfo)
+					if sectorInfo != nil {
+						writeText(w, sectorInfo)
+					}
 
 					snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
 						Info:        minerInfo,
@@ -189,7 +195,6 @@ func UpdateChainState(t *testkit.TestEnvironment, n *testkit.LotusNode) error {
 			}
 
 			cs.PrevHeight = tipset.Height()
-
 			return nil
 		}()
 	}
@@ -670,6 +675,10 @@ func (i *SectorInfo) MarshalPlainText() ([]byte, error) {
 }
 
 func sectorsList(t *testkit.TestEnvironment, n *testkit.LotusNode, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*SectorInfo, error) {
+	if n.MinerApi == nil {
+		return nil, nil
+	}
+
 	fullApi := n.FullApi
 	ctx := context.Background()
 

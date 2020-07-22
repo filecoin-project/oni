@@ -21,7 +21,7 @@
 [global.run.test_params]
   clients = "5"
   miners = "6"
-  genesis_timestamp_offset = "0"
+  genesis_timestamp_offset = "-10"
   balance = "20000000" # These balances will work for maximum 100 nodes, as TotalFilecoin is 2B
   sectors = "5"
   random_beacon_type = "mock"
