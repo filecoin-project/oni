@@ -95,12 +95,8 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 	carExport := true
 
 	t.RecordMessage("trying to retrieve %s", fcid)
-	info, err := client.ClientGetDealInfo(ctx, *deal)
-	if err != nil {
-		return err
-	}
 
-	_ = testkit.RetrieveData(t, ctx, client, fcid.Root, &info.PieceCID, carExport, data)
+	_ = testkit.RetrieveData(t, ctx, client, fcid.Root, nil, carExport, data)
 	t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
 
 	t.SyncClient.MustSignalEntry(ctx, testkit.StateStopMining)
