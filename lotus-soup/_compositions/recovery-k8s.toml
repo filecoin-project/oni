@@ -5,7 +5,7 @@
 [global]
   plan = "lotus-soup"
   case = "recovery-failed-windowed-post"
-  total_instances = 9
+  total_instances = 7
   builder = "docker:go"
   runner = "cluster:k8s"
 
@@ -22,8 +22,8 @@
   registry_type="aws"
 
 [global.run.test_params]
-  clients = "4"
-  miners = "4"
+  clients = "3"
+  miners = "3"
   genesis_timestamp_offset = "0"
   balance = "20000000"
 
@@ -45,7 +45,7 @@
     memory = "4096Mi"
     cpu = "1000m"
   [groups.instances]
-    count = 2
+    count = 1
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
@@ -64,7 +64,7 @@
   [groups.run]
     [groups.run.test_params]
       role = "miner-full-slash"
-      sectors = "5"
+      sectors = "10"
       mining_mode = "natural"
 
 [[groups]]
@@ -78,7 +78,7 @@
   [groups.run]
     [groups.run.test_params]
       role = "miner-partial-slash"
-      sectors = "5"
+      sectors = "10"
       mining_mode = "natural"
 
 [[groups]]
@@ -87,7 +87,7 @@
     memory = "1024Mi"
     cpu = "1000m"
   [groups.instances]
-    count = 4
+    count = 3
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
