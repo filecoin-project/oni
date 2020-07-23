@@ -26,7 +26,7 @@ import (
 	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/repo"
-	"github.com/filecoin-project/oni/lotus-soup/permemrepo"
+	"github.com/filecoin-project/sector-storage/stores"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	saminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
@@ -123,22 +123,20 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	// prepare the repo
-	//minerRepoDir, err := ioutil.TempDir("", "miner-repo-dir")
-	//if err != nil {
-	//return nil, err
-	//}
+	minerRepoDir, err := ioutil.TempDir("", "miner-repo-dir")
+	if err != nil {
+		return nil, err
+	}
 
-	//minerRepo, err := repo.NewFS(minerRepoDir)
-	//if err != nil {
-	//return nil, err
-	//}
+	minerRepo, err := repo.NewFS(minerRepoDir)
+	if err != nil {
+		return nil, err
+	}
 
-	minerRepo := permemrepo.NewMemory(nil)
-
-	//err = minerRepo.Init(repo.StorageMiner)
-	//if err != nil {
-	//return nil, err
-	//}
+	err = minerRepo.Init(repo.StorageMiner)
+	if err != nil {
+		return nil, err
+	}
 
 	{
 		lr, err := minerRepo.Lock(repo.StorageMiner)
@@ -182,13 +180,13 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 			}
 		}
 
-		//var localPaths []stores.LocalPath
+		var localPaths []stores.LocalPath
 
-		//if err := lr.SetStorage(func(sc *stores.StorageConfig) {
-		//sc.StoragePaths = append(sc.StoragePaths, localPaths...)
-		//}); err != nil {
-		//return nil, err
-		//}
+		if err := lr.SetStorage(func(sc *stores.StorageConfig) {
+			sc.StoragePaths = append(sc.StoragePaths, localPaths...)
+		}); err != nil {
+			return nil, err
+		}
 
 		err = lr.Close()
 		if err != nil {
@@ -203,22 +201,20 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	n := &LotusNode{}
 
 	// prepare the repo
-	//nodeRepoDir, err := ioutil.TempDir("", "node-repo-dir")
-	//if err != nil {
-	//return nil, err
-	//}
+	nodeRepoDir, err := ioutil.TempDir("", "node-repo-dir")
+	if err != nil {
+		return nil, err
+	}
 
-	nodeRepo := permemrepo.NewMemory(nil)
+	nodeRepo, err := repo.NewFS(nodeRepoDir)
+	if err != nil {
+		return nil, err
+	}
 
-	//nodeRepo, err := repo.NewFS(nodeRepoDir)
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//err = nodeRepo.Init(repo.FullNode)
-	//if err != nil {
-	//return nil, err
-	//}
+	err = nodeRepo.Init(repo.FullNode)
+	if err != nil {
+		return nil, err
+	}
 
 	stop1, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
@@ -232,7 +228,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		drandOpt,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("node node.new error: %w", err)
 	}
 
 	// set the wallet
@@ -269,7 +265,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	stop2, err := node.New(context.Background(), minerOpts...)
 	if err != nil {
 		stop1(context.TODO())
-		return nil, err
+		return nil, fmt.Errorf("miner node.new error: %w", err)
 	}
 	n.StopFn = func(ctx context.Context) error {
 		// TODO use a multierror for this
@@ -391,15 +387,15 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
 
-	//err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
-	//if err != nil {
-	//return nil, err
-	//}
+	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
+	if err != nil {
+		return nil, err
+	}
 
-	//err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
-	//if err != nil {
-	//return nil, err
-	//}
+	err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
+	if err != nil {
+		return nil, err
+	}
 
 	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
 
@@ -478,11 +474,11 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 	//}
 
 	//add local storage for presealed sectors
-	err = n.MinerApi.StorageAddLocal(ctx, presealDir)
-	if err != nil {
-		n.StopFn(context.TODO())
-		return nil, err
-	}
+	//err = n.MinerApi.StorageAddLocal(ctx, presealDir)
+	//if err != nil {
+	//n.StopFn(context.TODO())
+	//return nil, err
+	//}
 
 	//// set the miner PeerID
 	//minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
@@ -526,7 +522,10 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 	for i := 0; i < len(fullNetAddrs); i++ {
 		err := n.FullApi.NetConnect(ctx, fullNetAddrs[i])
 		if err != nil {
-			return nil, fmt.Errorf("failed to connect to miner %d on: %v", i, fullNetAddrs[i])
+			// we expect a failure since we also shutdown another miner
+			t.RecordMessage("failed to connect to miner %d on: %v", i, fullNetAddrs[i])
+			continue
+			//return nil, fmt.Errorf("failed to connect tminer %d on: %v", i, fullNetAddrs[i])
 		}
 		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
 	}
