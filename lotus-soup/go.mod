@@ -14,6 +14,7 @@ require (
 	github.com/filecoin-project/sector-storage v0.0.0-20200717213554-a109ef9cbeab
 	github.com/filecoin-project/specs-actors v0.8.1-0.20200722060124-5d7ca0fc1a7a
 	github.com/filecoin-project/storage-fsm v0.0.0-20200720190000-2cfe2fe3c334
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/influxdata/influxdb v1.8.0 // indirect
 	github.com/ipfs/go-cid v0.0.6

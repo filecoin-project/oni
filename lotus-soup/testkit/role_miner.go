@@ -26,7 +26,7 @@ import (
 	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/repo"
-	"github.com/filecoin-project/sector-storage/stores"
+	"github.com/filecoin-project/oni/lotus-soup/permemrepo"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	saminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
@@ -123,20 +123,22 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	// prepare the repo
-	minerRepoDir, err := ioutil.TempDir("", "miner-repo-dir")
-	if err != nil {
-		return nil, err
-	}
+	//minerRepoDir, err := ioutil.TempDir("", "miner-repo-dir")
+	//if err != nil {
+	//return nil, err
+	//}
 
-	minerRepo, err := repo.NewFS(minerRepoDir)
-	if err != nil {
-		return nil, err
-	}
+	//minerRepo, err := repo.NewFS(minerRepoDir)
+	//if err != nil {
+	//return nil, err
+	//}
 
-	err = minerRepo.Init(repo.StorageMiner)
-	if err != nil {
-		return nil, err
-	}
+	minerRepo := permemrepo.NewMemory(nil)
+
+	//err = minerRepo.Init(repo.StorageMiner)
+	//if err != nil {
+	//return nil, err
+	//}
 
 	{
 		lr, err := minerRepo.Lock(repo.StorageMiner)
@@ -180,13 +182,13 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 			}
 		}
 
-		var localPaths []stores.LocalPath
+		//var localPaths []stores.LocalPath
 
-		if err := lr.SetStorage(func(sc *stores.StorageConfig) {
-			sc.StoragePaths = append(sc.StoragePaths, localPaths...)
-		}); err != nil {
-			return nil, err
-		}
+		//if err := lr.SetStorage(func(sc *stores.StorageConfig) {
+		//sc.StoragePaths = append(sc.StoragePaths, localPaths...)
+		//}); err != nil {
+		//return nil, err
+		//}
 
 		err = lr.Close()
 		if err != nil {
@@ -201,20 +203,22 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	n := &LotusNode{}
 
 	// prepare the repo
-	nodeRepoDir, err := ioutil.TempDir("", "node-repo-dir")
-	if err != nil {
-		return nil, err
-	}
+	//nodeRepoDir, err := ioutil.TempDir("", "node-repo-dir")
+	//if err != nil {
+	//return nil, err
+	//}
 
-	nodeRepo, err := repo.NewFS(nodeRepoDir)
-	if err != nil {
-		return nil, err
-	}
+	nodeRepo := permemrepo.NewMemory(nil)
 
-	err = nodeRepo.Init(repo.FullNode)
-	if err != nil {
-		return nil, err
-	}
+	//nodeRepo, err := repo.NewFS(nodeRepoDir)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//err = nodeRepo.Init(repo.FullNode)
+	//if err != nil {
+	//return nil, err
+	//}
 
 	stop1, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
