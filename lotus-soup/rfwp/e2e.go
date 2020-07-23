@@ -231,7 +231,7 @@ func handleMinerPartialSlash(t *testkit.TestEnvironment) error {
 		MinerActorAddr: myActorAddr,
 	})
 
-	time.Sleep(180 * time.Second)
+	time.Sleep(300 * time.Second)
 
 	rm, err := testkit.RestoreMiner(t, m)
 	if err != nil {
@@ -247,7 +247,9 @@ func handleMinerPartialSlash(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("running miner again, partial slash: %s", myActorAddr)
 
-	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
+	time.Sleep(3600 * time.Second)
+
+	//t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
 	return nil
 }
 
