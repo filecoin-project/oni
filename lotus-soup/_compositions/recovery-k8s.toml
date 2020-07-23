@@ -14,6 +14,7 @@
 
 [global.run_config]
   exposed_ports = { pprof = "6060", node_rpc = "1234", miner_rpc = "2345" }
+  keep_service=true
 
 [global.build_config]
   push_registry=true

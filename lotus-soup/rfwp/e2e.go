@@ -263,6 +263,8 @@ func handleClient(t *testkit.TestEnvironment) error {
 	ctx := context.Background()
 	client := cl.FullApi
 
+	time.Sleep(10 * time.Second)
+
 	// select a miner based on our GroupSeq (client 1 -> miner 1 ; client 2 -> miner 2)
 	// this assumes that all miner instances receive the same sorted MinerAddrs slice
 	minerAddr := cl.MinerAddrs[t.InitContext.GroupSeq-1]

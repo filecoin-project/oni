@@ -3,9 +3,11 @@ package testkit
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
@@ -31,6 +33,7 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	saminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/ipfs/go-datastore"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
@@ -181,6 +184,24 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		}
 
 		var localPaths []stores.LocalPath
+
+		b, err := json.MarshalIndent(&stores.LocalStorageMeta{
+			ID:       stores.ID(uuid.New().String()),
+			Weight:   10,
+			CanSeal:  true,
+			CanStore: true,
+		}, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("marshaling storage config: %w", err)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(lr.Path(), "sectorstore.json"), b, 0644); err != nil {
+			return nil, fmt.Errorf("persisting storage metadata (%s): %w", filepath.Join(lr.Path(), "sectorstore.json"), err)
+		}
+
+		localPaths = append(localPaths, stores.LocalPath{
+			Path: lr.Path(),
+		})
 
 		if err := lr.SetStorage(func(sc *stores.StorageConfig) {
 			sc.StoragePaths = append(sc.StoragePaths, localPaths...)
@@ -387,15 +408,15 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
 
-	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
-	if err != nil {
-		return nil, err
-	}
+	//err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
+	//if err != nil {
+	//return nil, err
+	//}
 
-	err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
-	if err != nil {
-		return nil, err
-	}
+	//err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
+	//if err != nil {
+	//return nil, err
+	//}
 
 	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
 

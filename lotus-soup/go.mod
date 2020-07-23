@@ -10,8 +10,8 @@ require (
 	github.com/filecoin-project/go-fil-markets v0.4.1-0.20200715201050-c141144ea312
 	github.com/filecoin-project/go-jsonrpc v0.1.1-0.20200602181149-522144ab4e24
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
-	github.com/filecoin-project/lotus v0.4.2-0.20200722010559-03b2a40e1560
-	github.com/filecoin-project/sector-storage v0.0.0-20200717213554-a109ef9cbeab
+	github.com/filecoin-project/lotus v0.4.2-0.20200723103253-717728f33bc7
+	github.com/filecoin-project/sector-storage v0.0.0-20200721180125-c7da20e53cfa
 	github.com/filecoin-project/specs-actors v0.8.1-0.20200722060124-5d7ca0fc1a7a
 	github.com/filecoin-project/storage-fsm v0.0.0-20200720190000-2cfe2fe3c334
 	github.com/google/uuid v1.1.1
