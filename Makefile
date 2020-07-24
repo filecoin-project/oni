@@ -20,4 +20,4 @@ pull-images:
 	docker pull iptestground/oni-runtime:v2
 	docker pull iptestground/oni-runtime:v2-debug
 
-.PHONY: download-proofs build-images push-images
+.PHONY: download-proofs build-images push-images pull-images

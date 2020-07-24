@@ -65,44 +65,12 @@ func dealsE2E(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("selected %s as the miner", minerAddr.MinerActorAddr)
 
-	// INIT PAYMENT CHANNEL
-	recv := minerAddr
-	balance := filToAttoFil(10)
-	t.RecordMessage("my balance: %d", balance)
-	t.RecordMessage("creating payment channel; from=%s, to=%s, funds=%d", cl.Wallet.Address, recv.WalletAddr, balance)
-
-	channel, err := cl.FullApi.PaychGet(ctx, cl.Wallet.Address, recv.WalletAddr, balance)
-	if err != nil {
-		return fmt.Errorf("failed to create payment channel: %w", err)
+	if fastRetrieval {
+		err = initPaymentChannel(t, ctx, cl, minerAddr)
+		if err != nil {
+			return err
+		}
 	}
-
-	if addr := channel.Channel; addr != address.Undef {
-		return fmt.Errorf("expected an Undef channel address, got: %s", addr)
-	}
-
-	t.RecordMessage("payment channel created; msg_cid=%s", channel.ChannelMessage)
-	t.RecordMessage("waiting for payment channel message to appear on chain")
-
-	// wait for the channel creation message to appear on chain.
-	_, err = cl.FullApi.StateWaitMsg(ctx, channel.ChannelMessage, 2)
-	if err != nil {
-		return fmt.Errorf("failed while waiting for payment channel creation msg to appear on chain: %w", err)
-	}
-
-	// need to wait so that the channel is tracked.
-	// the full API waits for build.MessageConfidence (=1 in tests) before tracking the channel.
-	// we wait for 2 confirmations, so we have the assurance the channel is tracked.
-
-	t.RecordMessage("reloading paych; now it should have an address")
-	channel, err = cl.FullApi.PaychGet(ctx, cl.Wallet.Address, recv.WalletAddr, big.Zero())
-	if err != nil {
-		return fmt.Errorf("failed to reload payment channel: %w", err)
-	}
-
-	t.RecordMessage("channel address: %s", channel.Channel)
-	//t.RecordMessage("allocating lanes; count=%d", laneCount)
-
-	// DONE WITH PAYMENT CHANNEL
 
 	time.Sleep(12 * time.Second)
 
@@ -166,4 +134,43 @@ func filToAttoFil(f float64) big.Int {
 	a.Mul(a, mbig.NewFloat(float64(build.FilecoinPrecision)))
 	i, _ := a.Int(nil)
 	return big.Int{Int: i}
+}
+
+func initPaymentChannel(t *testkit.TestEnvironment, ctx context.Context, cl *testkit.LotusClient, minerAddr testkit.MinerAddressesMsg) error {
+	recv := minerAddr
+	balance := filToAttoFil(10)
+	t.RecordMessage("my balance: %d", balance)
+	t.RecordMessage("creating payment channel; from=%s, to=%s, funds=%d", cl.Wallet.Address, recv.WalletAddr, balance)
+
+	channel, err := cl.FullApi.PaychGet(ctx, cl.Wallet.Address, recv.WalletAddr, balance)
+	if err != nil {
+		return fmt.Errorf("failed to create payment channel: %w", err)
+	}
+
+	if addr := channel.Channel; addr != address.Undef {
+		return fmt.Errorf("expected an Undef channel address, got: %s", addr)
+	}
+
+	t.RecordMessage("payment channel created; msg_cid=%s", channel.ChannelMessage)
+	t.RecordMessage("waiting for payment channel message to appear on chain")
+
+	// wait for the channel creation message to appear on chain.
+	_, err = cl.FullApi.StateWaitMsg(ctx, channel.ChannelMessage, 2)
+	if err != nil {
+		return fmt.Errorf("failed while waiting for payment channel creation msg to appear on chain: %w", err)
+	}
+
+	// need to wait so that the channel is tracked.
+	// the full API waits for build.MessageConfidence (=1 in tests) before tracking the channel.
+	// we wait for 2 confirmations, so we have the assurance the channel is tracked.
+
+	t.RecordMessage("reloading paych; now it should have an address")
+	channel, err = cl.FullApi.PaychGet(ctx, cl.Wallet.Address, recv.WalletAddr, big.Zero())
+	if err != nil {
+		return fmt.Errorf("failed to reload payment channel: %w", err)
+	}
+
+	t.RecordMessage("channel address: %s", channel.Channel)
+
+	return nil
 }
