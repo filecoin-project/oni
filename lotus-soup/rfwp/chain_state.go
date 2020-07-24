@@ -14,11 +14,9 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/lib/adtutil"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 
 	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/api/apibstore"
 	"github.com/filecoin-project/lotus/chain/types"
 
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
@@ -27,8 +25,6 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
 	sealing "github.com/filecoin-project/storage-fsm"
-
-	cbor "github.com/ipfs/go-ipld-cbor"
 
 	tstats "github.com/filecoin-project/lotus/tools/stats"
 )
@@ -450,11 +446,6 @@ func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr a
 			return nil, err
 		}
 		if err := mas.UnmarshalCBOR(bytes.NewReader(rmas)); err != nil {
-			return nil, err
-		}
-
-		_, err = mas.GetInfo(adtutil.NewStore(ctx, cbor.NewCborStore(apibstore.NewAPIBlockstore(api))))
-		if err != nil {
 			return nil, err
 		}
 	}
