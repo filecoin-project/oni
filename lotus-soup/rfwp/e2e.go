@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/oni/lotus-soup/testkit"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
+	"golang.org/x/sync/errgroup"
 )
 
 func RecoveryFromFailedWindowedPoStE2E(t *testkit.TestEnvironment) error {
@@ -26,8 +26,10 @@ func RecoveryFromFailedWindowedPoStE2E(t *testkit.TestEnvironment) error {
 		return handleClient(t)
 	case "miner":
 		return handleMiner(t)
-	case "miner-biserk":
-		return handleMinerBiserk(t)
+	case "miner-full-slash":
+		return handleMinerFullSlash(t)
+	case "miner-partial-slash":
+		return handleMinerPartialSlash(t)
 	}
 
 	return fmt.Errorf("unknown role: %s", t.Role)
@@ -53,60 +55,71 @@ func handleMiner(t *testkit.TestEnvironment) error {
 
 	go UpdateChainState(t, m)
 
-	// wait for a signal from 1 client to expect slashing
-	select {
-	case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateClientExpectsSlashing, 1).C:
-		if err != nil {
-			return err
-		}
-	case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
-		if err != nil {
-			return err
-		}
-		// go abort signal => exiting
-		t.RecordFailure(errors.New("got abort signal, exitting"))
-
-		time.Sleep(10 * time.Second) // wait for metrics to be emitted
-		return nil
-	}
-
+	minersToBeSlashed := 2
 	ch := make(chan testkit.SlashedMinerMsg)
-	t.SyncClient.MustSubscribe(ctx, testkit.SlashedMinerTopic, ch)
-	slashedMiner := <-ch
+	sub := t.SyncClient.MustSubscribe(ctx, testkit.SlashedMinerTopic, ch)
+	var eg errgroup.Group
 
-	// wait for slashing
+	for i := 0; i < minersToBeSlashed; i++ {
+		select {
+		case slashedMiner := <-ch:
+			// wait for slash
+			eg.Go(func() error {
+				select {
+				case <-waitForSlash(t, slashedMiner):
+				case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
+					if err != nil {
+						return err
+					}
+					return errors.New("got abort signal, exitting")
+				}
+				return nil
+			})
+		case err := <-sub.Done():
+			return fmt.Errorf("got error while waiting for slashed miners: %w", err)
+		case err := <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
+			if err != nil {
+				return err
+			}
+			return errors.New("got abort signal, exitting")
+		}
+	}
+
+	errc := make(chan error)
+	go func() {
+		errc <- eg.Wait()
+	}()
+
 	select {
-	case <-waitForSlashing(t, slashedMiner.MinerActorAddr):
-	case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
+	case err := <-errc:
 		if err != nil {
 			return err
 		}
-		// go abort signal => exiting
-		t.RecordFailure(errors.New("got abort signal, exitting"))
-
-		time.Sleep(10 * time.Second) // wait for metrics to be emitted
-		return nil
+	case err := <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
+		if err != nil {
+			return err
+		}
+		return errors.New("got abort signal, exitting")
 	}
 
-	t.RecordSuccess()
-	time.Sleep(110 * time.Second) // wait for metrics to be emitted
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
 	return nil
 }
 
-func waitForSlashing(t *testkit.TestEnvironment, slashedMiner address.Address) chan struct{} {
+func waitForSlash(t *testkit.TestEnvironment, msg testkit.SlashedMinerMsg) chan error {
 	// assert that balance got reduced with that much 5 times (sector fee)
 	// assert that balance got reduced with that much 2 times (termination fee)
 	// assert that balance got increased with that much 10 times (block reward)
 	// assert that power got increased with that much 1 times (after sector is sealed)
 	// assert that power got reduced with that much 1 times (after sector is announced faulty)
+	slashedMiner := msg.MinerActorAddr
 
-	retchan := make(chan struct{})
+	errc := make(chan error)
 	go func() {
-		foundAllSlashedConditions := false
+		foundSlashConditions := false
 		for range time.Tick(10 * time.Second) {
-			if foundAllSlashedConditions {
-				close(retchan)
+			if foundSlashConditions {
+				close(errc)
 				return
 			}
 			t.RecordMessage("wait for slashing, tick")
@@ -118,16 +131,14 @@ func waitForSlashing(t *testkit.TestEnvironment, slashedMiner address.Address) c
 				negativeDiffs := make(map[big.Int][]abi.ChainEpoch)
 
 				for am, heights := range cs.DiffCmp[slashedMiner.String()]["LockedFunds"] {
-					// parse amount
 					amount, err := big.FromString(am)
 					if err != nil {
-						panic(err)
+						errc <- fmt.Errorf("cannot parse LockedFunds amount: %w:", err)
+						return
 					}
 
-					// amount is negative
+					// amount is negative => slash condition
 					if big.Cmp(amount, big.Zero()) < 0 {
-						// collect...
-
 						negativeDiffs[amount] = heights
 						negativeAmounts = append(negativeAmounts, amount)
 					}
@@ -142,16 +153,15 @@ func waitForSlashing(t *testkit.TestEnvironment, slashedMiner address.Address) c
 
 				// TODO: confirm the largest is > 18 filecoin
 				// TODO: confirm the next largest is > 9 filecoin
-				// etc.
-				foundAllSlashedConditions = true
+				foundSlashConditions = true
 			}()
 		}
 	}()
 
-	return retchan
+	return errc
 }
 
-func handleMinerBiserk(t *testkit.TestEnvironment) error {
+func handleMinerFullSlash(t *testkit.TestEnvironment) error {
 	m, err := testkit.PrepareMiner(t)
 	if err != nil {
 		return err
@@ -163,12 +173,12 @@ func handleMinerBiserk(t *testkit.TestEnvironment) error {
 		return err
 	}
 
-	t.RecordMessage("running biserk miner: %s", myActorAddr)
+	t.RecordMessage("running miner, full slash: %s", myActorAddr)
 
 	// TODO: wait until we have sealed a deal for a client
-	time.Sleep(180 * time.Second)
+	time.Sleep(240 * time.Second)
 
-	t.RecordMessage("shutting down biserk miner: %s", myActorAddr)
+	t.RecordMessage("shutting down miner, full slash: %s", myActorAddr)
 
 	ctxt, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -178,13 +188,68 @@ func handleMinerBiserk(t *testkit.TestEnvironment) error {
 		t.RecordMessage("err from StopFn: %s", err.Error()) // TODO: expect this to be fixed on Lotus
 	}
 
-	t.RecordMessage("shutdown biserk miner: %s", myActorAddr)
+	t.RecordMessage("shutdown miner, full slash: %s", myActorAddr)
 
 	t.SyncClient.MustPublish(ctx, testkit.SlashedMinerTopic, testkit.SlashedMinerMsg{
 		MinerActorAddr: myActorAddr,
 	})
 
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
+	return nil
+}
+
+func handleMinerPartialSlash(t *testkit.TestEnvironment) error {
+	m, err := testkit.PrepareMiner(t)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	myActorAddr, err := m.MinerApi.ActorAddress(ctx)
+	if err != nil {
+		return err
+	}
+
+	t.RecordMessage("running miner, partial slash: %s", myActorAddr)
+
+	// TODO: wait until we have sealed a deal for a client
+	time.Sleep(185 * time.Second)
+
+	t.RecordMessage("shutting down miner, partial slash: %s", myActorAddr)
+
+	ctxt, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	err = m.StopFn(ctxt)
+	if err != nil {
+		//return err
+		t.RecordMessage("err from StopFn: %s", err.Error()) // TODO: expect this to be fixed on Lotus
+	}
+
+	t.RecordMessage("shutdown miner, partial slash: %s", myActorAddr)
+
+	t.SyncClient.MustPublish(ctx, testkit.SlashedMinerTopic, testkit.SlashedMinerMsg{
+		MinerActorAddr: myActorAddr,
+	})
+
+	time.Sleep(300 * time.Second)
+
+	rm, err := testkit.RestoreMiner(t, m)
+	if err != nil {
+		t.RecordMessage("got err: %s", err.Error())
+		return err
+	}
+
+	myActorAddr, err = rm.MinerApi.ActorAddress(ctx)
+	if err != nil {
+		t.RecordMessage("got err: %s", err.Error())
+		return err
+	}
+
+	t.RecordMessage("running miner again, partial slash: %s", myActorAddr)
+
+	time.Sleep(3600 * time.Second)
+
+	//t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount)
 	return nil
 }
 
@@ -199,6 +264,8 @@ func handleClient(t *testkit.TestEnvironment) error {
 
 	ctx := context.Background()
 	client := cl.FullApi
+
+	time.Sleep(10 * time.Second)
 
 	// select a miner based on our GroupSeq (client 1 -> miner 1 ; client 2 -> miner 2)
 	// this assumes that all miner instances receive the same sorted MinerAddrs slice
@@ -258,10 +325,6 @@ func handleClient(t *testkit.TestEnvironment) error {
 	err = testkit.RetrieveData(t, ctx, client, fcid.Root, &info.PieceCID, carExport, data)
 	if err != nil && strings.Contains(err.Error(), "cannot make retrieval deal for zero bytes") {
 		t.D().Counter("deal.expect-slashing").Inc(1)
-
-		// send signal that we expect slashing
-		t.SyncClient.MustSignalEntry(ctx, testkit.StateClientExpectsSlashing)
-
 	} else if err != nil {
 		// unknown error => fail test
 		t.RecordFailure(err)
@@ -278,20 +341,6 @@ func handleClient(t *testkit.TestEnvironment) error {
 	t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
 	time.Sleep(10 * time.Second) // wait for metrics to be emitted
 
-	// wait for a signal from 1 client to expect slashing
-	select {
-	case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateClientExpectsSlashing, 1).C:
-		if err != nil {
-			return err
-		}
-	case err = <-t.SyncClient.MustBarrier(ctx, testkit.StateAbortTest, 1).C:
-		if err != nil {
-			return err
-		}
-	}
-
-	t.RecordSuccess()
 	t.SyncClient.MustSignalAndWait(ctx, testkit.StateDone, t.TestInstanceCount) // TODO: not sure about this
-
 	return nil
 }

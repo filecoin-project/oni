@@ -146,7 +146,7 @@ func (c *LotusClient) RunDefault() error {
 	return nil
 }
 
-func startFullNodeAPIServer(t *TestEnvironment, repo *repo.MemRepo, api api.FullNode) error {
+func startFullNodeAPIServer(t *TestEnvironment, repo repo.Repo, api api.FullNode) error {
 	rpcServer := jsonrpc.NewServer()
 	rpcServer.Register("Filecoin", api)
 
