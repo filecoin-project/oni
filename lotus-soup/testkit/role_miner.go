@@ -3,9 +3,11 @@ package testkit
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
@@ -26,10 +28,12 @@ import (
 	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/repo"
+	"github.com/filecoin-project/sector-storage/stores"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	saminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/ipfs/go-datastore"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
@@ -43,6 +47,13 @@ const (
 
 type LotusMiner struct {
 	*LotusNode
+
+	MinerRepo    repo.Repo
+	NodeRepo     repo.Repo
+	MinerAddr    address.Address
+	FullNetAddrs []peer.AddrInfo
+	GenesisMsg   *GenesisMsg
+	PresealDir   string
 
 	t *TestEnvironment
 }
@@ -115,52 +126,93 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	// prepare the repo
-	minerRepo := repo.NewMemory(nil)
-
-	lr, err := minerRepo.Lock(repo.StorageMiner)
+	minerRepoDir, err := ioutil.TempDir("", "miner-repo-dir")
 	if err != nil {
 		return nil, err
 	}
 
-	ks, err := lr.KeyStore()
+	minerRepo, err := repo.NewFS(minerRepoDir)
 	if err != nil {
 		return nil, err
 	}
 
-	kbytes, err := priv.Bytes()
+	err = minerRepo.Init(repo.StorageMiner)
 	if err != nil {
 		return nil, err
 	}
 
-	err = ks.Put("libp2p-host", types.KeyInfo{
-		Type:       "libp2p-host",
-		PrivateKey: kbytes,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ds, err := lr.Datastore("/metadata")
-	if err != nil {
-		return nil, err
-	}
-
-	err = ds.Put(datastore.NewKey("miner-address"), minerAddr.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	nic := storedcounter.New(ds, datastore.NewKey(modules.StorageCounterDSPrefix))
-	for i := 0; i < (sectors + 1); i++ {
-		_, err = nic.Next()
+	{
+		lr, err := minerRepo.Lock(repo.StorageMiner)
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	err = lr.Close()
-	if err != nil {
-		return nil, err
+		ks, err := lr.KeyStore()
+		if err != nil {
+			return nil, err
+		}
+
+		kbytes, err := priv.Bytes()
+		if err != nil {
+			return nil, err
+		}
+
+		err = ks.Put("libp2p-host", types.KeyInfo{
+			Type:       "libp2p-host",
+			PrivateKey: kbytes,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		ds, err := lr.Datastore("/metadata")
+		if err != nil {
+			return nil, err
+		}
+
+		err = ds.Put(datastore.NewKey("miner-address"), minerAddr.Bytes())
+		if err != nil {
+			return nil, err
+		}
+
+		nic := storedcounter.New(ds, datastore.NewKey(modules.StorageCounterDSPrefix))
+		for i := 0; i < (sectors + 1); i++ {
+			_, err = nic.Next()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var localPaths []stores.LocalPath
+
+		b, err := json.MarshalIndent(&stores.LocalStorageMeta{
+			ID:       stores.ID(uuid.New().String()),
+			Weight:   10,
+			CanSeal:  true,
+			CanStore: true,
+		}, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("marshaling storage config: %w", err)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(lr.Path(), "sectorstore.json"), b, 0644); err != nil {
+			return nil, fmt.Errorf("persisting storage metadata (%s): %w", filepath.Join(lr.Path(), "sectorstore.json"), err)
+		}
+
+		localPaths = append(localPaths, stores.LocalPath{
+			Path: lr.Path(),
+		})
+
+		if err := lr.SetStorage(func(sc *stores.StorageConfig) {
+			sc.StoragePaths = append(sc.StoragePaths, localPaths...)
+		}); err != nil {
+			return nil, err
+		}
+
+		err = lr.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
@@ -169,7 +221,21 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	// we need both a full node _and_ and storage miner node
 	n := &LotusNode{}
 
-	nodeRepo := repo.NewMemory(nil)
+	// prepare the repo
+	nodeRepoDir, err := ioutil.TempDir("", "node-repo-dir")
+	if err != nil {
+		return nil, err
+	}
+
+	nodeRepo, err := repo.NewFS(nodeRepoDir)
+	if err != nil {
+		return nil, err
+	}
+
+	err = nodeRepo.Init(repo.FullNode)
+	if err != nil {
+		return nil, err
+	}
 
 	stop1, err := node.New(context.Background(),
 		node.FullAPI(&n.FullApi),
@@ -183,7 +249,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		drandOpt,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("node node.new error: %w", err)
 	}
 
 	// set the wallet
@@ -220,7 +286,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	stop2, err := node.New(context.Background(), minerOpts...)
 	if err != nil {
 		stop1(context.TODO())
-		return nil, err
+		return nil, fmt.Errorf("miner node.new error: %w", err)
 	}
 	n.StopFn = func(ctx context.Context) error {
 		// TODO use a multierror for this
@@ -235,7 +301,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	registerAndExportMetrics(minerAddr.String())
 
 	// collect stats based on Travis' scripts
-	if t.InitContext.GroupSeq == 1 {
+	if t.Role != "miner-parial-slash" {
 		go collectStats(t, ctx, n.FullApi)
 	}
 
@@ -324,6 +390,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	sctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	t.SyncClient.MustSubscribe(sctx, MinersAddrsTopic, minerCh)
+	var fullNetAddrs []peer.AddrInfo
 	for i := 0; i < t.IntParam("miners"); i++ {
 		m := <-minerCh
 		if m.MinerActorAddr == minerActor {
@@ -336,12 +403,128 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		}
 		t.RecordMessage("connected to full node of miner %s on %v", m.MinerActorAddr, m.FullNetAddrs)
 
+		fullNetAddrs = append(fullNetAddrs, m.FullNetAddrs)
 	}
 
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
 
-	m := &LotusMiner{n, t}
+	//err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
+
+	return m, nil
+}
+
+func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), PrepareNodeTimeout)
+	defer cancel()
+
+	minerRepo := m.MinerRepo
+	nodeRepo := m.NodeRepo
+	minerAddr := m.MinerAddr
+	fullNetAddrs := m.FullNetAddrs
+	genesisMsg := m.GenesisMsg
+	presealDir := m.PresealDir
+
+	minerIP := t.NetClient.MustGetDataNetworkIP().String()
+
+	drandOpt, err := GetRandomBeaconOpts(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+
+	// create the node
+	// we need both a full node _and_ and storage miner node
+	n := &LotusNode{}
+
+	stop1, err := node.New(context.Background(),
+		node.FullAPI(&n.FullApi),
+		node.Online(),
+		node.Repo(nodeRepo),
+		//withGenesis(genesisMsg.Genesis),
+		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("node_rpc", "0"))),
+		withListenAddress(minerIP),
+		withBootstrapper(genesisMsg.Bootstrapper),
+		//withPubsubConfig(false, pubsubTracer),
+		drandOpt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	minerOpts := []node.Option{
+		node.StorageMiner(&n.MinerApi),
+		node.Online(),
+		node.Repo(minerRepo),
+		node.Override(new(api.FullNode), n.FullApi),
+		withApiEndpoint(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", t.PortNumber("miner_rpc", "0"))),
+		withMinerListenAddress(minerIP),
+	}
+
+	stop2, err := node.New(context.Background(), minerOpts...)
+	if err != nil {
+		stop1(context.TODO())
+		return nil, err
+	}
+	n.StopFn = func(ctx context.Context) error {
+		err2 := stop2(ctx)
+		err1 := stop1(ctx)
+		if err2 != nil {
+			return err2
+		}
+		return err1
+	}
+
+	// Start listening on the full node.
+	//fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
+	//if err != nil {
+	//panic(err)
+	//}
+
+	//err = n.MinerApi.NetConnect(ctx, fullNodeNetAddrs)
+	//if err != nil {
+	//panic(err)
+	//}
+
+	//add local storage for presealed sectors
+	//err = n.MinerApi.StorageAddLocal(ctx, presealDir)
+	//if err != nil {
+	//n.StopFn(context.TODO())
+	//return nil, err
+	//}
+
+	//// set the miner PeerID
+	//minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//changeMinerID := &types.Message{
+	//To:       minerAddr,
+	//From:     genMiner.Worker,
+	//Method:   builtin.MethodsMiner.ChangePeerID,
+	//Params:   minerIDEncoded,
+	//Value:    types.NewInt(0),
+	//GasPrice: types.NewInt(0),
+	//GasLimit: 1000000,
+	//}
+
+	//_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
+	//if err != nil {
+	//n.StopFn(context.TODO())
+	//return nil, err
+	//}
+
+	registerAndExportMetrics(minerAddr.String())
 
 	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
 	if err != nil {
@@ -353,7 +536,25 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return nil, err
 	}
 
-	return m, err
+	// collect stats based on Travis' scripts
+	//if t.InitContext.GroupSeq == 1 {
+	//go collectStats(t, ctx, n.FullApi)
+	//}
+
+	for i := 0; i < len(fullNetAddrs); i++ {
+		err := n.FullApi.NetConnect(ctx, fullNetAddrs[i])
+		if err != nil {
+			// we expect a failure since we also shutdown another miner
+			t.RecordMessage("failed to connect to miner %d on: %v", i, fullNetAddrs[i])
+			continue
+			//return nil, fmt.Errorf("failed to connect tminer %d on: %v", i, fullNetAddrs[i])
+		}
+		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
+	}
+
+	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
+
+	return pm, err
 }
 
 func (m *LotusMiner) RunDefault() error {
@@ -439,7 +640,7 @@ func (m *LotusMiner) RunDefault() error {
 	return nil
 }
 
-func startStorageMinerAPIServer(t *TestEnvironment, repo *repo.MemRepo, minerApi api.StorageMiner) error {
+func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) error {
 	mux := mux.NewRouter()
 
 	rpcServer := jsonrpc.NewServer()

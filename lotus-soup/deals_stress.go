@@ -111,7 +111,8 @@ func dealsStress(t *testkit.TestEnvironment) error {
 				defer wg2.Done()
 				t.RecordMessage("retrieving data for deal %d", i)
 				t1 := time.Now()
-				testkit.RetrieveData(t, ctx, client, cids[i], true, data[i])
+				_ = testkit.RetrieveData(t, ctx, client, cids[i], nil, true, data[i])
+
 				t.RecordMessage("retrieved data for deal %d", i)
 				t.D().ResettingHistogram("deal.retrieved").Update(int64(time.Since(t1)))
 			}(i)
@@ -132,7 +133,7 @@ func dealsStress(t *testkit.TestEnvironment) error {
 
 		for i := 0; i < deals; i++ {
 			t.RecordMessage("retrieving data for deal %d", i)
-			testkit.RetrieveData(t, ctx, client, cids[i], true, data[i])
+			_ = testkit.RetrieveData(t, ctx, client, cids[i], nil, true, data[i])
 			t.RecordMessage("retrieved data for deal %d", i)
 		}
 	}
