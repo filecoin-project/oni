@@ -193,6 +193,11 @@ Additional to the Filecoin FFI Git submodules, we are also bundling `proof param
 * `v1` => initial image with 2048 parameters.
 * `v2` => adds auxiliary tools: `net-tools netcat traceroute iputils-ping wget vim curl telnet iproute2 dnsutils`.
 
+### oni-runtime-debug
+
+* `v1` => initial image
+* `v2` => locking in Lotus commit e21ea53
+
 
 ## Team
 
