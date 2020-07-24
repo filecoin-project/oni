@@ -51,10 +51,8 @@ type LotusMiner struct {
 
 	MinerRepo    repo.Repo
 	NodeRepo     repo.Repo
-	MinerAddr    address.Address
 	FullNetAddrs []peer.AddrInfo
 	GenesisMsg   *GenesisMsg
-	PresealDir   string
 
 	t *TestEnvironment
 }
@@ -292,8 +290,8 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 
 	registerAndExportMetrics(minerAddr.String())
 
-	// collect stats based on Travis' scripts
-	if t.Role != "miner-parial-slash" {
+	// collect stats based on blockchain from first instance of `miner` role
+	if t.InitContext.GroupSeq == 1 && t.Role == "miner" {
 		go collectStats(t, ctx, n.FullApi)
 	}
 
@@ -416,7 +414,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return err.ErrorOrNil()
 	}
 
-	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
+	m := &LotusMiner{n, minerRepo, nodeRepo, fullNetAddrs, genesisMsg, t}
 
 	return m, nil
 }
@@ -427,10 +425,8 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 
 	minerRepo := m.MinerRepo
 	nodeRepo := m.NodeRepo
-	minerAddr := m.MinerAddr
 	fullNetAddrs := m.FullNetAddrs
 	genesisMsg := m.GenesisMsg
-	presealDir := m.PresealDir
 
 	minerIP := t.NetClient.MustGetDataNetworkIP().String()
 
@@ -493,8 +489,6 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 		return err.ErrorOrNil()
 	}
 
-	registerAndExportMetrics(minerAddr.String())
-
 	for i := 0; i < len(fullNetAddrs); i++ {
 		err := n.FullApi.NetConnect(ctx, fullNetAddrs[i])
 		if err != nil {
@@ -505,7 +499,7 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
 	}
 
-	pm := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
+	pm := &LotusMiner{n, minerRepo, nodeRepo, fullNetAddrs, genesisMsg, t}
 
 	return pm, err
 }

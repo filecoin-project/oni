@@ -93,10 +93,9 @@ func PrepareBootstrapper(t *TestEnvironment) (*Bootstrapper, error) {
 	}
 
 	genesisTemplate := genesis.Template{
-		Accounts: genesisActors,
-		Miners:   genesisMiners,
-		//Timestamp: uint64(time.Now().Unix()) - uint64(t.IntParam("genesis_timestamp_offset")), // this needs to be in the past
-		Timestamp: uint64(time.Now().Unix()) + 2*build.BlockDelaySecs - uint64(t.IntParam("genesis_timestamp_offset")), // this needs to be in the past
+		Accounts:  genesisActors,
+		Miners:    genesisMiners,
+		Timestamp: uint64(time.Now().Unix()) - uint64(t.IntParam("genesis_timestamp_offset")), // this needs to be in the past
 	}
 
 	// dump the genesis block
