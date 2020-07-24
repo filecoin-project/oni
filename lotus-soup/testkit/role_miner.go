@@ -35,6 +35,7 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/hashicorp/go-multierror"
 	"github.com/ipfs/go-datastore"
 	libp2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -288,15 +289,6 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		stop1(context.TODO())
 		return nil, fmt.Errorf("miner node.new error: %w", err)
 	}
-	n.StopFn = func(ctx context.Context) error {
-		// TODO use a multierror for this
-		err2 := stop2(ctx)
-		err1 := stop1(ctx)
-		if err2 != nil {
-			return err2
-		}
-		return err1
-	}
 
 	registerAndExportMetrics(minerAddr.String())
 
@@ -310,11 +302,6 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	if err != nil {
 		panic(err)
 	}
-
-	// err = n.MinerApi.NetConnect(ctx, fullNodeNetAddrs)
-	// if err != nil {
-	// 	panic(err)
-	// }
 
 	// set seal delay to lower value than 1 hour
 	err = n.MinerApi.SectorSetSealDelay(ctx, sealDelay)
@@ -409,15 +396,25 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	t.RecordMessage("waiting for all nodes to be ready")
 	t.SyncClient.MustSignalAndWait(ctx, StateReady, t.TestInstanceCount)
 
-	//err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
-	//if err != nil {
-	//return nil, err
-	//}
+	fullSrv, err := startFullNodeAPIServer(t, nodeRepo, n.FullApi)
+	if err != nil {
+		return nil, err
+	}
 
-	//err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
-	//if err != nil {
-	//return nil, err
-	//}
+	minerSrv, err := startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
+	if err != nil {
+		return nil, err
+	}
+
+	n.StopFn = func(ctx context.Context) error {
+		var err *multierror.Error
+		err = multierror.Append(fullSrv.Shutdown(ctx))
+		err = multierror.Append(minerSrv.Shutdown(ctx))
+		err = multierror.Append(stop2(ctx))
+		err = multierror.Append(stop2(ctx))
+		err = multierror.Append(stop1(ctx))
+		return err.ErrorOrNil()
+	}
 
 	m := &LotusMiner{n, minerRepo, nodeRepo, minerAddr, fullNetAddrs, genesisMsg, presealDir, t}
 
@@ -475,71 +472,28 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 		stop1(context.TODO())
 		return nil, err
 	}
-	n.StopFn = func(ctx context.Context) error {
-		err2 := stop2(ctx)
-		err1 := stop1(ctx)
-		if err2 != nil {
-			return err2
-		}
-		return err1
+
+	fullSrv, err := startFullNodeAPIServer(t, nodeRepo, n.FullApi)
+	if err != nil {
+		return nil, err
 	}
 
-	// Start listening on the full node.
-	//fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
-	//if err != nil {
-	//panic(err)
-	//}
+	minerSrv, err := startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
+	if err != nil {
+		return nil, err
+	}
 
-	//err = n.MinerApi.NetConnect(ctx, fullNodeNetAddrs)
-	//if err != nil {
-	//panic(err)
-	//}
-
-	//add local storage for presealed sectors
-	//err = n.MinerApi.StorageAddLocal(ctx, presealDir)
-	//if err != nil {
-	//n.StopFn(context.TODO())
-	//return nil, err
-	//}
-
-	//// set the miner PeerID
-	//minerIDEncoded, err := actors.SerializeParams(&saminer.ChangePeerIDParams{NewID: abi.PeerID(minerID)})
-	//if err != nil {
-	//return nil, err
-	//}
-
-	//changeMinerID := &types.Message{
-	//To:       minerAddr,
-	//From:     genMiner.Worker,
-	//Method:   builtin.MethodsMiner.ChangePeerID,
-	//Params:   minerIDEncoded,
-	//Value:    types.NewInt(0),
-	//GasPrice: types.NewInt(0),
-	//GasLimit: 1000000,
-	//}
-
-	//_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
-	//if err != nil {
-	//n.StopFn(context.TODO())
-	//return nil, err
-	//}
+	n.StopFn = func(ctx context.Context) error {
+		var err *multierror.Error
+		err = multierror.Append(fullSrv.Shutdown(ctx))
+		err = multierror.Append(minerSrv.Shutdown(ctx))
+		err = multierror.Append(stop2(ctx))
+		err = multierror.Append(stop2(ctx))
+		err = multierror.Append(stop1(ctx))
+		return err.ErrorOrNil()
+	}
 
 	registerAndExportMetrics(minerAddr.String())
-
-	err = startFullNodeAPIServer(t, nodeRepo, n.FullApi)
-	if err != nil {
-		return nil, err
-	}
-
-	err = startStorageMinerAPIServer(t, minerRepo, n.MinerApi)
-	if err != nil {
-		return nil, err
-	}
-
-	// collect stats based on Travis' scripts
-	//if t.InitContext.GroupSeq == 1 {
-	//go collectStats(t, ctx, n.FullApi)
-	//}
 
 	for i := 0; i < len(fullNetAddrs); i++ {
 		err := n.FullApi.NetConnect(ctx, fullNetAddrs[i])
@@ -547,7 +501,6 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 			// we expect a failure since we also shutdown another miner
 			t.RecordMessage("failed to connect to miner %d on: %v", i, fullNetAddrs[i])
 			continue
-			//return nil, fmt.Errorf("failed to connect tminer %d on: %v", i, fullNetAddrs[i])
 		}
 		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
 	}
@@ -640,7 +593,7 @@ func (m *LotusMiner) RunDefault() error {
 	return nil
 }
 
-func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) error {
+func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api.StorageMiner) (*http.Server, error) {
 	mux := mux.NewRouter()
 
 	rpcServer := jsonrpc.NewServer()
@@ -654,7 +607,7 @@ func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api
 		Namespace: "lotus",
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mux.Handle("/debug/metrics", exporter)
@@ -668,16 +621,16 @@ func startStorageMinerAPIServer(t *TestEnvironment, repo repo.Repo, minerApi api
 
 	endpoint, err := repo.APIEndpoint()
 	if err != nil {
-		return fmt.Errorf("no API endpoint in repo: %w", err)
+		return nil, fmt.Errorf("no API endpoint in repo: %w", err)
 	}
 
 	srv := &http.Server{Handler: ah}
 
 	listenAddr, err := startServer(endpoint, srv)
 	if err != nil {
-		return fmt.Errorf("failed to start storage miner API endpoint: %w", err)
+		return nil, fmt.Errorf("failed to start storage miner API endpoint: %w", err)
 	}
 
 	t.RecordMessage("started storage miner API server at %s", listenAddr)
-	return nil
+	return srv, nil
 }

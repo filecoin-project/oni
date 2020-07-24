@@ -16,6 +16,7 @@ require (
 	github.com/filecoin-project/storage-fsm v0.0.0-20200720190000-2cfe2fe3c334
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/influxdata/influxdb v1.8.0 // indirect
 	github.com/ipfs/go-cid v0.0.6
 	github.com/ipfs/go-datastore v0.4.4

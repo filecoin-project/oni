@@ -302,7 +302,8 @@ func handleClient(t *testkit.TestEnvironment) error {
 
 	// start deal
 	t1 := time.Now()
-	deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, fcid.Root)
+	fastRetrieval := false
+	deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, fcid.Root, fastRetrieval)
 	t.RecordMessage("started deal: %s", deal)
 
 	// this sleep is only necessary because deals don't immediately get logged in the dealstore, we should fix this
