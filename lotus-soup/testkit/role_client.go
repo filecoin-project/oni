@@ -15,6 +15,7 @@ import (
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
+	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -154,17 +155,12 @@ func (c *LotusClient) RunDefault() error {
 }
 
 func startFullNodeAPIServer(t *TestEnvironment, repo repo.Repo, api api.FullNode) (*http.Server, error) {
+	mux := mux.NewRouter()
+
 	rpcServer := jsonrpc.NewServer()
 	rpcServer.Register("Filecoin", api)
 
-	ah := &auth.Handler{
-		Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
-			return apistruct.AllPermissions, nil
-		},
-		Next: rpcServer.ServeHTTP,
-	}
-
-	http.Handle("/rpc/v0", ah)
+	mux.Handle("/rpc/v0", rpcServer)
 
 	exporter, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: "lotus",
@@ -173,9 +169,16 @@ func startFullNodeAPIServer(t *TestEnvironment, repo repo.Repo, api api.FullNode
 		return nil, err
 	}
 
-	http.Handle("/debug/metrics", exporter)
+	mux.Handle("/debug/metrics", exporter)
 
-	srv := &http.Server{Handler: http.DefaultServeMux}
+	ah := &auth.Handler{
+		Verify: func(ctx context.Context, token string) ([]auth.Permission, error) {
+			return apistruct.AllPermissions, nil
+		},
+		Next: mux.ServeHTTP,
+	}
+
+	srv := &http.Server{Handler: ah}
 
 	endpoint, err := repo.APIEndpoint()
 	if err != nil {
