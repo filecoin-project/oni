@@ -92,7 +92,7 @@ func dealsStress(t *testkit.TestEnvironment) error {
 			go func(i int) {
 				defer wg1.Done()
 				t1 := time.Now()
-				deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, cids[i])
+				deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, cids[i], false)
 				t.RecordMessage("started storage deal %d -> %s", i, deal)
 				time.Sleep(2 * time.Second)
 				t.RecordMessage("waiting for deal %d to be sealed", i)
@@ -124,7 +124,7 @@ func dealsStress(t *testkit.TestEnvironment) error {
 	} else {
 
 		for i := 0; i < deals; i++ {
-			deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, cids[i])
+			deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, cids[i], false)
 			t.RecordMessage("started storage deal %d -> %s", i, deal)
 			time.Sleep(2 * time.Second)
 			t.RecordMessage("waiting for deal %d to be sealed", i)

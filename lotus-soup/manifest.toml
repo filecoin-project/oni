@@ -56,6 +56,9 @@ instances = { min = 1, max = 100, default = 5 }
   enable_pubsub_tracer = { type = "bool", default = false }
   mining_mode = { type = "enum", default = "synchronized", options = ["synchronized", "natural"] }
 
+  # Fast retrieval
+  fast_retrieval = { type = "bool", default = false }
+
 
 [[testcases]]
 name = "drand-halting"
