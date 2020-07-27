@@ -1,14 +1,14 @@
 
 import os
 import json
+import multiprocessing as mp
 import pandas as pd
 import holoviews as hv
 import hvplot.pandas # noqa - for side effects, don't remove
 import panel as pn
 from typing import List, Optional, NamedTuple, Any, Union
-from collections import defaultdict
 
-from .util import archive_temp_dir, extract_archive
+from .util import archive_temp_dir, extract_archive, benchmark
 
 MINER_STATE_COL_RENAMES = {
     'Info.MinerAddr': 'Miner',
@@ -57,7 +57,46 @@ def atto_to_fil(x):
     return float(x) * pow(10, -18)
 
 
+def read_ndjson(filename: str):
+    """
+    :param filename: path to a newline-delimited json file
+    :return: a generator of python objects, one for each line in the input file
+    """
+    with open(filename, 'rt') as f:
+        for line in f.readlines():
+            yield json.loads(line)
+
+
+def convert_pandas_parallel(object_stream, converter_fn) -> Optional[pd.DataFrame]:
+    """
+    Takes a stream of objects and a converter_fn that converts each object to a pd.DataFrame.
+    Maps objects from the input stream in parallel (up to num_cpus concurrently) and returns
+    the results concatenated into one DataFrame
+    """
+    with mp.Pool(mp.cpu_count()) as pool:
+        frames = pool.map(converter_fn, object_stream)
+        if frames is None or len(frames) == 0:
+            return None
+    return pd.concat(frames, ignore_index=True)
+
+
+def miner_state_to_df(j: dict) -> pd.DataFrame:
+    chain_height = j['Height']
+    tipset_key = j['TipsetKey']
+
+    miners = j['MinerStates']
+    for m in miners.values():
+        df = pd.json_normalize(m)
+        df['Height'] = chain_height
+        df['TipsetKey'] = tipset_key
+        df.rename(columns=MINER_STATE_COL_RENAMES, inplace=True)
+    return df
+
+
 class ChainDataFrames(object):
+    """
+    ChainDataFrames collects test output from a single test instance into pandas DataFrames.
+    """
 
     # miner_states only includes state snapshots for tipsets that were included in the final chain
     miner_states: pd.DataFrame
@@ -99,6 +138,9 @@ class ChainDataFrames(object):
         joined['included'] = joined['apply_score'] > 0
         all_miner_states['included'] = joined['included']
 
+        if 'ChainHeight' in head_changes.columns and 'Height' not in head_changes.columns:
+            head_changes['Height'] = head_changes['ChainHeight']
+
         self.miner_states = all_miner_states.where(all_miner_states['included']).dropna()
         self.transient_miner_states = all_miner_states.where(all_miner_states['included'] != True).dropna()
         self.all_miner_states = all_miner_states
@@ -133,24 +175,7 @@ class ChainDataFrames(object):
 
     @classmethod
     def load_miner_state_ndjson(cls, statefile: str) -> pd.DataFrame:
-        miner_states = None
-
-        with open(statefile, 'rt') as f:
-            for line in f.readlines():
-                j = json.loads(line)
-                chain_height = j['Height']
-                tipset_key = j['TipsetKey']
-
-                miners = j['MinerStates']
-                for m in miners.values():
-                    df = pd.json_normalize(m)
-                    df['Height'] = chain_height
-                    df['TipsetKey'] = tipset_key
-                    df.rename(columns=MINER_STATE_COL_RENAMES, inplace=True)
-                    if miner_states is None:
-                        miner_states = df
-                    else:
-                        miner_states = miner_states.append(df, ignore_index=True)
+        miner_states = convert_pandas_parallel(read_ndjson(statefile), miner_state_to_df)
         miner_states.fillna(0, inplace=True)
         miner_states.set_index('Height', inplace=True)
 
@@ -174,29 +199,11 @@ class ChainDataFrames(object):
 
     @classmethod
     def load_tipsets_ndjson(cls, tipset_file: str) -> pd.DataFrame:
-        tipsets = None
-        with open(tipset_file, 'rt') as f:
-            for line in f.readlines():
-                j = json.loads(line)
-                df = pd.json_normalize(j)
-                if tipsets is None:
-                    tipsets = df
-                else:
-                    tipsets = tipsets.append(df, ignore_index=True)
-        return tipsets
+        return convert_pandas_parallel(read_ndjson(tipset_file), pd.json_normalize)
 
     @classmethod
     def load_head_changes_ndjson(cls, head_change_file: str) -> pd.DataFrame:
-        changes = None
-        with open(head_change_file, 'rt') as f:
-            for line in f.readlines():
-                j = json.loads(line)
-                df = pd.json_normalize(j)
-                if changes is None:
-                    changes = df
-                else:
-                    changes = changes.append(df, ignore_index=True)
-        return changes
+        return convert_pandas_parallel(read_ndjson(head_change_file), pd.json_normalize)
 
 
 def tick_formatter(col: str) -> Optional[str]:
@@ -206,6 +213,11 @@ def tick_formatter(col: str) -> Optional[str]:
 
 
 class ChainState(object):
+    """
+    ChainState represents a view of the blockchain from the perspective of one of the test instances.
+    The actual data is represented by a ChainDataFrames instance, which contains pandas DataFrames
+    derived from each instance's test output.
+    """
     def __init__(self, pandas_data: ChainDataFrames):
         self.pandas = pandas_data
 
@@ -221,6 +233,11 @@ class ChainState(object):
         self.pandas.to_pickle(dir_path)
 
     def line_chart_selector_panel(self, variables: List[str] = None):
+        """
+        :param variables: a list of columns from the miner_states DataFrame. Defaults to all numeric columns.
+        :return: a line chart with a dropdown selector that lets you chose one of the given variables to plot.
+        The variable will be plotted on the Y axis with one series per miner, with chain height on the X axis.
+        """
         if variables is None:
             variables = NUMERIC_COLS + DERIVED_COLS
         selector = pn.widgets.Select(name='Variable', options=variables)
@@ -229,6 +246,11 @@ class ChainState(object):
         return pn.Column(pn.WidgetBox(selector), plot)
 
     def line_chart_stack(self, variables: List[str] = None):
+        """
+        :param variables: a list of columns from the miner_states DataFrame. Defaults to all numeric columns.
+        :return: a vertical column of hvplot line charts, one for each variable in the list. The charts will plot
+        one series for each miner, with the given variable on the Y axis and chain height on the X axis.
+        """
         if variables is None:
             variables = NUMERIC_COLS + DERIVED_COLS
 
@@ -240,6 +262,12 @@ class ChainState(object):
         return pn.Column(*plots)
 
     def stacked_area(self, variable: str = 'Info.MinerPowerRaw', title: str = 'Miner Power Distribution (Raw)'):
+        """
+        :param variable: a column name from the miner_states data frame
+        :param title: the chart title
+        :return: a stacked area chart showing the proportion of `variable` across all miners on the Y axis
+        in the range of (0.0, 1.0). The X axis is the height of the canonical blockchain.
+        """
         df = self.pandas.miner_states[['Miner', variable]]
         df = df.pivot_table(values=[variable], index=df.index, columns='Miner', aggfunc='sum')
         df = df.div(df.sum(1), axis=0)
@@ -247,13 +275,29 @@ class ChainState(object):
         return df.hvplot.area(title=title)
 
     def effective_height_table(self):
+        """
+        The "effective" height is the height after any revert operations have been applied, while the
+        "logical" height is the expected height at a given epoch time. For example, if at epoch 3 we apply
+        a tipset with height 3 and then revert it, the effective height would be 2 while the logical
+        height remains 3. If we then apply a new tipset with height 3, the effective height becomes 3 again.
+
+        Plotting the effective height lets us see the fluctuations as revert / apply operations happen -
+        reorgs that span multiple epochs will cause a temporary divergence between expected and logical height
+        as the tipsets from the abandoned fork are reverted and the effective height drops down to the lowest
+        common ancestor before the fork, then climbs back up to the logical height as the tipsets from
+        the heavier chain are applied.
+        """
         hc = self.pandas.head_changes.copy()
-        hc['effective_height'] = hc['ChainHeight'] + hc['apply_score'] - 1
+        hc['effective_height'] = hc['Height'] + hc['apply_score'] - 1
         hc['ObservedAt'] = hc['ObservedAt'].apply(pd.to_datetime)
         hc.set_index('ObservedAt', inplace=True)
         return hc.drop(columns=['apply_score'])
 
     def head_change_step_chart(self):
+        """
+        :return: an hvplot step chart of the effective height of the chain over time,
+        overlaid with the "logical" height (see effective_height_table for the difference).
+        """
         hc = self.effective_height_table()
 
         cols = ['effective_height', 'TipsetKey']
@@ -264,7 +308,7 @@ class ChainState(object):
 
         effective = hc[cols].hvplot.step(hover_cols=hover_cols)
 
-        steps = hc['ChainHeight'].hvplot.step(legend=False, hover=False)
+        steps = hc['Height'].hvplot.step(legend=False, hover=False)
         return effective * steps
 
 
@@ -309,8 +353,9 @@ class TestResults(object):
                 print('no state found for {}, ignoring'.format(i))
                 continue
             print('loading state for {}'.format(i))
-            cs = ChainState.from_ndjson_files(p, instance_id=i)
-            self.states[i] = cs
+            with benchmark(i):
+                cs = ChainState.from_ndjson_files(p, instance_id=i)
+                self.states[i] = cs
 
     def cleanup(self):
         if self.temp_dir is not None:
@@ -329,7 +374,7 @@ class TestResults(object):
         cols = ['effective_height', 'test_instance']
         eh = self.effective_heights()
         effective = eh[cols].hvplot.step(by='test_instance')
-        logical = eh[['ChainHeight']].hvplot.step()
+        logical = eh[['Height']].hvplot.step()
         return logical * effective
 
 

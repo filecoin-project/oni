@@ -269,6 +269,7 @@ github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b 
 github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b/go.mod h1:Q0GQOBtKf1oE10eSXSlhN45kDBdGvEcVOqMiffqX+N8=
 github.com/filecoin-project/lotus v0.4.2-0.20200720132907-e1c9c4297bcd h1:yJy2pPqMOQcJcVuNGQtbQAI3XIppSB48JLKmDWihPQ0=
 github.com/filecoin-project/lotus v0.4.2-0.20200720132907-e1c9c4297bcd/go.mod h1:rC9MrgXRjxaPmwdnoLJ2s6FgPv1aMDTttC2IqCFRrmk=
+github.com/filecoin-project/oni v0.0.0-20200721113936-510f6bb83042 h1:3RMfDePgzXVjVu3TFODoVRR9qDmnuPTzNDIKSxpJiSM=
 github.com/filecoin-project/sector-storage v0.0.0-20200615154852-728a47ab99d6/go.mod h1:M59QnAeA/oV+Z8oHFLoNpGMv0LZ8Rll+vHVXX7GirPM=
 github.com/filecoin-project/sector-storage v0.0.0-20200712023225-1d67dcfa3c15/go.mod h1:salgVdX7qeXFo/xaiEQE29J4pPkjn71T0kt0n+VDBzo=
 github.com/filecoin-project/sector-storage v0.0.0-20200717213554-a109ef9cbeab h1:jEQtbWFyEKnCw3eAVCW3MSX/K7Nv03B3zzS/rfm2k+Q=

@@ -247,6 +247,8 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		go collectStats(t, ctx, n.FullApi)
 	}
 
+	go UpdateChainState(t, n)
+
 	// Start listening on the full node.
 	fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
 	if err != nil {

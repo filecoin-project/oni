@@ -93,6 +93,8 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 
 	registerAndExportMetrics(fmt.Sprintf("client_%d", t.GroupSeq))
 
+	go UpdateChainState(t, n)
+
 	t.RecordMessage("publish our address to the clients addr topic")
 	addrinfo, err := n.FullApi.NetAddrsListen(ctx)
 	if err != nil {

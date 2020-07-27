@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/filecoin-project/lotus/build"
 	"github.com/testground/sdk-go/network"
 	"github.com/testground/sdk-go/sync"
 )
@@ -22,7 +23,10 @@ func ApplyNetworkParameters(t *TestEnvironment) {
 
 	if t.IsParamSet("latency_range") {
 		r := t.DurationRangeParam("latency_range")
-		ls.Latency = r.ChooseRandom()
+		rawLatency := r.ChooseRandom()
+		scaled := scaleLatencyToPropagationDelay(rawLatency)
+		t.RecordMessage("Selected latency of %s, scaled to %s based on propagation delay %ds", rawLatency, scaled, build.PropagationDelaySecs)
+		ls.Latency = scaled
 		t.D().RecordPoint("latency_ms", float64(ls.Latency.Milliseconds()))
 	}
 
@@ -83,4 +87,18 @@ func ApplyNetworkParameters(t *TestEnvironment) {
 	})
 
 	t.DumpJSON("network-link-shape.json", ls)
+}
+
+// We run with a reduced propagation delay relative to the production network.
+// Instead of making you do the math when parameterizing the test, you specify
+// a latency range that makes sense for a 6 second propagation delay, and
+// scaleLatencyToPropagationDelay scales it to be proportional to the actual
+// propagation delay during the test.
+// E.g., if we're running with 2 second propagation delay, a latency of
+// 100 ms would be reduced to 100ms * 2s / 6s = 33.33ms
+func scaleLatencyToPropagationDelay(latency time.Duration) time.Duration {
+	const productionPropDelay = 6 * time.Second
+	testDelay := time.Duration(build.PropagationDelaySecs) * time.Second
+	scalar := testDelay / productionPropDelay
+	return latency * scalar
 }
