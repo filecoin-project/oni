@@ -61,6 +61,8 @@ func (t *TestEnvironment) DumpJSON(filename string, v interface{}) {
 		t.RecordMessage("unable to create asset file: %s", err)
 		return
 	}
+	defer f.Close()
+
 	_, err = f.Write(b)
 	if err != nil {
 		t.RecordMessage("error writing json object dump: %s", err)

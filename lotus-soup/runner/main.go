@@ -49,7 +49,7 @@ func runComposition(job jobDefinition) jobResult {
 }
 
 func worker(id int, jobs <-chan jobDefinition, results chan<- jobResult) {
-    log.Printf("started worker %d\n", id)
+	log.Printf("started worker %d\n", id)
 	for j := range jobs {
 		log.Printf("worker %d started test run %d\n", id, j.runNumber)
 		results <- runComposition(j)
