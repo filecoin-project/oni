@@ -13,6 +13,7 @@ import (
 	"github.com/filecoin-project/lotus/api/client"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/go-address"
 	"github.com/urfave/cli/v2"
 	"github.com/ipfs/go-cid"
 )
@@ -37,7 +38,26 @@ var (
 		EnvVars: []string{"FULLNODE_API_INFO"},
 	}
 	
+	idFlag = cli.StringFlag{
+		Name: "cid",
+		Usage: "CID to act upon",
+		Required: true,
+	}
 )
+
+var deltaCmd = &cli.Command{
+	Name: "delta",
+	Description: "Collect affected state between two tipsets",
+	Flags: []cli.Flag{&fromFlag,&toFlag, &apiFlag},
+	Action: extract,
+}
+
+var messageCmd = &cli.Command{
+	Name: "message",
+	Description: "Extract affected actors from a single message",
+	Flags: []cli.Flag{&idFlag, &apiFlag},
+	Action: message,
+}
 
 func makeClient(api string) (api.FullNode, error) {
 	sp := strings.SplitN(api, ":", 2)
@@ -71,8 +91,7 @@ func main() {
 	app := &cli.App{
 		Name: "fc-extract-delta",
 		Usage: "Extract the delta between two filecoin states.",
-		Flags: []cli.Flag{&fromFlag, &toFlag, &apiFlag},
-		Action: extract,
+		Commands: []*cli.Command{deltaCmd,messageCmd},
 	}
 	
 	err := app.Run(os.Args)
@@ -132,4 +151,43 @@ func extract(c *cli.Context) error {
 	fmt.Printf("messages: %d\n", m)
 	fmt.Printf("initial state root: %v\n", currBlock.ParentStateRoot)
 	return nil
+}
+
+func message(c *cli.Context) error {
+	node, err := makeClient(c.String(apiFlag.Name))
+	if err != nil {
+		return err
+	}
+
+	mid, err := cid.Decode(c.String(idFlag.Name))
+	if err != nil {
+		return err
+	}
+
+	msgInfo, err := node.StateSearchMsg(context.TODO(), mid)
+	if err != nil {
+		return err
+	}
+
+	trace, err := node.StateReplay(context.TODO(), msgInfo.TipSet, mid)
+	if err != nil {
+		return err
+	}
+
+	addresses := make(map[address.Address]struct{})
+	populateFromTrace(&addresses, &trace.ExecutionTrace)
+
+	for k, _ := range addresses {
+		fmt.Printf("%v\n", k)
+	}
+	return nil
+}
+
+func populateFromTrace(m *map[address.Address]struct{}, trace *types.ExecutionTrace) {
+	(*m)[trace.Msg.To] = struct{}{}
+	(*m)[trace.Msg.From] = struct{}{}
+
+	for _, s := range trace.Subcalls {
+		populateFromTrace(m, &s)
+	}
 }
