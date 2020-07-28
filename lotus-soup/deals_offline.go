@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"text/tabwriter"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -139,18 +142,20 @@ func dealsOffline(t *testkit.TestEnvironment) error {
 		pending[*d] = struct{}{}
 	}
 
+
 	dealPollInterval := 2 * time.Second
 	for ; len(pending) > 0; time.Sleep(dealPollInterval) {
 		allDeals, err := client.ClientListDeals(ctx)
-		t.RecordMessage("got %d total deals", len(allDeals))
 		if err != nil {
 			panic(err)
 		}
+		stateCounts := make(map[storagemarket.StorageDealStatus]int)
 		for _, di := range allDeals {
 			if _, ok := pending[di.ProposalCid]; !ok {
 				continue
 			}
 
+			stateCounts[di.State] += 1
 			switch di.State {
 			case storagemarket.StorageDealProposalRejected:
 				t.RecordMessage("deal %s rejected: %s", di.ProposalCid, di.Message)
@@ -166,6 +171,15 @@ func dealsOffline(t *testkit.TestEnvironment) error {
 				delete(pending, di.ProposalCid)
 			}
 		}
+		t.RecordMessage("ClientListDeals returned %d total deals", len(allDeals))
+		w := new(bytes.Buffer)
+		tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+		for state, count := range stateCounts {
+			line := fmt.Sprintf("%s\t%d\n", storagemarket.DealStates[state], count)
+			_, _ = tw.Write([]byte(line))
+		}
+		_ = tw.Flush()
+		t.RecordMessage("deal states:\n%s", w.Bytes())
 	}
 
 	t.SyncClient.MustSignalEntry(ctx, testkit.StateStopMining)
