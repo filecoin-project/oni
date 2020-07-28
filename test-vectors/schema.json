@@ -110,10 +110,10 @@
   "properties": {
     "class": {
       "title": "test vector class",
-      "description": "test vector class; depending on the value, the apply_* property to provide (and its schema) will vary; the relevant apply property is apply_[class], in pluralized form",
+      "description": "test vector class; depending on the value, the apply_* property to provide (and its schema) will vary; the relevant apply property is apply_[class]",
       "type": "string",
       "enum": [
-        "message",
+        "messages",
         "block",
         "tipset",
         "chain"

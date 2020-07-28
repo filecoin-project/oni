@@ -1,5 +1,5 @@
 {
-  "class": "message",
+  "class": "messages",
   "selector": "<some predicate for the driver to determine if this vector applies to the implementation, e.g. to deal with protocol upgrades>",
 
   "_meta": {
