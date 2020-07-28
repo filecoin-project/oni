@@ -13,9 +13,10 @@ import (
 	"github.com/filecoin-project/lotus/api/client"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/go-address"
 	"github.com/urfave/cli/v2"
 	"github.com/ipfs/go-cid"
+
+	"github.com/filecoin-project/oni/fc-extract-delta/lib"
 )
 
 var (
@@ -164,30 +165,14 @@ func message(c *cli.Context) error {
 		return err
 	}
 
-	msgInfo, err := node.StateSearchMsg(context.TODO(), mid)
+	actors, err := lib.GetActorsForMessage(context.TODO(), node, mid)
 	if err != nil {
 		return err
 	}
 
-	trace, err := node.StateReplay(context.TODO(), msgInfo.TipSet, mid)
-	if err != nil {
-		return err
-	}
-
-	addresses := make(map[address.Address]struct{})
-	populateFromTrace(&addresses, &trace.ExecutionTrace)
-
-	for k, _ := range addresses {
+	for k := range actors {
 		fmt.Printf("%v\n", k)
 	}
 	return nil
 }
 
-func populateFromTrace(m *map[address.Address]struct{}, trace *types.ExecutionTrace) {
-	(*m)[trace.Msg.To] = struct{}{}
-	(*m)[trace.Msg.From] = struct{}{}
-
-	for _, s := range trace.Subcalls {
-		populateFromTrace(m, &s)
-	}
-}

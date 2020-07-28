@@ -1,4 +1,4 @@
-module github.com/filecoin-project/oni/fc-extract-dag
+module github.com/filecoin-project/oni/fc-extract-delta
 
 go 1.14
 
@@ -9,4 +9,5 @@ require (
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/multiformats/go-multiaddr-net v0.1.5
 	github.com/urfave/cli/v2 v2.2.0
+	github.com/whyrusleeping/cbor-gen v0.0.0-20200723182808-cb5de1c427f5
 )
