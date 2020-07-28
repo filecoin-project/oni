@@ -1,0 +1,58 @@
+[metadata]
+  name = "lotus-soup"
+  author = ""
+
+[global]
+  plan = "lotus-soup"
+  case = "deals-offline"
+  total_instances = 3
+  builder = "docker:go"
+  runner = "local:docker"
+
+[global.build]
+  selectors = ["testground"]
+
+[global.run_config]
+  exposed_ports = { pprof = "6060", node_rpc = "1234", miner_rpc = "2345" }
+
+[global.build_config]
+  enable_go_build_cache = true
+
+[global.run.test_params]
+  clients = "1"
+  miners = "1"
+  genesis_timestamp_offset = "0"
+  balance = "800000000"
+  sectors = "5"
+  random_beacon_type = "mock"
+  mining_mode = "natural"
+
+[[groups]]
+  id = "bootstrapper"
+  [groups.instances]
+    count = 1
+    percentage = 0.0
+  [groups.run]
+    [groups.run.test_params]
+      role = "bootstrapper"
+
+[[groups]]
+  id = "miners"
+  [groups.instances]
+    count = 1
+    percentage = 0.0
+  [groups.run]
+    [groups.run.test_params]
+      role = "miner"
+
+[[groups]]
+  id = "clients"
+  [groups.instances]
+    count = 1
+    percentage = 0.0
+  [groups.run]
+    [groups.run.test_params]
+      role = "client"
+      deals = "12000"
+      deal_start_epoch = "100000"
+      balance = "800000000"

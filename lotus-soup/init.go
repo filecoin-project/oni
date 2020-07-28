@@ -39,7 +39,7 @@ func init() {
 
 	// Number of epochs between publishing the precommit and when the challenge for interactive PoRep is drawn
 	// used to ensure it is not predictable by miner.
-	miner.PreCommitChallengeDelay = abi.ChainEpoch(10)
+	//miner.PreCommitChallengeDelay = abi.ChainEpoch(10)
 
 	power.ConsensusMinerMinPower = big.NewInt(2048)
 	miner.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{

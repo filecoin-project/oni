@@ -68,3 +68,29 @@ func WaitDealSealed(t *TestEnvironment, ctx context.Context, client api.FullNode
 		t.RecordMessage("deal state: %s", storagemarket.DealStates[di.State])
 	}
 }
+
+func StartOfflineDeal(ctx context.Context, minerActorAddr address.Address, client api.FullNode, price types.BigInt, startEpoch abi.ChainEpoch, rootCid cid.Cid, pieceCid cid.Cid, commPSize abi.UnpaddedPieceSize) *cid.Cid {
+	addr, err := client.WalletDefaultAddress(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	deal, err := client.ClientStartDeal(ctx, &api.StartDealParams{
+		Data: &storagemarket.DataRef{
+			TransferType: storagemarket.TTManual,
+			Root:         rootCid,
+			PieceCid:     &pieceCid,
+			PieceSize:    commPSize,
+		},
+		Wallet:            addr,
+		Miner:             minerActorAddr,
+		EpochPrice:        price,
+		DealStartEpoch:    startEpoch,
+		MinBlocksDuration: 10000,
+		FastRetrieval:     false,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return deal
+}

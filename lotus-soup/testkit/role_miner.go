@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	mrand "math/rand"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -54,6 +55,7 @@ type LotusMiner struct {
 	FullNetAddrs []peer.AddrInfo
 	GenesisMsg   *GenesisMsg
 
+	minerActorAddr address.Address
 	t *TestEnvironment
 }
 
@@ -343,7 +345,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		Params:   minerIDEncoded,
 		Value:    types.NewInt(0),
 		GasPrice: types.NewInt(0),
-		GasLimit: 1000000,
+		GasLimit: 0,
 	}
 
 	_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
@@ -416,7 +418,7 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		return err.ErrorOrNil()
 	}
 
-	m := &LotusMiner{n, minerRepo, nodeRepo, fullNetAddrs, genesisMsg, t}
+	m := &LotusMiner{n, minerRepo, nodeRepo, fullNetAddrs, genesisMsg, minerActor, t}
 
 	return m, nil
 }
@@ -501,9 +503,50 @@ func RestoreMiner(t *TestEnvironment, m *LotusMiner) (*LotusMiner, error) {
 		t.RecordMessage("connected to full node of miner %d on %v", i, fullNetAddrs[i])
 	}
 
-	pm := &LotusMiner{n, minerRepo, nodeRepo, fullNetAddrs, genesisMsg, t}
+	pm := &LotusMiner{n, minerRepo, nodeRepo, fullNetAddrs, genesisMsg, m.minerActorAddr, t}
 
 	return pm, err
+}
+
+func (m *LotusMiner) importOfflineDealData(ctx context.Context, msg *ImportOfflineDataMsg) error {
+	m.t.DebugSpew("importing data for offline deal: %+v", msg)
+	f, err := ioutil.TempFile("/tmp", "oni-data")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	data := make([]byte, msg.Size)
+	mrand.New(mrand.NewSource(msg.RandSeed)).Read(data)
+	_, err = f.Write(data)
+
+	const maxRetries = 100
+	for i := 0; i < maxRetries; i++ {
+		err = m.MinerApi.DealsImportData(ctx, msg.ProposalCid, f.Name())
+		if err == nil {
+			m.t.RecordMessage("data for offline deal %s imported successfully", msg.ProposalCid)
+			return nil
+		}
+		m.t.RecordMessage("offline deal %s not yet on chain, retrying in 1s", msg.ProposalCid)
+		time.Sleep(time.Second)
+	}
+	return err
+}
+
+func (m *LotusMiner) handleOfflineDealMessages(ctx context.Context) {
+	ch := make(chan *ImportOfflineDataMsg, 128)
+	m.t.SyncClient.MustSubscribe(ctx, OfflineDealsTopic, ch)
+
+	go func() {
+		for msg := range ch {
+			if msg.TargetMiner != m.minerActorAddr {
+				continue
+			}
+			if err := m.importOfflineDealData(ctx, msg); err != nil {
+				m.t.RecordMessage("error importing offline deal data: %s", err)
+			}
+		}
+	}()
 }
 
 func (m *LotusMiner) RunDefault() error {
@@ -575,6 +618,9 @@ func (m *LotusMiner) RunDefault() error {
 	} else {
 		close(done)
 	}
+
+	// listen for clients to tell us to import offline deal data
+	go m.handleOfflineDealMessages(ctx)
 
 	// wait for a signal from all clients to stop mining
 	err = <-t.SyncClient.MustBarrier(ctx, StateStopMining, clients).C
