@@ -73,11 +73,6 @@ func cmdExport(c *cli.Context) error {
 		}
 	}()
 
-	//ts, err := LoadTipSet(ctx, cctx, api)
-	//if err != nil {
-	//return err
-	//}
-
 	ts := cst.GetHeaviestTipSet()
 	if ts == nil {
 		return errors.New("heaviest tipset is nil")

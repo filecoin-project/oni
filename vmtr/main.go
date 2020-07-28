@@ -80,6 +80,12 @@ func main() {
 				Usage:   "export from repo to chainfile",
 				Action:  cmdExport,
 			},
+			{
+				Name:    "generate_genesis",
+				Aliases: []string{"gg"},
+				Usage:   "generate genesis block based on state from heaviest tipset",
+				Action:  cmdGenerate,
+			},
 		},
 	}
 
