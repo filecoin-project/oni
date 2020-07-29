@@ -112,12 +112,19 @@ func dealsOffline(t *testkit.TestEnvironment) error {
 
 	t.RecordMessage("starting storage deals")
 
+	rootCids := make(map[cid.Cid]struct{})
 	var dealCids []*cid.Cid
 
 	for i := 0; i < deals; i++ {
 		seed := time.Now().Unix() * int64(i)
 		file := makeRandomFile(ctx, client, fileSize, seed)
 
+		// just in case... adding this b/c I got a weird error about "already tracking identifier <cid>"
+		if _, ok := rootCids[file.rootCid]; ok {
+			continue
+		}
+		rootCids[file.rootCid] = struct{}{}
+		
 		commP, err := getPieceCommitment(ctx, client, minerAddr.MinerActorAddr, file)
 		if err != nil {
 			t.RecordMessage("error getting piece commitment for offline deal: %s", err)
