@@ -1,0 +1,68 @@
+;; this is the e2e deals test written as an onion script
+
+;; import the onions module, which provides basic functionality
+import onions
+;; import the vm module, which provides the test driver
+import vm
+
+;; test parameters -- TODO figure out how to pass input parameters to scripts
+;;                 -- it's ok for now to utilize modules and have a top script that defines
+;;                 -- all parameters
+nMiners = 2
+nClients = 3
+initialBalance = 2000000
+presealSectors = 10
+
+;; miner creation utility function
+def createMiner(i, balance, sectors) {
+  actor = onions.createActor(balance)
+  minerPeerID = onions.createPeerID()
+  actor.peerID = minerPeerID
+  minerAddr = onions.minerAddr(i)
+  actor.minerAddr = minerAddr
+  preseals = onions.preseal(actor, minerAddr, sectors)
+  (actor, preseals)
+}
+
+;; preperation of the genesis block
+actors = []
+miners = []
+preseals = []
+for i = 1..nMiners {
+  actor, preseal = createMiner(i-1, initialBalance, presealSectors)
+  miners.append(actor)
+  actors.append(actor)
+  preseals.append(preseal)
+}
+
+for i = 1..nClients {
+  actor = onions.createActor(initialBalance)
+  actors.append(actor)
+}
+
+;; now we can create the genesis block
+genesis = onions.createGenesis(actors, preseals)
+
+;; and we start the vm execution
+vm.start(genesis)
+
+;; first messages: the miners must change their peerID
+for i = 0..nMiners-1 {
+  miner = miners[i]
+  preseal = preseals[i]
+  msg = vm.newChangePeerIDMessage(miner.minerAddr, preseal.worker, miner.peerID, 0, 0, 1000000)
+  vm.push(msg)
+}
+
+;; commit the messages
+vm.commit()
+
+
+;; TODO
+;; now we need to create some deals
+;; we need to decompose all the deal consistuents into vm messages, create messages,
+;; push them in the vm, and commit them
+;; ....
+
+;; end of the test
+vm.end()
