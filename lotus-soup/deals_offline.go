@@ -135,51 +135,15 @@ func dealsOffline(t *testkit.TestEnvironment) error {
 		dealCids = append(dealCids, deal)
 
 		triggerMinerImport(t, ctx, file, deal, minerAddr.MinerActorAddr)
-	}
 
-	pending := make(map[cid.Cid]struct{})
-	for _, d := range dealCids {
-		pending[*d] = struct{}{}
+		if deals%100 == 0 {
+			recordDealInfo(t, ctx, client)
+		}
 	}
-
 
 	dealPollInterval := 2 * time.Second
-	for ; len(pending) > 0; time.Sleep(dealPollInterval) {
-		allDeals, err := client.ClientListDeals(ctx)
-		if err != nil {
-			panic(err)
-		}
-		stateCounts := make(map[storagemarket.StorageDealStatus]int)
-		for _, di := range allDeals {
-			if _, ok := pending[di.ProposalCid]; !ok {
-				continue
-			}
-
-			stateCounts[di.State] += 1
-			switch di.State {
-			case storagemarket.StorageDealProposalRejected:
-				t.RecordMessage("deal %s rejected: %s", di.ProposalCid, di.Message)
-				delete(pending, di.ProposalCid)
-			case storagemarket.StorageDealFailing:
-				t.RecordMessage("deal %s failed: %s", di.ProposalCid, di.Message)
-				delete(pending, di.ProposalCid)
-			case storagemarket.StorageDealError:
-				t.RecordMessage("deal %s errored %s", di.ProposalCid, di.Message)
-				delete(pending, di.ProposalCid)
-			case storagemarket.StorageDealActive:
-				t.RecordMessage("completed deal: %s", di)
-				delete(pending, di.ProposalCid)
-			}
-		}
-		t.RecordMessage("ClientListDeals returned %d total deals", len(allDeals))
-		w := new(bytes.Buffer)
-		tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
-		for state, count := range stateCounts {
-			line := fmt.Sprintf("%s\t%d\n", storagemarket.DealStates[state], count)
-			_, _ = tw.Write([]byte(line))
-		}
-		_ = tw.Flush()
-		t.RecordMessage("deal states:\n%s", w.Bytes())
+	for pending := len(dealCids); pending > 0; time.Sleep(dealPollInterval) {
+		pending = recordDealInfo(t, ctx, client)
 	}
 
 	t.SyncClient.MustSignalEntry(ctx, testkit.StateStopMining)
@@ -188,4 +152,44 @@ func dealsOffline(t *testkit.TestEnvironment) error {
 	time.Sleep(15 * time.Second) // wait for metrics to be emitted
 
 	return nil
+}
+
+func recordDealInfo(t *testkit.TestEnvironment, ctx context.Context, client api.FullNode) int {
+	allDeals, err := client.ClientListDeals(ctx)
+	if err != nil {
+		panic(err)
+	}
+	stateCounts := make(map[storagemarket.StorageDealStatus]int)
+	pending := len(allDeals)
+	for _, di := range allDeals {
+		stateCounts[di.State] += 1
+		switch di.State {
+		case storagemarket.StorageDealProposalRejected:
+			t.RecordMessage("deal %s rejected: %s", di.ProposalCid, di.Message)
+			pending -= 1
+		case storagemarket.StorageDealFailing:
+			t.RecordMessage("deal %s failed: %s", di.ProposalCid, di.Message)
+			pending -= 1
+		case storagemarket.StorageDealError:
+			t.RecordMessage("deal %s errored %s", di.ProposalCid, di.Message)
+			pending -= 1
+		case storagemarket.StorageDealActive:
+			t.RecordMessage("completed deal: %s", di)
+			pending -= 1
+		}
+	}
+	t.R().RecordPoint("total-deals", float64(len(allDeals)))
+	t.R().RecordPoint("pending-deals", float64(pending))
+	t.RecordMessage("ClientListDeals returned %d total deals", len(allDeals))
+	w := new(bytes.Buffer)
+	tw := tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+	tw.Write([]byte(fmt.Sprintf("total deals\t%d\n", len(allDeals))))
+	tw.Write([]byte(fmt.Sprintf("pending deals\t%d\n", pending)))
+	for state, count := range stateCounts {
+		line := fmt.Sprintf("%s\t%d\n", storagemarket.DealStates[state], count)
+		_, _ = tw.Write([]byte(line))
+	}
+	_ = tw.Flush()
+	t.RecordMessage("deal states:\n%s", w.Bytes())
+	return pending
 }
