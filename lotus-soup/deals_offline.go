@@ -136,7 +136,7 @@ func dealsOffline(t *testkit.TestEnvironment) error {
 
 		triggerMinerImport(t, ctx, file, deal, minerAddr.MinerActorAddr)
 
-		if deals%100 == 0 {
+		if i%100 == 0 {
 			recordDealInfo(t, ctx, client)
 		}
 	}
