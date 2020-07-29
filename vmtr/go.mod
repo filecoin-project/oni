@@ -3,6 +3,7 @@ module github.com/filecoin-project/oni/vmtr
 go 1.14
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
 	github.com/filecoin-project/lotus v0.4.3-0.20200724113535-7410c057c6b2
 	github.com/filecoin-project/sector-storage v0.0.0-20200723200950-ed2e57dde6df
@@ -12,6 +13,7 @@ require (
 	github.com/ipfs/go-ipfs-blockstore v1.0.0
 	github.com/ipfs/go-ipfs-exchange-offline v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.5-0.20200428170625-a0bd04d3cbdf
+	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-log/v2 v2.1.2-0.20200626104915-0016c0b4b3e4
 	github.com/ipfs/go-merkledag v0.3.1
 	github.com/ipld/go-car v0.1.1-0.20200526133713-1c7508d55aae
@@ -23,3 +25,5 @@ require (
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
+
+replace github.com/ipfs/go-merkledag => ./extra/go-merkledag

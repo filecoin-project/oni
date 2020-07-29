@@ -7,13 +7,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/filecoin-project/lotus/chain/gen"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/sector-storage/ffiwrapper"
+	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
 	"github.com/ipfs/go-blockservice"
@@ -21,6 +22,7 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbor "github.com/ipfs/go-ipld-cbor"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
@@ -83,14 +85,29 @@ func cmdGenerate(c *cli.Context) error {
 		}
 	}()
 
-	cur := cst.GetHeaviestTipSet()
-	if cur == nil {
-		return errors.New("heaviest tipset is nil")
+	//cur := cst.GetHeaviestTipSet()
+	//if cur == nil {
+	//return errors.New("heaviest tipset is nil")
+	//}
+
+	tsk := types.EmptyTSK
+	ts, err := cst.GetTipSetFromKey(tsk)
+	if err != nil {
+		return err
 	}
+
+	ctx := context.Background()
+	h := abi.ChainEpoch(400)
+	cur, err := cst.GetTipsetByHeight(ctx, h, ts, true)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Tipset key: %s", cur.Key())
+	log.Infof("Tipset height: %d", cur.Height())
 
 	stm := stmgr.NewStateManager(cst)
 
-	ctx := context.Background()
 	stateroot, _, err := stm.TipSetState(ctx, cur)
 	if err != nil {
 		return err
@@ -115,6 +132,8 @@ func cmdGenerate(c *cli.Context) error {
 	}
 
 	log.Infof("Empty Genesis root: %s", emptyroot)
+	log.Infof("State root: %s", stateroot)
+	log.Infof("Messages: %s", mmb.Cid())
 
 	genesisticket := &types.Ticket{
 		VRFProof: []byte("vrf proof0000000vrf proof0000000"),
@@ -146,6 +165,8 @@ func cmdGenerate(c *cli.Context) error {
 		return fmt.Errorf("serializing block header failed: %w", err)
 	}
 
+	log.Infof("Block header: %s", sb.Cid())
+
 	if err := bs.Put(sb); err != nil {
 		return fmt.Errorf("putting header to blockstore: %w", err)
 	}
@@ -154,9 +175,21 @@ func cmdGenerate(c *cli.Context) error {
 	blkserv := blockservice.New(bs, offl)
 	dserv := merkledag.NewDAGService(blkserv)
 
-	if err := car.WriteCarWithWalker(ctx, dserv, []cid.Cid{b.Cid()}, fi, gen.CarWalkFunc); err != nil {
+	if err := car.WriteCarWithWalker(ctx, dserv, []cid.Cid{b.Cid()}, fi, walker); err != nil {
 		return fmt.Errorf("failed to write car file: %w", err)
 	}
 
 	return nil
+}
+
+func walker(nd format.Node) (out []*format.Link, err error) {
+	for _, link := range nd.Links() {
+		spew.Dump(link)
+		if link.Cid.Prefix().Codec == cid.FilCommitmentSealed || link.Cid.Prefix().Codec == cid.FilCommitmentUnsealed {
+			continue
+		}
+		out = append(out, link)
+	}
+
+	return out, nil
 }
