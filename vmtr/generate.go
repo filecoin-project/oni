@@ -15,6 +15,7 @@ import (
 	lb "github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/sector-storage/ffiwrapper"
+	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
 	"github.com/ipfs/go-blockservice"
@@ -87,27 +88,27 @@ func cmdGenerate(c *cli.Context) error {
 
 	ctx := context.Background()
 
-	cur := cst.GetHeaviestTipSet()
-	if cur == nil {
-		return errors.New("heaviest tipset is nil")
-	}
+	//cur := cst.GetHeaviestTipSet()
+	//if cur == nil {
+	//return errors.New("heaviest tipset is nil")
+	//}
 
-	err = cst.SetHead(cur)
+	//err = cst.SetHead(cur)
+	//if err != nil {
+	//return err
+	//}
+
+	tsk := types.EmptyTSK
+	ts, err := cst.GetTipSetFromKey(tsk)
 	if err != nil {
 		return err
 	}
 
-	//tsk := types.EmptyTSK
-	//ts, err := cst.GetTipSetFromKey(tsk)
-	//if err != nil {
-	//return err
-	//}
-
-	//h := abi.ChainEpoch(5)
-	//cur, err := cst.GetTipsetByHeight(ctx, h, ts, true)
-	//if err != nil {
-	//return err
-	//}
+	h := abi.ChainEpoch(5)
+	cur, err := cst.GetTipsetByHeight(ctx, h, ts, true)
+	if err != nil {
+		return err
+	}
 
 	log.Infof("Tipset key: %s", cur.Key())
 	log.Infof("Tipset height: %d", cur.Height())
