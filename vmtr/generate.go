@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -13,14 +12,13 @@ import (
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
+	lb "github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/sector-storage/ffiwrapper"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
@@ -66,7 +64,8 @@ func cmdGenerate(c *cli.Context) error {
 		return err
 	}
 
-	bs := blockstore.NewBlockstore(ds)
+	bs := lb.NewBlockstore(ds)
+	//bs := blockstore.NewBlockstore(ds)
 
 	cst := store.NewChainStore(bs, mds, mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)))
 
@@ -91,6 +90,11 @@ func cmdGenerate(c *cli.Context) error {
 	cur := cst.GetHeaviestTipSet()
 	if cur == nil {
 		return errors.New("heaviest tipset is nil")
+	}
+
+	err = cst.SetHead(cur)
+	if err != nil {
+		return err
 	}
 
 	//tsk := types.EmptyTSK
@@ -166,78 +170,6 @@ func cmdGenerate(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("serializing block header failed: %w", err)
 	}
-
-	// BEGIN MISSING KEYS/VALUES
-
-	//root@tg-lotus-soup-b455c159e1af-miners-0:/# lll chain read-obj bafkqaetgnfwc6mjpon2g64tbm5sw22lomvza
-	//66696c2f312f73746f726167656d696e6572
-
-	magicBlocks := []struct {
-		Cid  string
-		Data string
-	}{
-		{
-			"bafkqadlgnfwc6mjpmfrwg33vnz2a",
-			"66696c2f312f6163636f756e74",
-		},
-		{
-			"bafkqaetgnfwc6mjpon2g64tbm5sw22lomvza",
-			"66696c2f312f73746f726167656d696e6572",
-		},
-		{
-			"bafkqaftgnfwc6mjpozsxe2lgnfswi4tfm5uxg5dspe",
-			"66696c2f312f76657269666965647265676973747279",
-		},
-		{
-			"bafkqaetgnfwc6mjpon2g64tbm5sxa33xmvza",
-			"66696c2f312f73746f72616765706f776572",
-		},
-		{
-			"bafkqactgnfwc6mjpmnzg63q",
-			"66696c2f312f63726f6e",
-		},
-		{
-			"bafkqaddgnfwc6mjpon4xg5dfnu",
-			"66696c2f312f73797374656d",
-		},
-		{
-			"bafkqae3gnfwc6mjpon2g64tbm5sw2ylsnnsxi",
-			"66696c2f312f73746f726167656d61726b6574",
-		},
-		{
-			"bafkqactgnfwc6mjpnfxgs5a",
-			"66696c2f312f696e6974",
-		},
-		{
-			"bafkqaddgnfwc6mjpojsxoylsmq",
-			"66696c2f312f726577617264",
-		},
-	}
-
-	for _, v := range magicBlocks {
-		magicdata, err := hex.DecodeString(v.Data)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("% x", magicdata)
-
-		magiccid, err := cid.Decode(v.Cid)
-		if err != nil {
-			return err
-		}
-		magicblock, err := blocks.NewBlockWithCid(magicdata, magiccid)
-		if err != nil {
-			return err
-		}
-
-		if err := bs.Put(magicblock); err != nil {
-			return fmt.Errorf("putting magicblock to blockstore: %w", err)
-		}
-
-		log.Infof("Magic block: %s\n", magicblock.Cid())
-	}
-
-	// END MISSING KEYS/VALUES
 
 	log.Infof("Block header: %s\n", sb.Cid())
 
