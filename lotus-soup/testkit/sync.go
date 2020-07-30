@@ -4,6 +4,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/genesis"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
+	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/testground/sdk-go/sync"
 )
@@ -17,6 +18,7 @@ var (
 	SlashedMinerTopic = sync.NewTopic("slashed_miner", &SlashedMinerMsg{})
 	PubsubTracerTopic = sync.NewTopic("pubsub_tracer", &PubsubTracerMsg{})
 	DrandConfigTopic  = sync.NewTopic("drand_config", &DrandRuntimeInfo{})
+	OfflineDealsTopic = sync.NewTopic("offline_deals", &ImportOfflineDataMsg{})
 )
 
 var (
@@ -65,4 +67,13 @@ type PubsubTracerMsg struct {
 type DrandRuntimeInfo struct {
 	Config          dtypes.DrandConfig
 	GossipBootstrap dtypes.DrandBootstrap
+}
+
+// Tell a miner to import data for an offline deal. Each side generates the data locally
+// using the given RandSeed so we don't have to ship a bunch of data around.
+type ImportOfflineDataMsg struct {
+	TargetMiner address.Address
+	ProposalCid cid.Cid
+	RandSeed    int64
+	Size        uint64
 }

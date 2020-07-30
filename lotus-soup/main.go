@@ -14,6 +14,7 @@ var cases = map[string]interface{}{
 	"deals-stress":                  testkit.WrapTestEnvironment(dealsStress),
 	"drand-halting":                 testkit.WrapTestEnvironment(dealsE2E),
 	"paych-stress":                  testkit.WrapTestEnvironment(paych.Stress),
+	"deals-offline":                 testkit.WrapTestEnvironment(dealsOffline),
 }
 
 func main() {
