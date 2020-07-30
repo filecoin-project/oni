@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/state"
@@ -24,8 +25,8 @@ func GetFilteredStateRoot(ctx context.Context, a api.FullNode, msg cid.Cid) (*st
 		return nil, err
 	}
 
-	store := apiIpldStore{ctx, a}
-	tree, err := state.LoadStateTree(&store, ts.ParentState())
+	store := NewCache(ctx, a)
+	tree, err := state.LoadStateTree(store, ts.ParentState())
 	if err != nil {
 		return nil, err
 	}
@@ -60,9 +61,14 @@ func GetActorsForMessage(ctx context.Context, a api.FullNode, msg cid.Cid) (map[
 		return nil, err
 	}
 
-	trace, err := a.StateReplay(ctx, msgInfo.TipSet, msg)
+	ts, err := a.ChainGetTipSet(ctx, msgInfo.TipSet)
 	if err != nil {
 		return nil, err
+	}
+
+	trace, err := a.StateReplay(ctx, ts.Parents(), msg)
+	if err != nil {
+		return nil, fmt.Errorf("could not replay msg: %w", err)
 	}
 
 	addresses := make(map[address.Address]struct{})
