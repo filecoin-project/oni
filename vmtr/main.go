@@ -86,6 +86,12 @@ func main() {
 				Usage:   "generate genesis block based on state from heaviest tipset",
 				Action:  cmdGenerate,
 			},
+			{
+				Name:    "load_statetree",
+				Aliases: []string{"ls"},
+				Usage:   "load statetree",
+				Action:  cmdLoadStateTree,
+			},
 		},
 	}
 

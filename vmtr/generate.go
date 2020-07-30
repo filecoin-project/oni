@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -81,6 +80,17 @@ func cmdGenerate(c *cli.Context) error {
 	}
 	defer func() {
 		err := fi.Close()
+		if err != nil {
+			fmt.Printf("error closing output file: %+v", err)
+		}
+	}()
+
+	fi2, err := os.Create("statetree.car")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := fi2.Close()
 		if err != nil {
 			fmt.Printf("error closing output file: %+v", err)
 		}
@@ -178,20 +188,53 @@ func cmdGenerate(c *cli.Context) error {
 		return fmt.Errorf("putting header to blockstore: %w", err)
 	}
 
+	// serialise block
+	//var bb2 bytes.Buffer
+	//writer2 := bufio.NewWriter(&bb2)
+
 	offl := offline.Exchange(bs)
 	blkserv := blockservice.New(bs, offl)
 	dserv := merkledag.NewDAGService(blkserv)
 
 	if err := car.WriteCarWithWalker(ctx, dserv, []cid.Cid{b.Cid()}, fi, walker); err != nil {
+		//if err := car.WriteCarWithWalker(ctx, dserv, []cid.Cid{b.Cid()}, writer2, walker); err != nil {
 		return fmt.Errorf("failed to write car file: %w", err)
 	}
+
+	// serialise statetree
+	//var bb bytes.Buffer
+	//writer := bufio.NewWriter(&bb)
+
+	offl = offline.Exchange(bs)
+	blkserv = blockservice.New(bs, offl)
+	dserv = merkledag.NewDAGService(blkserv)
+
+	if err := car.WriteCarWithWalker(ctx, dserv, []cid.Cid{stateroot}, fi2, walker); err != nil {
+		return fmt.Errorf("failed to write car file: %w", err)
+	}
+
+	//str := hex.EncodeToString(bb.Bytes())
+
+	//fmt.Println("stateroot:", stateroot)
+	//fmt.Println("statetree:", str)
+
+	// sanity check
+	//bss := blockstore.NewBlockstore(ds)
+	//_, err = car.LoadCar(bss, bytes.NewReader(bb2.Bytes()))
+	//fi.Seek(0, 0)
+	//_, err = car.LoadCar(bss, fi)
+	//if err != nil {
+	//return fmt.Errorf("error loading car file failed: %w", err)
+	//}
 
 	return nil
 }
 
+//var walker = car.DefaultWalkFunc
+
 func walker(nd format.Node) (out []*format.Link, err error) {
 	for _, link := range nd.Links() {
-		spew.Dump(link)
+		//spew.Dump(link)
 		if link.Cid.Prefix().Codec == cid.FilCommitmentSealed || link.Cid.Prefix().Codec == cid.FilCommitmentUnsealed {
 			continue
 		}
