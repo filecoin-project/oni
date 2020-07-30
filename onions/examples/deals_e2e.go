@@ -18,7 +18,7 @@ func main() {
 	var miners []*onions.MinerActor
 	var preseals []*onions.Preseal
 	for i := 0; i < nMiners; i++ {
-		miner, err := onions.CreateMinerActor(i)
+		miner, err := onions.CreateMinerActor(i, initialBalance)
 		if err != nil {
 			panic(err)
 		}
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	for i := 0; i < nClients; i++ {
-		actor, err := onions.CreateActor()
+		actor, err := onions.CreateActor(initialBalance)
 		if err != nil {
 			panic(err)
 		}
