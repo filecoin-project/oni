@@ -60,6 +60,13 @@ var messageCmd = &cli.Command{
 	Action: message,
 }
 
+var filterCmd = &cli.Command{
+	Name: "filter",
+	Description: "Filter a stateroot from a single message",
+	Flags: []cli.Flag{&idFlag, &apiFlag},
+	Action: messageFilter,
+}
+
 func makeClient(api string) (api.FullNode, error) {
 	sp := strings.SplitN(api, ":", 2)
 	if len(sp) != 2 {
@@ -92,7 +99,7 @@ func main() {
 	app := &cli.App{
 		Name: "fc-extract-delta",
 		Usage: "Extract the delta between two filecoin states.",
-		Commands: []*cli.Command{deltaCmd,messageCmd},
+		Commands: []*cli.Command{deltaCmd,messageCmd,filterCmd},
 	}
 	
 	err := app.Run(os.Args)
@@ -176,3 +183,24 @@ func message(c *cli.Context) error {
 	return nil
 }
 
+func messageFilter(c *cli.Context) error {
+	node, err := makeClient(c.String(apiFlag.Name))
+	if err != nil {
+		return err
+	}
+
+	mid, err := cid.Decode(c.String(idFlag.Name))
+	if err != nil {
+		return err
+	}
+
+
+	root, err := lib.GetFilteredStateRoot(context.TODO(), node, mid)
+	if err != nil {
+		return err
+	}
+
+	
+
+	return nil
+}

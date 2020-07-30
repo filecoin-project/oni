@@ -10,6 +10,9 @@ import (
 	"github.com/filecoin-project/go-address"
 )
 
+// GetFilteredStateRoot provides the state tree needed to process a message represented as `msg`.
+// The parent tipset on which the message was performed is loaded, and is then filtered to only
+// include the actors referenced by the message.
 func GetFilteredStateRoot(ctx context.Context, a api.FullNode, msg cid.Cid) (*state.StateTree, error) {
 	msgInfo, err := a.StateSearchMsg(ctx, msg)
 	if err != nil {
@@ -54,6 +57,7 @@ func GetFilteredStateRoot(ctx context.Context, a api.FullNode, msg cid.Cid) (*st
 	return tree, nil
 }
 
+// GetActorsForMessage queries a message by Cid to return the array of actors taht are referenced by it.
 func GetActorsForMessage(ctx context.Context, a api.FullNode, msg cid.Cid) (map[address.Address]struct{}, error) {
 	msgInfo, err := a.StateSearchMsg(ctx, msg)
 	if err != nil {
