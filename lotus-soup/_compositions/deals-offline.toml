@@ -44,6 +44,7 @@
   [groups.run]
     [groups.run.test_params]
       role = "miner"
+      heap_dump_interval = "1m"
 
 [[groups]]
   id = "clients"
@@ -56,3 +57,4 @@
       deals = "12000"
       deal_start_epoch = "1000000"
       balance = "800000000"
+      heap_dump_interval = "30s"

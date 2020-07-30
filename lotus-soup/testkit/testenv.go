@@ -83,6 +83,7 @@ func WrapTestEnvironment(f func(t *TestEnvironment) error) run.InitializedTestCa
 
 		t.DumpJSON("test-parameters.json", t.TestInstanceParams)
 
+		SchedulePeriodicHeapDumps(t)
 		return f(t)
 	}
 }
