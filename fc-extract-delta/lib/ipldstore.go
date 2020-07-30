@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	cid "github.com/ipfs/go-cid"
 	cbg "github.com/whyrusleeping/cbor-gen"
+	cbor "github.com/ipfs/go-ipld-cbor"
 )
 
 type apiIpldStore struct {
@@ -26,6 +27,10 @@ func NewCache(ctx context.Context, node api.FullNode) *apiIpldStore {
 
 func (ht *apiIpldStore) Context() context.Context {
 	return ht.ctx
+}
+
+type nodeset interface {
+	SetRaw(ctx context.Context, k string, raw []byte) error
 }
 
 func (ht *apiIpldStore) Get(ctx context.Context, c cid.Cid, out interface{}) error {
@@ -48,7 +53,15 @@ func (ht *apiIpldStore) Get(ctx context.Context, c cid.Cid, out interface{}) err
 		return nil
 	}
 
-	return fmt.Errorf("Object %#v does not implement CBORUnmarshaler", out)
+	hn, ok := out.(nodeset)
+	if ok {
+		if err := hn.SetRaw(ctx, c.String(), item); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return cbor.DecodeInto(item, out)
 }
 
 func (ht *apiIpldStore) Put(ctx context.Context, v interface{}) (cid.Cid, error) {

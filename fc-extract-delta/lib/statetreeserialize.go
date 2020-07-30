@@ -3,12 +3,13 @@ package lib
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	"github.com/filecoin-project/lotus/chain/state"
 	format "github.com/ipfs/go-ipld-format"
 	cid "github.com/ipfs/go-cid"
 	car "github.com/ipld/go-car"
+	cbor "github.com/ipfs/go-ipld-cbor"
+	mh "github.com/multiformats/go-multihash"
 )
 
 // SerializeStateTree provides the serialized car representation of a state tree
@@ -38,10 +39,7 @@ func (s stateTreeNodeGetter) Get(ctx context.Context, c cid.Cid) (format.Node, e
 		return nil, err
 	}
 
-	if node, ok := out.(format.Node); ok {
-		return node, nil
-	}
-	return nil, fmt.Errorf("can't deal with type %T", out)
+	return cbor.WrapObject(out, mh.SHA2_256, 32)
 }
 
 func (s stateTreeNodeGetter) GetMany(ctx context.Context, cids []cid.Cid) <-chan *format.NodeOption {
