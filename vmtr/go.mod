@@ -8,7 +8,6 @@ require (
 	github.com/filecoin-project/lotus v0.4.3-0.20200729013254-5df0ee7935e0
 	github.com/filecoin-project/sector-storage v0.0.0-20200727112136-9377cb376d25
 	github.com/filecoin-project/specs-actors v0.8.1-0.20200728182452-1476088f645b
-	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-blockstore v1.0.0
@@ -26,5 +25,3 @@ require (
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
-
-replace github.com/ipfs/go-merkledag => ./extra/go-merkledag
