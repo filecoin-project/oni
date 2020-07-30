@@ -50,10 +50,6 @@ func GetFilteredStateRoot(ctx context.Context, a api.FullNode, msg cid.Cid) (*st
 		}
 	}
 
-	if 	_, err = tree.Flush(ctx); err != nil {
-		return nil, err
-	}
-
 	return tree, nil
 }
 

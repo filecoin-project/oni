@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/oni/fc-extract-delta/lib"
+	"github.com/filecoin-project/oni/fc-extract-delta/schema"
 )
 
 var (
@@ -195,12 +197,52 @@ func messageFilter(c *cli.Context) error {
 	}
 
 
-	root, err := lib.GetFilteredStateRoot(context.TODO(), node, mid)
+	tree, err := lib.GetFilteredStateRoot(context.TODO(), node, mid)
 	if err != nil {
 		return err
 	}
 
-	
+	msg, err := node.ChainGetMessage(context.TODO(), mid)
+	if err != nil {
+		return err
+	}
+	msgBytes, err := msg.Serialize()
+	if err != nil {
+		return err
+	}
+
+
+	data, err := lib.SerializeStateTree(context.TODO(), tree)
+	if err != nil {
+		return err
+	}
+
+	preTree := schema.StateTreeCar(data)
+	vector := schema.TestVector{
+		Class: schema.ClassMessages,
+		Selector: "",
+		Metadata: &schema.Metadata{
+			ID: "TK",
+			Version: "TK",
+			Gen: schema.GenerationData{
+				Source: "TK",
+				Version: "TK",
+			},
+		},
+		Preconditions: &schema.Preconditions{
+			StateTree: &preTree,
+		},
+		ApplyMessages: []schema.Message{
+			schema.Message(msgBytes),
+		},
+		Postconditions: nil, // TODO
+	}
+
+
+	enc := json.NewEncoder(os.Stdout)
+	if err := enc.Encode(&vector); err != nil {
+		return err
+	}
 
 	return nil
 }

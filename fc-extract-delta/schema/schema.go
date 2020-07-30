@@ -9,7 +9,7 @@ import (
 type Class string
 
 var (
-	// ClassMessage tests the VM transition over a single message
+	// ClassMessages tests the VM transition over a single message
 	ClassMessages Class = "messages"
 	// ClassBlock tests the VM transition over a block of messages
 	ClassBlock Class = "block"
@@ -37,12 +37,20 @@ type GenerationData struct {
 
 // Preconditions contain a representation of VM state at the beginning of the test
 type Preconditions struct {
-	StateTree interface{}
+	StateTree *StateTreeCar
 }
 
 // Postconditions contain a representation of VM state at th end of the test
 type Postconditions struct {
-	StateTree interface{}
+	StateTree *StateTreeCar
+}
+
+// StateTreeCar is the car representation of a state tree
+type StateTreeCar []byte
+
+// MarshalJSON implements json.Marshal for StateTreeCar
+func (stc StateTreeCar) MarshalJSON() ([]byte, error) {
+    return json.Marshal(hex.EncodeToString(stc))
 }
 
 // Message contains a serialization of a VM messate
