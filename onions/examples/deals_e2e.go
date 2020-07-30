@@ -13,6 +13,7 @@ func main() {
 	presealSectors := 10
 
 	// create initial actors + genesis block
+	// Note: this can go into a utility method in the onions module
 	var actors []*onions.Actor
 	var miners []*onions.MinerActor
 	var preseals []*onions.Preseal
