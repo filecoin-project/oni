@@ -1,63 +1,29 @@
-# Testground Composer
+# Analysing Oni Tests with Jupyter
 
-This is a work-in-progress UI for configuring and running testground compositions.
+This directory has some tools for examining the output of a test using Jupyter.
 
-The app code lives in [./app](./app), and there's a thin Jupyter notebook shell in [composer.ipynb](./composer.ipynb).
+The `app` directory contains python code that's meant to be imported into a Jupyter notebook.
 
-## Running
+The most useful code is in `app/chainstate.py` - it will load JSON chain state dumps from lotus-soup tests
+that use the `UpdateChainState` routine to dump chain state.
 
-You can either run the app in docker, or in a local python virtualenv. Docker is recommended unless you're hacking
-on the code for Composer itself.
+The code is quite messy, so will likely take work to be useful.
 
-### Running with docker
+If you want to run without docker, make a python 3.8+ virtualenv and run `pip install -r requirements.txt`.
+Then you can run `jupyter notebook` in this directory.
 
-Run the `./composer.sh` script to build a container with the latest source and run it. The first build
-will take a little while since it needs to build testground and fetch a bunch of python dependencies.
+## Docker madness
 
-You can skip the build if you set `SKIP_BUILD=true` when running `composer.sh`, and you can rebuild
-manually with `make docker`.
+To avoid python dependency madness, there's a `Dockerfile` in here that will setup a python environment
+and install everything from `requirements.txt` and mount the `app` code in.
 
-The contents of `$TESTGROUND_HOME/plans` will be sync'd to a temporary directory and read-only mounted 
-into the container.
+To use it, run `./jupyter.sh` in this repo. The first time you run it may take a while as the images are built.
 
-After building and starting the container, the script will open a browser to the composer UI.
+Once the jupyter server is running in docker, the script should open the Jupyter UI in your default browser.
+Since the current directory is mounted into the container, any edits you make to the python code locally will
+show up, and you can access test outputs, etc from the Jupyter environment.
 
-You should be able to load an existing composition or create a new one from one of the plans in 
-`$TESTGROUND_HOME/plans`.
+## Misc stuff you can probably ignore
 
-Right now docker only supports the standalone webapp UI; to run the UI in a Jupyter notebook, see below.
-
-### Running with local python
-
-To run without docker, make a python3 virtual environment somewhere and activate it:
-
-```shell
-# make a virtualenv called "venv" in the current directory
-python3 -m venv ./venv
-
-# activate (bash/zsh):
-source ./venv/bin/activate
-
-# activate (fish):
-source ./venv/bin/activate.fish
-```
-
-Then install the python dependencies:
-
-```shell
-pip install -r requirements.txt
-```
-
-And start the UI:
-
-```shell
-panel serve composer.ipynb
-```
-
-That will start the standalone webapp UI. If you want a Jupyter notebook instead, run:
-
-```
-jupyter notebook
-```
-
-and open `composer.ipynb` in the Jupyter file picker.
+There's some not-quite-baked code in here for creating testground compositions using a data-driven UI. It was
+close to being cool, but didn't quite get there. Maybe someday :)
