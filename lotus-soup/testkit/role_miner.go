@@ -294,6 +294,8 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 
 	registerAndExportMetrics(minerAddr.String())
 
+	go UpdateChainState(t, n)
+
 	// collect stats based on blockchain from first instance of `miner` role
 	if t.InitContext.GroupSeq == 1 && t.Role == "miner" {
 		go collectStats(t, ctx, n.FullApi)
