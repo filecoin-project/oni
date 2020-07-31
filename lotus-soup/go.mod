@@ -9,16 +9,18 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/drand/drand v1.0.3-0.20200714175734-29705eaf09d4
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
-	github.com/filecoin-project/go-bitfield v0.0.4-0.20200703174658-f4a5758051a1
-	github.com/filecoin-project/go-fil-markets v0.4.1-0.20200715201050-c141144ea312
+	github.com/filecoin-project/go-fil-markets v0.5.3-0.20200731191349-05110623f114
 	github.com/filecoin-project/go-jsonrpc v0.1.1-0.20200602181149-522144ab4e24
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
-	github.com/filecoin-project/lotus v0.4.2-0.20200720132907-e1c9c4297bcd
-	github.com/filecoin-project/specs-actors v0.8.1-0.20200720115956-cd051eabf328
-	github.com/filecoin-project/storage-fsm v0.0.0-20200717125541-d575c3a5f7f2
+	github.com/filecoin-project/lotus v0.4.3-0.20200731202212-7c32d49ec67e
+	github.com/filecoin-project/sector-storage v0.0.0-20200730203805-7153e1dd05b5
+	github.com/filecoin-project/specs-actors v0.8.6
+	github.com/filecoin-project/storage-fsm v0.0.0-20200730122205-d423ae90d8d4
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/influxdata/influxdb v1.8.0 // indirect
-	github.com/ipfs/go-cid v0.0.6
+	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipld-cbor v0.0.5-0.20200428170625-a0bd04d3cbdf
@@ -28,14 +30,15 @@ require (
 	github.com/ipfs/go-unixfs v0.2.4
 	github.com/ipld/go-car v0.1.1-0.20200526133713-1c7508d55aae
 	github.com/kpacha/opencensus-influxdb v0.0.0-20181102202715-663e2683a27c
-	github.com/libp2p/go-libp2p v0.10.0
-	github.com/libp2p/go-libp2p-core v0.6.0
+	github.com/libp2p/go-libp2p v0.10.2
+	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/libp2p/go-libp2p-pubsub-tracer v0.0.0-20200626141350-e730b32bf1e6
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/multiformats/go-multiaddr-net v0.1.5
+	github.com/supranational/blst v0.1.2-alpha.1 // indirect
 	github.com/testground/sdk-go v0.2.3-0.20200706132230-6a65ddac2d8c
 	go.opencensus.io v0.22.4
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 )
 
 // This will work in all build modes: docker:go, exec:go, and local go build.

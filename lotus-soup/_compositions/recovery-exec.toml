@@ -5,7 +5,7 @@
 [global]
   plan = "lotus-soup"
   case = "recovery-failed-windowed-post"
-  total_instances = 9
+  total_instances = 7
   builder = "exec:go"
   runner = "local:exec"
 
@@ -22,8 +22,8 @@
   registry_type="aws"
 
 [global.run.test_params]
-  clients = "4"
-  miners = "4"
+  clients = "3"
+  miners = "3"
   genesis_timestamp_offset = "0"
   balance = "20000000"
 
@@ -54,7 +54,7 @@
       mining_mode = "natural"
 
 [[groups]]
-  id = "miners-full-slash"
+  id = "miners-biserk"
   [groups.resources]
     memory = "4096Mi"
     cpu = "1000m"
@@ -63,21 +63,7 @@
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
-      role = "miner-full-slash"
-      sectors = "5"
-      mining_mode = "natural"
-
-[[groups]]
-  id = "miners-partial-slash"
-  [groups.resources]
-    memory = "4096Mi"
-    cpu = "1000m"
-  [groups.instances]
-    count = 1
-    percentage = 0.0
-  [groups.run]
-    [groups.run.test_params]
-      role = "miner-partial-slash"
+      role = "miner-biserk"
       sectors = "5"
       mining_mode = "natural"
 
@@ -87,7 +73,7 @@
     memory = "1024Mi"
     cpu = "1000m"
   [groups.instances]
-    count = 4
+    count = 3
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]

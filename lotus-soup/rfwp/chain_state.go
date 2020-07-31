@@ -1,4 +1,4 @@
-package testkit
+package rfwp
 
 import (
 	"bufio"
@@ -14,169 +14,52 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
-	"github.com/filecoin-project/specs-actors/actors/util/adt"
 
 	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/api/apibstore"
 	"github.com/filecoin-project/lotus/chain/types"
+
+	"github.com/filecoin-project/oni/lotus-soup/testkit"
 
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
 	sealing "github.com/filecoin-project/storage-fsm"
 
-	cbor "github.com/ipfs/go-ipld-cbor"
+	tstats "github.com/filecoin-project/lotus/tools/stats"
 )
 
-func WaitForSlash(t *TestEnvironment, msg SlashedMinerMsg) chan error {
-	// assert that balance got reduced with that much 5 times (sector fee)
-	// assert that balance got reduced with that much 2 times (termination fee)
-	// assert that balance got increased with that much 10 times (block reward)
-	// assert that power got increased with that much 1 times (after sector is sealed)
-	// assert that power got reduced with that much 1 times (after sector is announced faulty)
-	slashedMiner := msg.MinerActorAddr
+func UpdateChainState(t *testkit.TestEnvironment, m *testkit.LotusMiner) error {
+	height := 0
+	headlag := 3
 
-	errc := make(chan error)
-	go func() {
-		foundSlashConditions := false
-		for range time.Tick(10 * time.Second) {
-			if foundSlashConditions {
-				close(errc)
-				return
-			}
-			t.RecordMessage("wait for slashing, tick")
-			func() {
-				cs.Lock()
-				defer cs.Unlock()
+	ctx := context.Background()
 
-				negativeAmounts := []big.Int{}
-				negativeDiffs := make(map[big.Int][]abi.ChainEpoch)
-
-				for am, heights := range cs.DiffCmp[slashedMiner.String()]["LockedFunds"] {
-					amount, err := big.FromString(am)
-					if err != nil {
-						errc <- fmt.Errorf("cannot parse LockedFunds amount: %w:", err)
-						return
-					}
-
-					// amount is negative => slash condition
-					if big.Cmp(amount, big.Zero()) < 0 {
-						negativeDiffs[amount] = heights
-						negativeAmounts = append(negativeAmounts, amount)
-					}
-				}
-
-				t.RecordMessage("negative diffs: %d", len(negativeDiffs))
-				if len(negativeDiffs) < 3 {
-					return
-				}
-
-				sort.Slice(negativeAmounts, func(i, j int) bool { return big.Cmp(negativeAmounts[i], negativeAmounts[j]) > 0 })
-
-				// TODO: confirm the largest is > 18 filecoin
-				// TODO: confirm the next largest is > 9 filecoin
-				foundSlashConditions = true
-			}()
-		}
-	}()
-
-	return errc
-}
-
-func UpdateChainState(t *TestEnvironment, n *LotusNode) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	t.RecordMessage("subscribing to chain notifications")
-	notif, err := n.FullApi.ChainNotify(ctx)
+	tipsetsCh, err := tstats.GetTips(ctx, m.FullApi, abi.ChainEpoch(height), headlag)
 	if err != nil {
 		return err
 	}
-	// buffer the head changes to avoid blocking the notification channel
-	// we also add a timestamp to get an approximation of when the change was
-	// emitted
-	changeCh := make(chan []*HeadChange, 4096)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case changes := <-notif:
-				now := time.Now().UnixNano()
-				out := make([]*HeadChange, len(changes))
-				for i, c := range changes {
-					out[i] = &HeadChange{
-						ObservedAt: now,
-						Type:       c.Type,
-						TipsetKey:  c.Val.Key().String(),
-						Height:     c.Val.Height(),
-						tipset:     c.Val,
-					}
-				}
-				changeCh <- out
-			}
-		}
-	}()
 
-	chainStateEnc, chainStateFile, err := makeJsonFile(t, "chain-state.ndjson")
+	jsonFilename := fmt.Sprintf("%s%cchain-state.ndjson", t.TestOutputsPath, os.PathSeparator)
+	jsonFile, err := os.Create(jsonFilename)
 	if err != nil {
 		return err
 	}
-	defer chainStateFile.Close()
+	defer jsonFile.Close()
+	jsonEncoder := json.NewEncoder(jsonFile)
 
-	headStateEnc, headChangeFile, err := makeJsonFile(t, "chain-head-changes.ndjson")
-	if err != nil {
-		return err
-	}
-	defer headChangeFile.Close()
-
-	tipsetEnc, tipsetFile, err := makeJsonFile(t, "chain-tipsets.ndjson")
-	if err != nil {
-		return err
-	}
-	defer tipsetFile.Close()
-
-	t.RecordMessage("created chain json files")
-
-	recordHeadChange := func(change *HeadChange) error {
-		return headStateEnc.Encode(change)
-	}
-
-	recordedTipsets := make(map[string]struct{})
-	recordTipset := func(tipset *types.TipSet) error {
-		if _, ok := recordedTipsets[tipset.Key().String()]; ok {
-			return nil
-		}
-		return tipsetEnc.Encode(struct {
-			TipsetKey string
-			Tipset    *types.TipSet
-		}{
-			TipsetKey: tipset.Key().String(),
-			Tipset:    tipset,
-		})
-	}
-
-	recordedSnapshots := make(map[string]struct{})
-	recordChainSnapshot := func(tipset *types.TipSet) error {
-		tsk := tipset.Key()
-		if _, ok := recordedSnapshots[tsk.String()]; ok {
-			return nil
-		}
-
-		maddrs, err := n.FullApi.StateListMiners(ctx, tsk)
+	for tipset := range tipsetsCh {
+		maddrs, err := m.FullApi.StateListMiners(ctx, tipset.Key())
 		if err != nil {
 			return err
 		}
 
 		snapshot := ChainSnapshot{
 			Height:      tipset.Height(),
-			TipsetKey:   tsk.String(),
 			MinerStates: make(map[string]*MinerStateSnapshot),
 		}
 
-		return func() error {
+		err = func() error {
 			cs.Lock()
 			defer cs.Unlock()
 
@@ -193,7 +76,7 @@ func UpdateChainState(t *TestEnvironment, n *LotusNode) error {
 					w := bufio.NewWriter(f)
 					defer w.Flush()
 
-					minerInfo, err := info(t, n, maddr, w, tipset.Height())
+					minerInfo, err := info(t, m, maddr, w, tipset.Height())
 					if err != nil {
 						return err
 					}
@@ -203,13 +86,13 @@ func UpdateChainState(t *TestEnvironment, n *LotusNode) error {
 						printDiff(t, minerInfo, tipset.Height())
 					}
 
-					faultState, err := provingFaults(t, n, maddr, tipset.Height())
+					faultState, err := provingFaults(t, m, maddr, tipset.Height())
 					if err != nil {
 						return err
 					}
 					writeText(w, faultState)
 
-					provState, err := provingInfo(t, n, maddr, tipset.Height())
+					provState, err := provingInfo(t, m, maddr, tipset.Height())
 					if err != nil {
 						return err
 					}
@@ -218,19 +101,17 @@ func UpdateChainState(t *TestEnvironment, n *LotusNode) error {
 					// record diff
 					recordDiff(minerInfo, provState, tipset.Height())
 
-					deadlines, err := provingDeadlines(t, n, maddr, tipset.Height())
+					deadlines, err := provingDeadlines(t, m, maddr, tipset.Height())
 					if err != nil {
 						return err
 					}
 					writeText(w, deadlines)
 
-					sectorInfo, err := sectorsList(t, n, maddr, w, tipset.Height())
+					sectorInfo, err := sectorsList(t, m, maddr, w, tipset.Height())
 					if err != nil {
 						return err
 					}
-					if sectorInfo != nil {
-						writeText(w, sectorInfo)
-					}
+					writeText(w, sectorInfo)
 
 					snapshot.MinerStates[maddr.String()] = &MinerStateSnapshot{
 						Info:        minerInfo,
@@ -240,7 +121,7 @@ func UpdateChainState(t *TestEnvironment, n *LotusNode) error {
 						Sectors:     sectorInfo,
 					}
 
-					return chainStateEnc.Encode(snapshot)
+					return jsonEncoder.Encode(snapshot)
 				}()
 				if err != nil {
 					return err
@@ -248,97 +129,20 @@ func UpdateChainState(t *TestEnvironment, n *LotusNode) error {
 			}
 
 			cs.PrevHeight = tipset.Height()
+
 			return nil
 		}()
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			break
-
-		case changes := <-changeCh:
-			for _, change := range changes {
-				if err := recordHeadChange(change); err != nil {
-					return err
-				}
-				switch change.Type {
-				case store.HCCurrent:
-					tipsets, err := loadTipsets(ctx, n.FullApi, change.tipset, 0)
-					if err != nil {
-						return err
-					}
-
-					for _, tipset := range tipsets {
-						if err := recordTipset(tipset); err != nil {
-							return err
-						}
-						if err := recordChainSnapshot(tipset); err != nil {
-							return err
-						}
-					}
-				case store.HCApply:
-					if err := recordTipset(change.tipset); err != nil {
-						return err
-					}
-					if err := recordChainSnapshot(change.tipset); err != nil {
-						return err
-					}
-				}
-			}
-		}
-	}
-}
-
-func makeJsonFile(t *TestEnvironment, filename string) (enc *json.Encoder, close io.Closer, err error) {
-	filePath := fmt.Sprintf("%s%c%s", t.TestOutputsPath, os.PathSeparator, filename)
-	f, err := os.Create(filePath)
-	if err != nil {
-		return nil, nil, err
-	}
-	return json.NewEncoder(f), f, err
-}
-
-func loadTipsets(ctx context.Context, api api.FullNode, curr *types.TipSet, lowestHeight abi.ChainEpoch) ([]*types.TipSet, error) {
-	tipsets := []*types.TipSet{}
-	for {
-		if curr.Height() == 0 {
-			break
-		}
-
-		if curr.Height() <= lowestHeight {
-			break
-		}
-
-		tipsets = append(tipsets, curr)
-
-		tsk := curr.Parents()
-		prev, err := api.ChainGetTipSet(ctx, tsk)
 		if err != nil {
-			return tipsets, err
+			return err
 		}
-
-		curr = prev
 	}
 
-	for i, j := 0, len(tipsets)-1; i < j; i, j = i+1, j-1 {
-		tipsets[i], tipsets[j] = tipsets[j], tipsets[i]
-	}
-
-	return tipsets, nil
-}
-
-type HeadChange struct {
-	Type       string
-	TipsetKey  string
-	Height     abi.ChainEpoch
-	ObservedAt int64
-	tipset     *types.TipSet
+	return nil
 }
 
 type ChainSnapshot struct {
-	Height      abi.ChainEpoch
-	TipsetKey   string
+	Height abi.ChainEpoch
+
 	MinerStates map[string]*MinerStateSnapshot
 }
 
@@ -393,8 +197,8 @@ func (s *ProvingFaultState) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func provingFaults(t *TestEnvironment, n *LotusNode, maddr address.Address, height abi.ChainEpoch) (*ProvingFaultState, error) {
-	api := n.FullApi
+func provingFaults(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) (*ProvingFaultState, error) {
+	api := m.FullApi
 	ctx := context.Background()
 
 	s := ProvingFaultState{FaultedSectors: make(map[int][]uint64)}
@@ -474,8 +278,8 @@ func (s *ProvingInfoState) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func provingInfo(t *TestEnvironment, n *LotusNode, maddr address.Address, height abi.ChainEpoch) (*ProvingInfoState, error) {
-	api := n.FullApi
+func provingInfo(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) (*ProvingInfoState, error) {
+	api := m.FullApi
 	ctx := context.Background()
 
 	head, err := api.ChainHead(ctx)
@@ -617,8 +421,8 @@ func (d *ProvingDeadlines) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func provingDeadlines(t *TestEnvironment, n *LotusNode, maddr address.Address, height abi.ChainEpoch) (*ProvingDeadlines, error) {
-	api := n.FullApi
+func provingDeadlines(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, height abi.ChainEpoch) (*ProvingDeadlines, error) {
+	api := m.FullApi
 	ctx := context.Background()
 
 	deadlines, err := api.StateMinerDeadlines(ctx, maddr, types.EmptyTSK)
@@ -642,11 +446,6 @@ func provingDeadlines(t *TestEnvironment, n *LotusNode, maddr address.Address, h
 			return nil, err
 		}
 		if err := mas.UnmarshalCBOR(bytes.NewReader(rmas)); err != nil {
-			return nil, err
-		}
-
-		_, err = mas.GetInfo(adt.WrapStore(ctx, cbor.NewCborStore(apibstore.NewAPIBlockstore(api))))
-		if err != nil {
 			return nil, err
 		}
 	}
@@ -727,20 +526,16 @@ func (i *SectorInfo) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func sectorsList(t *TestEnvironment, n *LotusNode, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*SectorInfo, error) {
-	if n.MinerApi == nil {
-		return nil, nil
-	}
-
-	fullApi := n.FullApi
+func sectorsList(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*SectorInfo, error) {
+	node := m.FullApi
 	ctx := context.Background()
 
-	list, err := n.MinerApi.SectorsList(ctx)
+	list, err := m.MinerApi.SectorsList(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	activeSet, err := fullApi.StateMinerActiveSectors(ctx, maddr, types.EmptyTSK)
+	activeSet, err := node.StateMinerActiveSectors(ctx, maddr, types.EmptyTSK)
 	if err != nil {
 		return nil, err
 	}
@@ -749,7 +544,7 @@ func sectorsList(t *TestEnvironment, n *LotusNode, maddr address.Address, w io.W
 		activeIDs[info.ID] = struct{}{}
 	}
 
-	sset, err := fullApi.StateMinerSectors(ctx, maddr, nil, true, types.EmptyTSK)
+	sset, err := node.StateMinerSectors(ctx, maddr, nil, true, types.EmptyTSK)
 	if err != nil {
 		return nil, err
 	}
@@ -765,7 +560,7 @@ func sectorsList(t *TestEnvironment, n *LotusNode, maddr address.Address, w io.W
 	i := SectorInfo{Sectors: list, SectorStates: make(map[abi.SectorNumber]api.SectorInfo, len(list))}
 
 	for _, s := range list {
-		st, err := n.MinerApi.SectorsStatus(ctx, s, false)
+		st, err := m.MinerApi.SectorsStatus(ctx, s, true)
 		if err != nil {
 			fmt.Fprintf(w, "%d:\tError: %s\n", s, err)
 			continue
@@ -876,8 +671,8 @@ func (i *MinerInfo) MarshalPlainText() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-func info(t *TestEnvironment, n *LotusNode, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*MinerInfo, error) {
-	api := n.FullApi
+func info(t *testkit.TestEnvironment, m *testkit.LotusMiner, maddr address.Address, w io.Writer, height abi.ChainEpoch) (*MinerInfo, error) {
+	api := m.FullApi
 	ctx := context.Background()
 
 	mact, err := api.StateGetActor(ctx, maddr, types.EmptyTSK)
@@ -952,25 +747,23 @@ func info(t *TestEnvironment, n *LotusNode, maddr address.Address, w io.Writer, 
 	i.MarketEscrow = mb.Escrow
 	i.MarketLocked = mb.Locked
 
-	if n.MinerApi != nil {
-		sectors, err := n.MinerApi.SectorsList(ctx)
+	sectors, err := m.MinerApi.SectorsList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	buckets := map[sealing.SectorState]int{
+		"Total": len(sectors),
+	}
+	for _, s := range sectors {
+		st, err := m.MinerApi.SectorsStatus(ctx, s, true)
 		if err != nil {
 			return nil, err
 		}
 
-		buckets := map[sealing.SectorState]int{
-			"Total": len(sectors),
-		}
-		for _, s := range sectors {
-			st, err := n.MinerApi.SectorsStatus(ctx, s, false)
-			if err != nil {
-				return nil, err
-			}
-
-			buckets[sealing.SectorState(st.State)]++
-		}
-		i.SectorStateCounts = buckets
+		buckets[sealing.SectorState(st.State)]++
 	}
+	i.SectorStateCounts = buckets
 
 	return &i, nil
 }

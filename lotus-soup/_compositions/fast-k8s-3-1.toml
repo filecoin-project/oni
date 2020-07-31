@@ -4,8 +4,8 @@
 
 [global]
   plan = "lotus-soup"
-  case = "recovery-failed-windowed-post"
-  total_instances = 9
+  case = "deals-e2e"
+  total_instances = 5
   builder = "docker:go"
   runner = "cluster:k8s"
 
@@ -14,7 +14,6 @@
 
 [global.run_config]
   exposed_ports = { pprof = "6060", node_rpc = "1234", miner_rpc = "2345" }
-  keep_service=true
 
 [global.build_config]
   push_registry=true
@@ -23,10 +22,14 @@
   registry_type="aws"
 
 [global.run.test_params]
-  clients = "4"
-  miners = "4"
+  clients = "3"
+  miners = "1"
+  fast_retrieval = "true"
   genesis_timestamp_offset = "0"
-  balance = "20000000"
+  balance = "20000000" # These balances will work for maximum 100 nodes, as TotalFilecoin is 2B
+  sectors = "10"
+  random_beacon_type = "mock"
+  mining_mode = "natural"
 
 [[groups]]
   id = "bootstrapper"
@@ -46,41 +49,11 @@
     memory = "4096Mi"
     cpu = "1000m"
   [groups.instances]
-    count = 2
+    count = 1
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
       role = "miner"
-      sectors = "10"
-      mining_mode = "natural"
-
-[[groups]]
-  id = "miners-full-slash"
-  [groups.resources]
-    memory = "4096Mi"
-    cpu = "1000m"
-  [groups.instances]
-    count = 1
-    percentage = 0.0
-  [groups.run]
-    [groups.run.test_params]
-      role = "miner-full-slash"
-      sectors = "10"
-      mining_mode = "natural"
-
-[[groups]]
-  id = "miners-partial-slash"
-  [groups.resources]
-    memory = "4096Mi"
-    cpu = "1000m"
-  [groups.instances]
-    count = 1
-    percentage = 0.0
-  [groups.run]
-    [groups.run.test_params]
-      role = "miner-partial-slash"
-      sectors = "10"
-      mining_mode = "natural"
 
 [[groups]]
   id = "clients"
@@ -88,7 +61,7 @@
     memory = "1024Mi"
     cpu = "1000m"
   [groups.instances]
-    count = 4
+    count = 3
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
