@@ -24,25 +24,25 @@ type Selector string
 
 // Metadata provides information on the generation of this test case
 type Metadata struct {
-	ID string
-	Version string
-	Gen GenerationData
+	ID string `json:"id"`
+	Version string `json:"version"`
+	Gen GenerationData `json:"gen"`
 }
 
 // GenerationData tags the source of this test case
 type GenerationData struct {
-	Source string
-	Version string
+	Source string `json:"source"`
+	Version string `json:"version"`
 }
 
 // Preconditions contain a representation of VM state at the beginning of the test
 type Preconditions struct {
-	StateTree *StateTreeCar
+	StateTree *StateTreeCar `json:"state_tree"`
 }
 
 // Postconditions contain a representation of VM state at th end of the test
 type Postconditions struct {
-	StateTree *StateTreeCar
+	StateTree *StateTreeCar `json:"state_tree"`
 }
 
 // StateTreeCar is the car representation of a state tree
@@ -63,10 +63,10 @@ func (m Message) MarshalJSON() ([]byte, error) {
 
 // TestVector is a single test case
 type TestVector struct {
-	Class
-	Selector
-	*Metadata
-	*Preconditions
-	ApplyMessages []Message
-	*Postconditions
+	Class `json:"class"`
+	Selector `json:"selector"`
+	Meta *Metadata `json:"_meta"`
+	Pre *Preconditions `json:"preconditions"`
+	ApplyMessages []Message `json:"apply_messages"`
+	Post *Postconditions `json:"postconditions"`
 }

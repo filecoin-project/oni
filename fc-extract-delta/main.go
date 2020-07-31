@@ -196,11 +196,16 @@ func messageFilter(c *cli.Context) error {
 		return err
 	}
 
-
-	tree, err := lib.GetFilteredStateRoot(context.TODO(), node, mid)
+	cache := lib.NewCache(context.TODO(), node)
+	preTree, err := lib.GetFilteredStateRoot(context.TODO(), node, cache, mid, true)
 	if err != nil {
 		return err
 	}
+	postTree, err := lib.GetFilteredStateRoot(context.TODO(), node, cache, mid, false)
+	if err != nil {
+		return err
+	}
+
 
 	msg, err := node.ChainGetMessage(context.TODO(), mid)
 	if err != nil {
@@ -212,34 +217,47 @@ func messageFilter(c *cli.Context) error {
 	}
 
 
-	data, err := lib.SerializeStateTree(context.TODO(), tree)
+	preData, err := lib.SerializeStateTree(context.TODO(), preTree)
+	if err != nil {
+		return err
+	}
+	postData, err := lib.SerializeStateTree(context.TODO(), postTree)
 	if err != nil {
 		return err
 	}
 
-	preTree := schema.StateTreeCar(data)
+	version, err := node.Version(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	preObj := schema.StateTreeCar(preData)
+	postObj := schema.StateTreeCar(postData)
 	vector := schema.TestVector{
 		Class: schema.ClassMessages,
 		Selector: "",
-		Metadata: &schema.Metadata{
+		Meta: &schema.Metadata{
 			ID: "TK",
 			Version: "TK",
 			Gen: schema.GenerationData{
 				Source: "TK",
-				Version: "TK",
+				Version: version.String(),
 			},
 		},
-		Preconditions: &schema.Preconditions{
-			StateTree: &preTree,
+		Pre: &schema.Preconditions{
+			StateTree: &preObj,
 		},
 		ApplyMessages: []schema.Message{
 			schema.Message(msgBytes),
 		},
-		Postconditions: nil, // TODO
+		Post: &schema.Postconditions{
+			StateTree: &postObj,
+		},
 	}
 
 
 	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("","  ")
 	if err := enc.Encode(&vector); err != nil {
 		return err
 	}
