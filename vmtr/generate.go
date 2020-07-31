@@ -190,7 +190,6 @@ func cmdGenerate(c *cli.Context) error {
 
 	// serialise block
 	//var bb2 bytes.Buffer
-	//writer2 := bufio.NewWriter(&bb2)
 
 	offl := offline.Exchange(bs)
 	blkserv := blockservice.New(bs, offl)
@@ -229,8 +228,6 @@ func cmdGenerate(c *cli.Context) error {
 
 	return nil
 }
-
-//var walker = car.DefaultWalkFunc
 
 func walker(nd format.Node) (out []*format.Link, err error) {
 	for _, link := range nd.Links() {

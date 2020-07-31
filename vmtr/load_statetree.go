@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/hex"
+	"errors"
 	"fmt"
-	"os"
+	"io/ioutil"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ipld/go-car"
@@ -15,8 +18,23 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func cmdLoadStateTree(c *cli.Context) error {
-	fi, err := os.Open("statetree.car")
+func cmdLoadStatetree(c *cli.Context) error {
+	input := c.String("inputfile")
+	if input == "" {
+		return errors.New("inputfile is blank")
+	}
+
+	stateroot := c.String("stateroot")
+	if stateroot == "" {
+		return errors.New("stateroot is blank")
+	}
+
+	hexbytes, err := ioutil.ReadFile(input)
+	if err != nil {
+		return err
+	}
+
+	b, err := hex.DecodeString(string(hexbytes))
 	if err != nil {
 		return err
 	}
@@ -36,21 +54,18 @@ func cmdLoadStateTree(c *cli.Context) error {
 
 	bs := lb.NewBlockstore(ds)
 
-	//fi, err := hex.DecodeString(statetreefull)
-	//if err != nil {
-	//return err
-	//}
-	//reader := bytes.NewReader(fi)
-
-	_, err = car.LoadCar(bs, fi)
+	_, err = car.LoadCar(bs, bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("error loading car: %w", err)
 	}
 
-	stateroot, _ := cid.Decode("bafy2bzacecwokparndcnk7gwyebub6tfdpz3nobvk3kapzqyxywgef5lywlby")
+	sr, err := cid.Decode(stateroot)
+	if err != nil {
+		return fmt.Errorf("error decoding stateroot: %w", err)
+	}
 
 	cst := cbor.NewCborStore(bs)
-	statetree, err := state.LoadStateTree(cst, stateroot)
+	statetree, err := state.LoadStateTree(cst, sr)
 	if err != nil {
 		return fmt.Errorf("error loading state tree: %w", err)
 	}

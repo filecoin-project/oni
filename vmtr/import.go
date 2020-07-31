@@ -22,15 +22,15 @@ import (
 
 func cmdImport(c *cli.Context) error {
 	var err error
-	repoDir := c.String("repodir")
-	if repoDir == "" {
-		repoDir, err = ioutil.TempDir("", "repo-dir")
+	repodir := c.String("repodir")
+	if repodir == "" {
+		repodir, err = ioutil.TempDir("", "repo-dir")
 		if err != nil {
 			return err
 		}
 	}
 
-	r, err := repo.NewFS(repoDir)
+	r, err := repo.NewFS(repodir)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func cmdImport(c *cli.Context) error {
 		return err
 	}
 
-	log.Infof("repo dir: %s", repoDir)
+	log.Infof("repodir: %s", repodir)
 
 	return nil
 }

@@ -62,7 +62,21 @@ func main() {
 				Usage: "",
 			},
 			&cli.StringFlag{
-				Name:  "output",
+				Name:  "outputfile",
+				Value: "",
+				Usage: "",
+			},
+			&cli.StringFlag{
+				Name:  "inputfile",
+				Value: "",
+				Usage: "",
+			},
+			&cli.IntFlag{
+				Name:  "height",
+				Usage: "",
+			},
+			&cli.StringFlag{
+				Name:  "stateroot",
 				Value: "",
 				Usage: "",
 			},
@@ -81,16 +95,22 @@ func main() {
 				Action:  cmdExport,
 			},
 			{
-				Name:    "generate_genesis",
+				Name:    "generate-genesis",
 				Aliases: []string{"gg"},
 				Usage:   "generate genesis block based on state from heaviest tipset",
 				Action:  cmdGenerate,
 			},
 			{
-				Name:    "load_statetree",
+				Name:    "load-statetree",
 				Aliases: []string{"ls"},
 				Usage:   "load statetree",
-				Action:  cmdLoadStateTree,
+				Action:  cmdLoadStatetree,
+			},
+			{
+				Name:    "get-statetree",
+				Aliases: []string{"gs"},
+				Usage:   "get statetree for a given height",
+				Action:  cmdGetStatetree,
 			},
 		},
 	}

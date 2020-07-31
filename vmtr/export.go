@@ -22,9 +22,9 @@ func cmdExport(c *cli.Context) error {
 		return errors.New("repodir is blank")
 	}
 
-	outputFile := c.String("output")
-	if outputFile == "" {
-		return errors.New("output is blank")
+	output := c.String("outputfile")
+	if output == "" {
+		return errors.New("outputfile is blank")
 	}
 
 	r, err := repo.NewFS(repoDir)
@@ -62,12 +62,12 @@ func cmdExport(c *cli.Context) error {
 		return err
 	}
 
-	fi, err := os.Create(outputFile)
+	o, err := os.Create(output)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err := fi.Close()
+		err := o.Close()
 		if err != nil {
 			fmt.Printf("error closing output file: %+v", err)
 		}
@@ -85,7 +85,7 @@ func cmdExport(c *cli.Context) error {
 	}
 
 	for b := range stream {
-		_, err := fi.Write(b)
+		_, err := o.Write(b)
 		if err != nil {
 			return err
 		}
