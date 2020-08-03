@@ -16,3 +16,5 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200723182808-cb5de1c427f5
 )
+
+replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
