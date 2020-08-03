@@ -1,14 +1,14 @@
-package lib
+package state
 
 import (
 	"bytes"
 	"context"
 
 	"github.com/filecoin-project/lotus/chain/state"
-	format "github.com/ipfs/go-ipld-format"
 	cid "github.com/ipfs/go-cid"
-	car "github.com/ipld/go-car"
 	cbor "github.com/ipfs/go-ipld-cbor"
+	format "github.com/ipfs/go-ipld-format"
+	car "github.com/ipld/go-car"
 	mh "github.com/multiformats/go-multihash"
 )
 

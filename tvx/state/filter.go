@@ -1,20 +1,20 @@
-package lib
+package state
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/state"
-	cid "github.com/ipfs/go-cid"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/go-address"
+	cid "github.com/ipfs/go-cid"
 )
 
-// GetFilteredStateRoot provides the state tree needed to process a message represented as `msg`.
+// GetFilteredStateTree provides the state tree needed to process a message represented as `msg`.
 // The parent tipset on which the message was performed is loaded, and is then filtered to only
 // include the actors referenced by the message.
-func GetFilteredStateRoot(ctx context.Context, a api.FullNode, cache *CacheStore, msg cid.Cid, before bool) (*state.StateTree, error) {
+func GetFilteredStateTree(ctx context.Context, a api.FullNode, cache *ReadThroughStore, msg cid.Cid, retain map[address.Address]struct{}, before bool) (*state.StateTree, error) {
 	var tree *state.StateTree
 	var err error
 	msgInfo, err := a.StateSearchMsg(ctx, msg)
@@ -31,18 +31,13 @@ func GetFilteredStateRoot(ctx context.Context, a api.FullNode, cache *CacheStore
 		return nil, err
 	}
 
-	goodActors, err := GetActorsForMessage(ctx, a, msg)
-	if err != nil {
-		return nil, err
-	}
-
 	allActors, err := a.StateListActors(ctx, msgInfo.TipSet)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, act := range allActors {
-		if _, ok := goodActors[act]; ok {
+		if _, ok := retain[act]; ok {
 			continue
 		}
 
@@ -54,7 +49,7 @@ func GetFilteredStateRoot(ctx context.Context, a api.FullNode, cache *CacheStore
 	return tree, nil
 }
 
-func getStateRootBeforeMsg(ctx context.Context, a api.FullNode, store *CacheStore, msg cid.Cid, tsk types.TipSetKey) (*state.StateTree, error) {
+func getStateRootBeforeMsg(ctx context.Context, a api.FullNode, store *ReadThroughStore, msg cid.Cid, tsk types.TipSetKey) (*state.StateTree, error) {
 	ts, err := a.ChainGetTipSet(ctx, tsk)
 	if err != nil {
 		return nil, err
@@ -70,7 +65,7 @@ func getStateRootBeforeMsg(ctx context.Context, a api.FullNode, store *CacheStor
 
 // GetStateRootAfterMsg is the complement to GetFilteredsStateRoot, returning the state root with
 // msg applied.
-func getStateRootAfterMsg(ctx context.Context, a api.FullNode, store *CacheStore, msg cid.Cid, tsk types.TipSetKey) (*state.StateTree, error) {
+func getStateRootAfterMsg(ctx context.Context, a api.FullNode, store *ReadThroughStore, msg cid.Cid, tsk types.TipSetKey) (*state.StateTree, error) {
 	ts, err := a.ChainGetTipSet(ctx, tsk)
 	if err != nil {
 		return nil, err
@@ -113,13 +108,13 @@ func GetActorsForMessage(ctx context.Context, a api.FullNode, msg cid.Cid) (map[
 	}
 
 	addresses := make(map[address.Address]struct{})
-	populateFromTrace(&addresses, &trace.ExecutionTrace)
+	populateFromTrace(addresses, &trace.ExecutionTrace)
 	return addresses, nil
 }
 
-func populateFromTrace(m *map[address.Address]struct{}, trace *types.ExecutionTrace) {
-	(*m)[trace.Msg.To] = struct{}{}
-	(*m)[trace.Msg.From] = struct{}{}
+func populateFromTrace(m map[address.Address]struct{}, trace *types.ExecutionTrace) {
+	m[trace.Msg.To] = struct{}{}
+	m[trace.Msg.From] = struct{}{}
 
 	for _, s := range trace.Subcalls {
 		populateFromTrace(m, &s)
