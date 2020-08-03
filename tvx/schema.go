@@ -66,6 +66,21 @@ func (heb HexEncodedBytes) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(heb))
 }
 
+// UnmarshalJSON implements json.Unmarshal for HexEncodedBytes
+func (heb *HexEncodedBytes) UnmarshalJSON(v []byte) error {
+	var s string
+	if err := json.Unmarshal(v, &s); err != nil {
+		return err
+	}
+
+	bytes, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	*heb = bytes
+	return nil
+}
+
 // TestVector is a single test case
 type TestVector struct {
 	Class        `json:"class"`

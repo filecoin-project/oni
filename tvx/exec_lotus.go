@@ -7,18 +7,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
+	"github.com/filecoin-project/lotus/lib/blockstore"
+
 	"github.com/filecoin-project/sector-storage/ffiwrapper"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/filecoin-project/specs-actors/actors/runtime"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-datastore"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
@@ -52,14 +53,14 @@ func runExecLotus(c *cli.Context) error {
 	}
 
 	switch tv.Class {
-	case "messages":
+	case "message":
 		var (
 			ctx   = context.TODO()
 			epoch = tv.Pre.Epoch
 			root  = tv.Pre.StateTree.RootCID
 		)
 
-		bs := blockstore.NewBlockstore(datastore.NewMapDatastore())
+		bs := blockstore.NewTemporary()
 
 		header, err := car.LoadCar(bs, bytes.NewReader(tv.Pre.StateTree.CAR))
 		if err != nil {
@@ -69,34 +70,55 @@ func runExecLotus(c *cli.Context) error {
 		fmt.Println(header.Roots)
 
 		cst := cbor.NewCborStore(bs)
-		rootCid, err := cid.Parse(root)
+		rootCid, err := cid.Decode(root)
 		if err != nil {
 			return err
 		}
 
 		// Load the state tree.
-		_, err = state.LoadStateTree(cst, rootCid)
+		st, err := state.LoadStateTree(cst, rootCid)
 		if err != nil {
 			return err
 		}
 
-		lvm, err := vm.NewVM(rootCid, epoch, &vmRand{}, bs, mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)))
+		_ = fmt.Sprint(st)
 
+		addr, err := address.NewFromString("t3vxjqfuuxayx26cetvhdmsjwl2mss6uwiiv6t4ssmdcloucy6b4t5jfy5j56sdnj2bw7ypkm7p6f4ud2fleoq")
+		if err != nil {
+			return err
+		}
+
+		actor, err := st.GetActor(addr)
+		if err != nil {
+			return fmt.Errorf("failed to find actor: %w", err)
+		}
+
+		spew.Dump(actor)
+
+		fmt.Println("creating vm")
+		lvm, err := vm.NewVM(header.Roots[0], epoch, &vmRand{}, bs, mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)), nil)
+
+		fmt.Println("decoding message")
 		msg, err := types.DecodeMessage(tv.ApplyMessage)
 		if err != nil {
 			return err
 		}
+
+		fmt.Println("applying message")
 
 		ret, err := lvm.ApplyMessage(ctx, msg)
 		if err != nil {
 			return err
 		}
 
+		fmt.Printf("applied message: %+v\n", ret)
+
 		rval := ret.Return
 		if rval == nil {
 			rval = []byte{}
 		}
 
+		fmt.Println("flushing")
 		rootCid, err = lvm.Flush(ctx)
 		if err != nil {
 			return err

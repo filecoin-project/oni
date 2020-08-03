@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/ipfs/go-cid"
 	"github.com/urfave/cli/v2"
 
@@ -35,6 +36,8 @@ func runGenerateMessage(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	actors[builtin.InitActorAddr] = struct{}{}
 
 	fmt.Println("accessed actors:")
 	for k := range actors {
