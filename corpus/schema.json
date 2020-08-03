@@ -96,12 +96,9 @@
         }
       }
     },
-    "apply_messages": {
-      "title": "list of messages to apply, hex-encoded",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/hex"
-      }
+    "apply_message": {
+      "title": "message to apply, hex-encoded",
+      "$ref": "#/definitions/hex"
     }
   },
   "required": [
@@ -113,7 +110,7 @@
       "description": "test vector class; depending on the value, the apply_* property to provide (and its schema) will vary; the relevant apply property is apply_[class]",
       "type": "string",
       "enum": [
-        "messages",
+        "message",
         "block",
         "tipset",
         "chain"
@@ -144,10 +141,10 @@
         }
       },
       "then": {
-        "required": ["apply_messages"],
+        "required": ["apply_message"],
         "properties": {
-          "apply_messages": {
-            "$ref": "#/definitions/apply_messages"
+          "apply_message": {
+            "$ref": "#/definitions/apply_message"
           }
         }
       }

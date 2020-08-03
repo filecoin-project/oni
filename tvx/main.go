@@ -25,6 +25,7 @@ func main() {
 			listAccessedCmd,
 			filterCmd,
 			generateMessageCmd,
+			execLotusCmd,
 		},
 	}
 

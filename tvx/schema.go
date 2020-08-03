@@ -3,14 +3,16 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+
+	"github.com/filecoin-project/specs-actors/actors/abi"
 )
 
 // Class represents the type of test this instance is.
 type Class string
 
 var (
-	// ClassMessages tests the VM transition over a single message
-	ClassMessages Class = "messages"
+	// ClassMessage tests the VM transition over a single message
+	ClassMessage Class = "message"
 	// ClassBlock tests the VM transition over a block of messages
 	ClassBlock Class = "block"
 	// ClassTipset tests the VM transition on a tipset update
@@ -50,12 +52,13 @@ type HexEncodedBytes []byte
 
 // Preconditions contain a representation of VM state at the beginning of the test
 type Preconditions struct {
-	StateTree *HexEncodedBytes `json:"state_tree"`
+	Epoch     abi.ChainEpoch `json:"epoch"`
+	StateTree *StateTree     `json:"state_tree"`
 }
 
 // Postconditions contain a representation of VM state at th end of the test
 type Postconditions struct {
-	StateTree *HexEncodedBytes `json:"state_tree"`
+	StateTree *StateTree `json:"state_tree"`
 }
 
 // MarshalJSON implements json.Marshal for HexEncodedBytes
@@ -65,10 +68,10 @@ func (heb HexEncodedBytes) MarshalJSON() ([]byte, error) {
 
 // TestVector is a single test case
 type TestVector struct {
-	Class         `json:"class"`
-	Selector      `json:"selector"`
-	Meta          *Metadata         `json:"_meta"`
-	Pre           *Preconditions    `json:"preconditions"`
-	ApplyMessages []HexEncodedBytes `json:"apply_messages"`
-	Post          *Postconditions   `json:"postconditions"`
+	Class        `json:"class"`
+	Selector     `json:"selector"`
+	Meta         *Metadata       `json:"_meta"`
+	Pre          *Preconditions  `json:"preconditions"`
+	ApplyMessage HexEncodedBytes `json:"apply_message"`
+	Post         *Postconditions `json:"postconditions"`
 }

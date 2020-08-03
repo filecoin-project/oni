@@ -71,11 +71,11 @@ func runGenerateMessage(c *cli.Context) error {
 	}
 
 	// Serialize the trees.
-	preData, err := state.SerializeStateTree(context.TODO(), preTree)
+	preData, preRoot, err := state.SerializeStateTree(context.TODO(), preTree)
 	if err != nil {
 		return err
 	}
-	postData, err := state.SerializeStateTree(context.TODO(), postTree)
+	postData, postRoot, err := state.SerializeStateTree(context.TODO(), postTree)
 	if err != nil {
 		return err
 	}
@@ -86,10 +86,8 @@ func runGenerateMessage(c *cli.Context) error {
 	}
 
 	// Write out the test vector.
-	preObj := HexEncodedBytes(preData)
-	postObj := HexEncodedBytes(postData)
 	vector := TestVector{
-		Class:    ClassMessages,
+		Class:    ClassMessage,
 		Selector: "",
 		Meta: &Metadata{
 			ID:      "TK",
@@ -100,13 +98,18 @@ func runGenerateMessage(c *cli.Context) error {
 			},
 		},
 		Pre: &Preconditions{
-			StateTree: &preObj,
+			Epoch:     100,
+			StateTree: &StateTree{
+				CAR:     preData,
+				RootCID: preRoot.String(),
+			},
 		},
-		ApplyMessages: []HexEncodedBytes{
-			msgBytes,
-		},
+		ApplyMessage: msgBytes,
 		Post: &Postconditions{
-			StateTree: &postObj,
+			StateTree: &StateTree{
+				CAR:     postData,
+				RootCID: postRoot.String(),
+			},
 		},
 	}
 

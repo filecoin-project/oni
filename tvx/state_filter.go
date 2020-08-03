@@ -54,11 +54,12 @@ func runFilter(c *cli.Context) error {
 		return err
 	}
 
-	preData, err := state.SerializeStateTree(context.TODO(), preTree)
+	// Serialize the trees.
+	preData, preRoot, err := state.SerializeStateTree(context.TODO(), preTree)
 	if err != nil {
 		return err
 	}
-	postData, err := state.SerializeStateTree(context.TODO(), postTree)
+	postData, postRoot, err := state.SerializeStateTree(context.TODO(), postTree)
 	if err != nil {
 		return err
 	}
@@ -68,10 +69,9 @@ func runFilter(c *cli.Context) error {
 		return err
 	}
 
-	preObj := HexEncodedBytes(preData)
-	postObj := HexEncodedBytes(postData)
+	// Write out the test vector.
 	vector := TestVector{
-		Class:    ClassMessages,
+		Class:    ClassMessage,
 		Selector: "",
 		Meta: &Metadata{
 			ID:      "TK",
@@ -82,13 +82,18 @@ func runFilter(c *cli.Context) error {
 			},
 		},
 		Pre: &Preconditions{
-			StateTree: &preObj,
+			Epoch:     100,
+			StateTree: &StateTree{
+				CAR:     preData,
+				RootCID: preRoot.String(),
+			},
 		},
-		ApplyMessages: []HexEncodedBytes{
-			msgBytes,
-		},
+		ApplyMessage: msgBytes,
 		Post: &Postconditions{
-			StateTree: &postObj,
+			StateTree: &StateTree{
+				CAR:     postData,
+				RootCID: postRoot.String(),
+			},
 		},
 	}
 

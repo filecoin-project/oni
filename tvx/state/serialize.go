@@ -5,26 +5,26 @@ import (
 	"context"
 
 	"github.com/filecoin-project/lotus/chain/state"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	format "github.com/ipfs/go-ipld-format"
-	car "github.com/ipld/go-car"
+	"github.com/ipfs/go-ipld-format"
+	"github.com/ipld/go-car"
 	mh "github.com/multiformats/go-multihash"
 )
 
 // SerializeStateTree provides the serialized car representation of a state tree
-func SerializeStateTree(ctx context.Context, t *state.StateTree) ([]byte, error) {
+func SerializeStateTree(ctx context.Context, t *state.StateTree) ([]byte, cid.Cid, error) {
 	root, err := t.Flush(ctx)
 	if err != nil {
-		return nil, err
+		return nil, cid.Undef, err
 	}
 
 	var buf bytes.Buffer
 	if err = car.WriteCar(ctx, stateTreeNodeGetter{t}, []cid.Cid{root}, &buf); err != nil {
-		return nil, err
+		return nil, cid.Undef, err
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes(), root, nil
 }
 
 // stateTreeNodeGetter implements format.NodeGetter over a state tree
@@ -48,7 +48,7 @@ func (s stateTreeNodeGetter) GetMany(ctx context.Context, cids []cid.Cid) <-chan
 		defer close(ch)
 		for _, c := range cids {
 			n, e := s.Get(ctx, c)
-			ch <- &format.NodeOption{n, e}
+			ch <- &format.NodeOption{Node: n, Err: e}
 		}
 	}()
 	return ch
