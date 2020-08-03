@@ -9,6 +9,7 @@ require (
 	github.com/filecoin-project/sector-storage v0.0.0-20200730203805-7153e1dd05b5
 	github.com/filecoin-project/specs-actors v0.8.6
 	github.com/ipfs/go-cid v0.0.7
+	github.com/ipfs/go-hamt-ipld v0.1.1
 	github.com/ipfs/go-ipld-cbor v0.0.5-0.20200428170625-a0bd04d3cbdf
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipld/go-car v0.1.1-0.20200526133713-1c7508d55aae

@@ -2,12 +2,14 @@ package state
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 
 	"github.com/filecoin-project/lotus/chain/state"
 	bs "github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipfs/go-cid"
+	hamt "github.com/ipfs/go-hamt-ipld"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
@@ -22,7 +24,14 @@ func SerializeStateTree(ctx context.Context, t *state.StateTree) ([]byte, cid.Ci
 	}
 
 	var buf bytes.Buffer
-	if err = car.WriteCar(ctx, stateTreeNodeGetter{t}, []cid.Cid{root}, &buf); err != nil {
+	gw := gzip.NewWriter(&buf)
+	if err = car.WriteCar(ctx, stateTreeNodeGetter{t}, []cid.Cid{root}, gw); err != nil {
+		return nil, cid.Undef, err
+	}
+	if err = gw.Flush(); err != nil {
+		return nil, cid.Undef, err
+	}
+	if err = gw.Close(); err != nil {
 		return nil, cid.Undef, err
 	}
 
@@ -33,7 +42,11 @@ func SerializeStateTree(ctx context.Context, t *state.StateTree) ([]byte, cid.Ci
 func RecoverStateTree(ctx context.Context, raw []byte) (*state.StateTree, error) {
 	buf := bytes.NewBuffer(raw)
 	store := bs.NewTemporary()
-	ch, err := car.LoadCar(store, buf)
+	gr, err := gzip.NewReader(buf)
+	if err != nil {
+		return nil, err
+	}
+	ch, err := car.LoadCar(store, gr)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +56,18 @@ func RecoverStateTree(ctx context.Context, raw []byte) (*state.StateTree, error)
 	ipldStore := cbor.NewCborStore(store)
 
 	fmt.Printf("root is %s\n", ch.Roots[0])
+
+	nd, err := hamt.LoadNode(ctx, ipldStore, ch.Roots[0], hamt.UseTreeBitWidth(5))
+	if err != nil {
+		return nil, err
+	}
+	if err := nd.ForEach(ctx, func(k string, val interface{}) error {
+		fmt.Printf("hampt %s\n", k)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
 	return state.LoadStateTree(ipldStore, ch.Roots[0])
 }
 
