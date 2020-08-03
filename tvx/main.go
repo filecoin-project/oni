@@ -26,6 +26,7 @@ func main() {
 			filterCmd,
 			generateMessageCmd,
 			execLotusCmd,
+			examineCmd,
 		},
 	}
 

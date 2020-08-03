@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/ipfs/go-cid"
@@ -43,7 +44,7 @@ func (s *ReadThroughStore) Get(ctx context.Context, c cid.Cid, out interface{}) 
 	var item []byte
 	var ok bool
 	if item, ok = s.local[c]; !ok {
-		fmt.Printf("fetching cid via rpc: %v\n", c)
+		fmt.Fprintf(os.Stderr, "fetching cid via rpc: %v\n", c)
 		item, err = s.api.ChainReadObj(ctx, c)
 		if err != nil {
 			if c.Prefix().Codec != cid.DagCBOR {
@@ -52,7 +53,7 @@ func (s *ReadThroughStore) Get(ctx context.Context, c cid.Cid, out interface{}) 
 			return fmt.Errorf("Failed for cid %v: %w", c, err)
 		}
 	} else {
-		fmt.Printf("cid cached locally: %v\n", c)
+		fmt.Fprintf(os.Stderr, "cid cached locally: %v\n", c)
 	}
 
 	cu, ok := out.(cbg.CBORUnmarshaler)

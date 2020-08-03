@@ -3,8 +3,10 @@ package state
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/filecoin-project/lotus/chain/state"
+	bs "github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipfs/go-ipld-format"
@@ -25,6 +27,23 @@ func SerializeStateTree(ctx context.Context, t *state.StateTree) ([]byte, cid.Ci
 	}
 
 	return buf.Bytes(), root, nil
+}
+
+// RecoverStateTree parses a car encoding of a state tree back to a structured format
+func RecoverStateTree(ctx context.Context, raw []byte) (*state.StateTree, error) {
+	buf := bytes.NewBuffer(raw)
+	store := bs.NewTemporary()
+	ch, err := car.LoadCar(store, buf)
+	if err != nil {
+		return nil, err
+	}
+	if len(ch.Roots) != 1 {
+		return nil, fmt.Errorf("car should have 1 root, has %d", len(ch.Roots))
+	}
+	ipldStore := cbor.NewCborStore(store)
+
+	fmt.Printf("root is %s\n", ch.Roots[0])
+	return state.LoadStateTree(ipldStore, ch.Roots[0])
 }
 
 // stateTreeNodeGetter implements format.NodeGetter over a state tree
