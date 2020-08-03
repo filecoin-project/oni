@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,64 +11,73 @@ import (
 	"os"
 	"strings"
 
-	manet "github.com/multiformats/go-multiaddr-net"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/filecoin-project/lotus/api/client"
 	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/api/client"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/urfave/cli/v2"
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr-net"
+	"github.com/multiformats/go-multihash"
+	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/oni/fc-extract-delta/lib"
 	"github.com/filecoin-project/oni/fc-extract-delta/schema"
 )
 
+// Automatically set through -ldflags
+// Example: go install -ldflags "-X main.version=`git describe --tags`
+//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+var (
+	version   = "master"
+	gitCommit = "none"
+	buildDate = "unknown"
+)
+
 var (
 	fromFlag = cli.StringFlag{
-		Name: "from",
-		Usage: "block CID of initial state",
+		Name:     "from",
+		Usage:    "block CID of initial state",
 		Required: true,
 	}
 
 	toFlag = cli.StringFlag{
-		Name: "to",
-		Usage: "block CID of ending state",
+		Name:     "to",
+		Usage:    "block CID of ending state",
 		Required: true,
 	}
 
 	apiFlag = cli.StringFlag{
-		Name: "api",
-		Usage: "api endpoint, formatted as token:multiaddr",
-		Value: "",
+		Name:    "api",
+		Usage:   "api endpoint, formatted as token:multiaddr",
+		Value:   "",
 		EnvVars: []string{"FULLNODE_API_INFO"},
 	}
-	
+
 	idFlag = cli.StringFlag{
-		Name: "cid",
-		Usage: "CID to act upon",
+		Name:     "cid",
+		Usage:    "CID to act upon",
 		Required: true,
 	}
 )
 
 var deltaCmd = &cli.Command{
-	Name: "delta",
+	Name:        "delta",
 	Description: "Collect affected state between two tipsets",
-	Flags: []cli.Flag{&fromFlag,&toFlag, &apiFlag},
-	Action: extract,
+	Flags:       []cli.Flag{&fromFlag, &toFlag, &apiFlag},
+	Action:      extract,
 }
 
 var messageCmd = &cli.Command{
-	Name: "message",
-	Description: "Extract affected actors from a single message",
-	Flags: []cli.Flag{&idFlag, &apiFlag},
-	Action: message,
+	Name:        "message",
+	Description: "Extract a test case from a single message",
+	Flags:       []cli.Flag{&idFlag, &apiFlag},
+	Action:      message,
 }
 
-var filterCmd = &cli.Command{
-	Name: "filter",
-	Description: "Filter a stateroot from a single message",
-	Flags: []cli.Flag{&idFlag, &apiFlag},
-	Action: messageFilter,
+var examineCmd = &cli.Command{
+	Name:        "examine",
+	Description: "Examine contents of a test case state root",
+	Action:      examine,
 }
 
 func makeClient(api string) (api.FullNode, error) {
@@ -99,11 +110,11 @@ func makeClient(api string) (api.FullNode, error) {
 
 func main() {
 	app := &cli.App{
-		Name: "fc-extract-delta",
-		Usage: "Extract the delta between two filecoin states.",
-		Commands: []*cli.Command{deltaCmd,messageCmd,filterCmd},
+		Name:     "fc-extract-delta",
+		Usage:    "Extract the delta between two filecoin states.",
+		Commands: []*cli.Command{deltaCmd, messageCmd, examineCmd},
 	}
-	
+
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
@@ -139,8 +150,8 @@ func extract(c *cli.Context) error {
 
 	allMsgs := make(map[uint64][]*types.Message)
 
-	epochs := currBlock.Height - srcBlock.Height -1
-	for epochs >0 {
+	epochs := currBlock.Height - srcBlock.Height - 1
+	for epochs > 0 {
 		msgs, err := node.ChainGetBlockMessages(context.TODO(), to)
 		if err != nil {
 			return err
@@ -149,7 +160,7 @@ func extract(c *cli.Context) error {
 		currBlock, err = node.ChainGetBlock(context.TODO(), currBlock.Parents[0])
 		epochs--
 	}
-	
+
 	if !hasParent(currBlock, from) {
 		return fmt.Errorf("from block was not a parent of `to` as expected")
 	}
@@ -174,28 +185,6 @@ func message(c *cli.Context) error {
 		return err
 	}
 
-	actors, err := lib.GetActorsForMessage(context.TODO(), node, mid)
-	if err != nil {
-		return err
-	}
-
-	for k := range actors {
-		fmt.Printf("%v\n", k)
-	}
-	return nil
-}
-
-func messageFilter(c *cli.Context) error {
-	node, err := makeClient(c.String(apiFlag.Name))
-	if err != nil {
-		return err
-	}
-
-	mid, err := cid.Decode(c.String(idFlag.Name))
-	if err != nil {
-		return err
-	}
-
 	cache := lib.NewCache(context.TODO(), node)
 	preTree, err := lib.GetFilteredStateRoot(context.TODO(), node, cache, mid, true)
 	if err != nil {
@@ -206,7 +195,6 @@ func messageFilter(c *cli.Context) error {
 		return err
 	}
 
-
 	msg, err := node.ChainGetMessage(context.TODO(), mid)
 	if err != nil {
 		return err
@@ -215,7 +203,6 @@ func messageFilter(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 
 	preData, err := lib.SerializeStateTree(context.TODO(), preTree)
 	if err != nil {
@@ -226,22 +213,29 @@ func messageFilter(c *cli.Context) error {
 		return err
 	}
 
-	version, err := node.Version(context.TODO())
+	nodeVersion, err := node.Version(context.TODO())
 	if err != nil {
 		return err
 	}
 
 	preObj := schema.StateTreeCar(preData)
 	postObj := schema.StateTreeCar(postData)
+
+	hasher := sha256.New()
+	hasher.Write(preObj)
+	hasher.Write(msgBytes)
+	hasher.Write(postObj)
+	mHashBuf, _ := multihash.Encode(hasher.Sum(nil), multihash.SHA2_256)
+
 	vector := schema.TestVector{
-		Class: schema.ClassMessages,
+		Class:    schema.ClassMessages,
 		Selector: "",
 		Meta: &schema.Metadata{
-			ID: "TK",
-			Version: "TK",
+			ID:      hex.EncodeToString(mHashBuf),
+			Version: fmt.Sprintf("%s (date %s, commit %s)", version, buildDate, gitCommit),
 			Gen: schema.GenerationData{
-				Source: "TK",
-				Version: version.String(),
+				Source:  "TK",
+				Version: nodeVersion.String(),
 			},
 		},
 		Pre: &schema.Preconditions{
@@ -255,9 +249,8 @@ func messageFilter(c *cli.Context) error {
 		},
 	}
 
-
 	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("","  ")
+	enc.SetIndent("", "  ")
 	if err := enc.Encode(&vector); err != nil {
 		return err
 	}

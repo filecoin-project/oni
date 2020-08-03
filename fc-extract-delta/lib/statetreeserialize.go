@@ -3,12 +3,15 @@ package lib
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/filecoin-project/lotus/chain/state"
-	format "github.com/ipfs/go-ipld-format"
 	cid "github.com/ipfs/go-cid"
-	car "github.com/ipld/go-car"
+	ds "github.com/ipfs/go-datastore"
+	bs "github.com/ipfs/go-ipfs-blockstore"
 	cbor "github.com/ipfs/go-ipld-cbor"
+	format "github.com/ipfs/go-ipld-format"
+	car "github.com/ipld/go-car"
 	mh "github.com/multiformats/go-multihash"
 )
 
@@ -25,6 +28,23 @@ func SerializeStateTree(ctx context.Context, t *state.StateTree) ([]byte, error)
 	}
 
 	return buf.Bytes(), nil
+}
+
+// RecoverStateTree parses a car encoding of a state tree back to a structured format
+func RecoverStateTree(ctx context.Context, raw []byte) (*state.StateTree, error) {
+	buf := bytes.NewBuffer(raw)
+	store := bs.NewBlockstore(ds.NewMapDatastore())
+	ch, err := car.LoadCar(store, buf)
+	if err != nil {
+		return nil, err
+	}
+	if len(ch.Roots) != 1 {
+		return nil, fmt.Errorf("car should have 1 root, has %d", len(ch.Roots))
+	}
+	ipldStore := cbor.NewCborStore(store)
+
+	fmt.Printf("root is %s\n", ch.Roots[0])
+	return state.LoadStateTree(ipldStore, ch.Roots[0])
 }
 
 // stateTreeNodeGetter implements format.NodeGetter over a state tree
@@ -48,7 +68,7 @@ func (s stateTreeNodeGetter) GetMany(ctx context.Context, cids []cid.Cid) <-chan
 		defer close(ch)
 		for _, c := range cids {
 			n, e := s.Get(ctx, c)
-			ch <- &format.NodeOption{n, e}
+			ch <- &format.NodeOption{Node: n, Err: e}
 		}
 	}()
 	return ch

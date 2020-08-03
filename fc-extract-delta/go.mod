@@ -5,8 +5,11 @@ go 1.14
 require (
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
 	github.com/filecoin-project/lotus v0.4.2
+	github.com/filecoin-project/specs-actors v0.8.1-0.20200723200253-a3c01bc62f99
 	github.com/ipfs/go-cid v0.0.6
+	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-hamt-ipld v0.1.1
+	github.com/ipfs/go-ipfs-blockstore v1.0.0
 	github.com/ipfs/go-ipld-cbor v0.0.5-0.20200428170625-a0bd04d3cbdf
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipld/go-car v0.1.1-0.20200526133713-1c7508d55aae
