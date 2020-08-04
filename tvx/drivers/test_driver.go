@@ -35,7 +35,6 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/chain/types"
-	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 var (
@@ -526,7 +525,7 @@ func (td *TestDriver) MarshalStateRoot() string {
 	return td.st.stateRoot.String()
 }
 
-func (td *TestDriver) MarshalState() schema.HexEncodedBytes {
+func (td *TestDriver) MarshalState() []byte {
 	var buffer bytes.Buffer
 
 	serialise(td.st.bs, td.st.stateRoot, &buffer)

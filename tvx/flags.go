@@ -25,7 +25,7 @@ var (
 	cidFlag = cli.StringFlag{
 		Name:     "cid",
 		Usage:    "message, block, or tipset CID",
-		Required: true,
+		Required: false,
 	}
 
 	fileFlag = cli.StringFlag{
