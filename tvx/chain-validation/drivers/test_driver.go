@@ -255,7 +255,7 @@ type TestDriver struct {
 	TipSetMessageBuilder *TipSetMessageBuilder
 	ExeCtx               *types.ExecutionContext
 
-	Config ValidationConfig
+	Config *Config
 
 	SysCalls *ChainValidationSysCalls
 }

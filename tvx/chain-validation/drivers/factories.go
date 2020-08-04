@@ -67,13 +67,6 @@ type Actor interface {
 	Balance() big.Int
 }
 
-type ValidationConfig interface {
-	ValidateGas() bool
-	ValidateExitCode() bool
-	ValidateReturnValue() bool
-	ValidateStateRoot() bool
-}
-
 // Applier applies messages to state trees and storage.
 type Applier struct {
 	stateWrapper *StateWrapper
