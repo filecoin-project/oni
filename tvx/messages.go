@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"encoding/json"
 	"os"
 
@@ -12,9 +13,9 @@ import (
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 
-	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	utils "github.com/filecoin-project/oni/tvx/test-suites/utils"
 	"github.com/filecoin-project/oni/tvx/schema"
 )
 
@@ -26,53 +27,109 @@ var messagesTestCmd = &cli.Command{
 }
 
 func runMessagesTest(c *cli.Context) error {
-	v := newMessageVector()
+  return MessageTest_AccountActorCreation()
+}
 
-	// input / output params
-	existingActorType := address.SECP256K1
-	existingActorBal := abi_spec.NewTokenAmount(10000000000)
-	newActorAddr, _ := addr.NewSecp256k1Address([]byte("publickeyfoo"))
-	newActorInitBal := abi_spec.NewTokenAmount(10000)
-	expExitCode := exitcode_spec.Ok
+func MessageTest_AccountActorCreation() error {
+	testCases := []struct {
+		desc string
 
-	td := drivers.NewTestDriver()
+		existingActorType address.Protocol
+		existingActorBal  abi_spec.TokenAmount
 
-	v.Pre.StateTree.CAR = td.MarshalState()
-	v.Pre.StateTree.RootCID = td.MarshalStateRoot()
+		newActorAddr    address.Address
+		newActorInitBal abi_spec.TokenAmount
 
-	existingAccountAddr, _ := td.NewAccountActor(existingActorType, existingActorBal)
-	msg := td.MessageProducer.Transfer(existingAccountAddr, newActorAddr, chain.Value(newActorInitBal), chain.Nonce(0))
-	result := td.ApplyFailure(
-		msg,
-		expExitCode,
-	)
+		expExitCode exitcode_spec.ExitCode
+	}{
+		{
+			"success create SECP256K1 account actor",
+			address.SECP256K1,
+			abi_spec.NewTokenAmount(10_000_000_000),
 
-	var err error
-	v.ApplyMessage, err = msg.Serialize()
-	if err != nil {
-		panic(err)
+			utils.NewSECP256K1Addr("publickeyfoo"),
+			abi_spec.NewTokenAmount(10_000),
+
+			exitcode_spec.Ok,
+		},
+		{
+			"success create BLS account actor",
+			address.SECP256K1,
+			abi_spec.NewTokenAmount(10_000_000_000),
+
+			utils.NewBLSAddr(1),
+			abi_spec.NewTokenAmount(10_000),
+
+			exitcode_spec.Ok,
+		},
+		{
+			"fail create SECP256K1 account actor insufficient balance",
+			address.SECP256K1,
+			abi_spec.NewTokenAmount(9_999),
+
+			utils.NewSECP256K1Addr("publickeybar"),
+			abi_spec.NewTokenAmount(10_000),
+
+			exitcode_spec.SysErrSenderStateInvalid,
+		},
+		{
+			"fail create BLS account actor insufficient balance",
+			address.SECP256K1,
+			abi_spec.NewTokenAmount(9_999),
+
+			utils.NewBLSAddr(1),
+			abi_spec.NewTokenAmount(10_000),
+
+			exitcode_spec.SysErrSenderStateInvalid,
+		},
+		// TODO add edge case tests that have insufficient balance after gas fees
 	}
+	for _, tc := range testCases {
+		err := func() error {
+			fmt.Println()
+			fmt.Println(tc.desc)
+			fmt.Println("=====")
 
-	// new actor balance will only exist if message was applied successfully.
-	if expExitCode.IsSuccess() {
-		td.AssertBalance(newActorAddr, newActorInitBal)
-		td.AssertBalance(existingAccountAddr, big_spec.Sub(big_spec.Sub(existingActorBal, result.Receipt.GasUsed.Big()), newActorInitBal))
-	}
+			td := drivers.NewTestDriver()
 
-	v.Post.StateTree.CAR = td.MarshalState()
-	v.Post.StateTree.RootCID = td.MarshalStateRoot()
+			v := newEmptyMessageVector()
+			v.Pre.StateTree.CAR = td.MarshalState()
+			v.Pre.StateTree.RootCID = td.MarshalStateRoot()
 
-	// encode and output
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(&v); err != nil {
-		return err
+			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
+			result := td.ApplyFailure(
+				td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0)),
+				tc.expExitCode,
+			)
+
+			// new actor balance will only exist if message was applied successfully.
+			if tc.expExitCode.IsSuccess() {
+				td.AssertBalance(tc.newActorAddr, tc.newActorInitBal)
+				td.AssertBalance(existingAccountAddr, big_spec.Sub(big_spec.Sub(tc.existingActorBal, result.Receipt.GasUsed.Big()), tc.newActorInitBal))
+			}
+
+			v.Post.StateTree.CAR = td.MarshalState()
+			v.Post.StateTree.RootCID = td.MarshalStateRoot()
+
+			// encode and output
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			if err := enc.Encode(&v); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func newMessageVector() schema.TestVector {
+func newEmptyMessageVector() schema.TestVector {
 	return schema.TestVector{
 		Class:    schema.ClassMessage,
 		Selector: "",
@@ -85,17 +142,11 @@ func newMessageVector() schema.TestVector {
 			},
 		},
 		Pre: &schema.Preconditions{
-			StateTree: &schema.StateTree{
-				//CAR:     preData,
-				//RootCID: preRoot.String(),
-			},
+			StateTree: &schema.StateTree{},
 		},
-		//ApplyMessage: msgBytes,
 		Post: &schema.Postconditions{
-			StateTree: &schema.StateTree{
-				//CAR:     postData,
-				//RootCID: postRoot.String(),
-			},
+			StateTree: &schema.StateTree{},
 		},
 	}
 }
+
