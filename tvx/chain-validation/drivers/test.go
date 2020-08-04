@@ -257,7 +257,7 @@ type TestDriver struct {
 
 func (td *TestDriver) ApplyMessage(msg *types.Message) types.ApplyMessageResult {
 	result := td.applyMessage(msg)
-	td.validateState(msg, result)
+	//td.validateState(msg, result)
 	return result
 }
 
@@ -276,7 +276,7 @@ func (td *TestDriver) ApplyFailure(msg *types.Message, code exitcode.ExitCode) t
 func (td *TestDriver) applyMessageExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) types.ApplyMessageResult {
 	result := td.applyMessage(msg)
 	td.validateResult(result, code, retval)
-	td.validateState(msg, result)
+	//td.validateState(msg, result)
 	return result
 }
 
@@ -300,7 +300,7 @@ func (td *TestDriver) applyMessage(msg *types.Message) (result types.ApplyMessag
 
 func (td *TestDriver) ApplySigned(msg *types.Message) types.ApplyMessageResult {
 	result := td.applyMessageSigned(msg)
-	td.validateState(msg, result)
+	//td.validateState(msg, result)
 	return result
 }
 
@@ -319,7 +319,7 @@ func (td *TestDriver) ApplySignedFailure(msg *types.Message, code exitcode.ExitC
 func (td *TestDriver) applyMessageSignedExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) types.ApplyMessageResult {
 	result := td.applyMessageSigned(msg)
 	td.validateResult(result, code, retval)
-	td.validateState(msg, result)
+	//td.validateState(msg, result)
 	return result
 }
 func (td *TestDriver) applyMessageSigned(msg *types.Message) (result types.ApplyMessageResult) {
@@ -352,26 +352,6 @@ func (td *TestDriver) validateResult(result types.ApplyMessageResult, code exitc
 	if td.Config.ValidateReturnValue() {
 		assert.Equal(t, retval, result.Receipt.ReturnValue, "Expected ReturnValue: %v Actual ReturnValue: %v", retval, result.Receipt.ReturnValue)
 	}
-}
-
-func (td *TestDriver) validateState(msg *types.Message, result types.ApplyMessageResult) {
-	//if td.Config.ValidateGas() {
-	//expectedGasUsed, ok := td.StateTracker.NextExpectedGas()
-	//if ok {
-	//assert.Equal(td.T, expectedGasUsed, result.Receipt.GasUsed, "Expected GasUsed: %d Actual GasUsed: %d", expectedGasUsed, result.Receipt.GasUsed)
-	//} else {
-	//fmt.Printf("WARNING (not a test failure): failed to find expected gas cost for message: %+v\n", msg)
-	//}
-	//}
-	//if td.Config.ValidateStateRoot() {
-	//expectedRoot, found := td.StateTracker.NextExpectedStateRoot()
-	//actualRoot := td.State().Root()
-	//if found {
-	//assert.Equal(td.T, expectedRoot, actualRoot, "Expected StateRoot: %s Actual StateRoot: %s", expectedRoot, actualRoot)
-	//} else {
-	//fmt.Printf("WARNING: failed to find expected state  root for message number\n")
-	//}
-	//}
 }
 
 func (td *TestDriver) AssertNoActor(addr address.Address) {
