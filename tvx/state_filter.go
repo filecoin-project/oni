@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/urfave/cli/v2"
 
+	"github.com/filecoin-project/oni/tvx/schema"
 	"github.com/filecoin-project/oni/tvx/state"
 )
 
@@ -70,27 +71,27 @@ func runFilter(c *cli.Context) error {
 	}
 
 	// Write out the test vector.
-	vector := TestVector{
-		Class:    ClassMessage,
+	vector := schema.TestVector{
+		Class:    schema.ClassMessage,
 		Selector: "",
-		Meta: &Metadata{
+		Meta: &schema.Metadata{
 			ID:      "TK",
 			Version: "TK",
-			Gen: GenerationData{
+			Gen: schema.GenerationData{
 				Source:  "TK",
 				Version: version.String(),
 			},
 		},
-		Pre: &Preconditions{
-			Epoch:     100,
-			StateTree: &StateTree{
+		Pre: &schema.Preconditions{
+			Epoch: 100,
+			StateTree: &schema.StateTree{
 				CAR:     preData,
 				RootCID: preRoot.String(),
 			},
 		},
 		ApplyMessage: msgBytes,
-		Post: &Postconditions{
-			StateTree: &StateTree{
+		Post: &schema.Postconditions{
+			StateTree: &schema.StateTree{
 				CAR:     postData,
 				RootCID: postRoot.String(),
 			},

@@ -35,6 +35,7 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/chain/types"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 var (
@@ -519,4 +520,17 @@ func (td *TestDriver) GetRewardSummary() *RewardSummary {
 		NextPerEpochReward: rst.ThisEpochReward,
 		NextPerBlockReward: big_spec.Div(rst.ThisEpochReward, big_spec.NewInt(builtin_spec.ExpectedLeadersPerEpoch)),
 	}
+}
+
+func (td *TestDriver) MarshalStateRoot() string {
+	return td.st.stateRoot.String()
+}
+
+func (td *TestDriver) MarshalState() schema.HexEncodedBytes {
+	var buffer bytes.Buffer
+
+	serialise(td.st.bs, td.st.stateRoot, &buffer)
+
+	//return []byte(hex.EncodeToString(buffer.Bytes()))
+	return buffer.Bytes()
 }

@@ -1,11 +1,8 @@
 package drivers
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
-	"fmt"
 
 	acrypto "github.com/filecoin-project/specs-actors/actors/crypto"
 
@@ -35,13 +32,6 @@ func NewApplier(sw *StateWrapper, syscalls vm.SyscallBuilder) *Applier {
 func (a *Applier) ApplyMessage(epoch abi.ChainEpoch, message *vtypes.Message) (vtypes.ApplyMessageResult, error) {
 	lm := toLotusMsg(message)
 	receipt, penalty, reward, err := a.applyMessage(epoch, lm)
-
-	var buffer bytes.Buffer
-
-	serialise(a.stateWrapper.bs, a.stateWrapper.Root(), &buffer)
-
-	hexenc := hex.EncodeToString(buffer.Bytes())
-	fmt.Println(hexenc)
 
 	return vtypes.ApplyMessageResult{
 		Receipt: receipt,

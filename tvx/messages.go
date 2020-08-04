@@ -1,7 +1,9 @@
 package main
 
 import (
-	"github.com/davecgh/go-spew/spew"
+	"encoding/json"
+	"os"
+
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/go-address"
@@ -13,6 +15,7 @@ import (
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 var messagesTestCmd = &cli.Command{
@@ -23,6 +26,8 @@ var messagesTestCmd = &cli.Command{
 }
 
 func runMessagesTest(c *cli.Context) error {
+	v := newMessageVector()
+
 	// input / output params
 	existingActorType := address.SECP256K1
 	existingActorBal := abi_spec.NewTokenAmount(10000000000)
@@ -32,19 +37,68 @@ func runMessagesTest(c *cli.Context) error {
 
 	td := drivers.NewTestDriver()
 
+	v.Pre.StateTree.CAR = td.MarshalState()
+	v.Pre.StateTree.RootCID = td.MarshalStateRoot()
+
+	td.MarshalStateRoot()
+	td.MarshalState()
+
 	existingAccountAddr, _ := td.NewAccountActor(existingActorType, existingActorBal)
 	msg := td.MessageProducer.Transfer(existingAccountAddr, newActorAddr, chain.Value(newActorInitBal), chain.Nonce(0))
-	spew.Dump(msg)
-	result := td.ApplyOk(
+	result := td.ApplyFailure(
 		msg,
-		//expExitCode,
+		expExitCode,
 	)
-	spew.Dump(result)
+
+	var err error
+	v.ApplyMessage, err = msg.Serialize()
+	if err != nil {
+		panic(err)
+	}
 
 	// new actor balance will only exist if message was applied successfully.
 	if expExitCode.IsSuccess() {
 		td.AssertBalance(newActorAddr, newActorInitBal)
 		td.AssertBalance(existingAccountAddr, big_spec.Sub(big_spec.Sub(existingActorBal, result.Receipt.GasUsed.Big()), newActorInitBal))
 	}
+
+	v.Post.StateTree.CAR = td.MarshalState()
+	v.Post.StateTree.RootCID = td.MarshalStateRoot()
+
+	// encode and output
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(&v); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func newMessageVector() schema.TestVector {
+	return schema.TestVector{
+		Class:    schema.ClassMessage,
+		Selector: "",
+		Meta: &schema.Metadata{
+			ID:      "TK",
+			Version: "TK",
+			Gen: schema.GenerationData{
+				Source:  "TK",
+				Version: "TK",
+			},
+		},
+		Pre: &schema.Preconditions{
+			StateTree: &schema.StateTree{
+				//CAR:     preData,
+				//RootCID: preRoot.String(),
+			},
+		},
+		//ApplyMessage: msgBytes,
+		Post: &schema.Postconditions{
+			StateTree: &schema.StateTree{
+				//CAR:     postData,
+				//RootCID: postRoot.String(),
+			},
+		},
+	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/lib/blockstore"
+	"github.com/filecoin-project/oni/tvx/schema"
 
 	"github.com/filecoin-project/sector-storage/ffiwrapper"
 	"github.com/filecoin-project/specs-actors/actors/abi"
@@ -45,7 +46,7 @@ func runExecLotus(c *cli.Context) error {
 
 	var (
 		dec = json.NewDecoder(file)
-		tv  TestVector
+		tv  schema.TestVector
 	)
 
 	if err = dec.Decode(&tv); err != nil {
