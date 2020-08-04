@@ -18,7 +18,6 @@ import (
 	builtin_spec "github.com/filecoin-project/specs-actors/actors/builtin"
 	account_spec "github.com/filecoin-project/specs-actors/actors/builtin/account"
 
-	"github.com/filecoin-project/oni/tvx/chain-validation/state"
 	"github.com/filecoin-project/oni/tvx/chain-validation/suites/utils"
 )
 
@@ -34,15 +33,15 @@ func (r fakeRandSrc) Randomness(_ context.Context, _ acrypto.DomainSeparationTag
 	return abi_spec.Randomness("sausages"), nil
 }
 
-func NewRandomnessSource() state.RandomnessSource {
+func NewRandomnessSource() RandomnessSource {
 	return &fakeRandSrc{}
 }
 
 // StateDriver mutates and inspects a state.
 type StateDriver struct {
 	st *StateWrapper
-	w  state.KeyManager
-	rs state.RandomnessSource
+	w  *KeyManager
+	rs RandomnessSource
 
 	minerInfo *MinerInfo
 
@@ -60,7 +59,7 @@ type MinerInfo struct {
 }
 
 // NewStateDriver creates a new state driver for a state.
-func NewStateDriver(st *StateWrapper, w state.KeyManager) *StateDriver {
+func NewStateDriver(st *StateWrapper, w *KeyManager) *StateDriver {
 	return &StateDriver{st, w, NewRandomnessSource(), nil, make(map[address.Address]address.Address)}
 }
 
@@ -69,11 +68,11 @@ func (d *StateDriver) State() *StateWrapper {
 	return d.st
 }
 
-func (d *StateDriver) Wallet() state.KeyManager {
+func (d *StateDriver) Wallet() *KeyManager {
 	return d.w
 }
 
-func (d *StateDriver) Randomness() state.RandomnessSource {
+func (d *StateDriver) Randomness() RandomnessSource {
 	return d.rs
 }
 

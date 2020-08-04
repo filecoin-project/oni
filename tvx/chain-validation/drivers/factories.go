@@ -38,7 +38,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
 	vtypes "github.com/filecoin-project/oni/tvx/chain-validation/chain/types"
-	vstate "github.com/filecoin-project/oni/tvx/chain-validation/state"
 )
 
 // Applier applies messages to state trees and storage.
@@ -46,8 +45,6 @@ type Applier struct {
 	stateWrapper *StateWrapper
 	syscalls     vm.SyscallBuilder
 }
-
-var _ vstate.Applier = &Applier{}
 
 func NewApplier(sw *StateWrapper, syscalls vm.SyscallBuilder) *Applier {
 	return &Applier{sw, syscalls}
@@ -93,7 +90,7 @@ func (a *Applier) ApplySignedMessage(epoch abi.ChainEpoch, msg *vtypes.SignedMes
 
 }
 
-func (a *Applier) ApplyTipSetMessages(epoch abi.ChainEpoch, blocks []vtypes.BlockMessagesInfo, rnd vstate.RandomnessSource) (vtypes.ApplyTipSetResult, error) {
+func (a *Applier) ApplyTipSetMessages(epoch abi.ChainEpoch, blocks []vtypes.BlockMessagesInfo, rnd RandomnessSource) (vtypes.ApplyTipSetResult, error) {
 	cs := store.NewChainStore(a.stateWrapper.bs, a.stateWrapper.ds, a.syscalls)
 	sm := stmgr.NewStateManager(cs)
 
@@ -145,7 +142,7 @@ func (a *Applier) ApplyTipSetMessages(epoch abi.ChainEpoch, blocks []vtypes.Bloc
 }
 
 type randWrapper struct {
-	rnd vstate.RandomnessSource
+	rnd RandomnessSource
 }
 
 func (w *randWrapper) GetRandomness(ctx context.Context, pers acrypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
@@ -219,8 +216,6 @@ func toLotusSignedMsg(msg *vtypes.SignedMessage) *types.SignedMessage {
 	}
 }
 
-//var _ vstate.VMWrapper = &StateWrapper{}
-
 type StateWrapper struct {
 	// The blockstore underlying the state tree and storage.
 	bs blockstore.Blockstore
@@ -284,7 +279,7 @@ func (s *StateWrapper) StorePut(value runtime.CBORMarshaler) (cid.Cid, error) {
 	return tree.Store.Put(context.Background(), value)
 }
 
-func (s *StateWrapper) Actor(addr address.Address) (vstate.Actor, error) {
+func (s *StateWrapper) Actor(addr address.Address) (Actor, error) {
 	tree, err := state.LoadStateTree(s.cst, s.stateRoot)
 	if err != nil {
 		return nil, err
@@ -296,7 +291,7 @@ func (s *StateWrapper) Actor(addr address.Address) (vstate.Actor, error) {
 	return &actorWrapper{*fcActor}, nil
 }
 
-func (s *StateWrapper) SetActorState(addr address.Address, balance abi.TokenAmount, actorState runtime.CBORMarshaler) (vstate.Actor, error) {
+func (s *StateWrapper) SetActorState(addr address.Address, balance abi.TokenAmount, actorState runtime.CBORMarshaler) (Actor, error) {
 	tree, err := state.LoadStateTree(s.cst, s.stateRoot)
 	if err != nil {
 		return nil, err
@@ -325,7 +320,7 @@ func (s *StateWrapper) SetActorState(addr address.Address, balance abi.TokenAmou
 	return actr, s.flush(tree)
 }
 
-func (s *StateWrapper) CreateActor(code cid.Cid, addr address.Address, balance abi.TokenAmount, actorState runtime.CBORMarshaler) (vstate.Actor, address.Address, error) {
+func (s *StateWrapper) CreateActor(code cid.Cid, addr address.Address, balance abi.TokenAmount, actorState runtime.CBORMarshaler) (Actor, address.Address, error) {
 	idAddr := addr
 	tree, err := state.LoadStateTree(s.cst, s.stateRoot)
 	if err != nil {

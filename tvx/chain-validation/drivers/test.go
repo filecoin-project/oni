@@ -35,7 +35,6 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain-validation/chain"
 	"github.com/filecoin-project/oni/tvx/chain-validation/chain/types"
-	vstate "github.com/filecoin-project/oni/tvx/chain-validation/state"
 )
 
 var (
@@ -250,13 +249,13 @@ type ActorState struct {
 
 type TestDriver struct {
 	*StateDriver
-	applier vstate.Applier
+	applier *Applier
 
 	MessageProducer      *chain.MessageProducer
 	TipSetMessageBuilder *TipSetMessageBuilder
 	ExeCtx               *types.ExecutionContext
 
-	Config vstate.ValidationConfig
+	Config ValidationConfig
 
 	SysCalls *ChainValidationSysCalls
 }
