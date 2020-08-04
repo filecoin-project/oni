@@ -26,17 +26,9 @@ func runMessagesTest(c *cli.Context) error {
 	// input / output params
 	existingActorType := address.SECP256K1
 	existingActorBal := abi_spec.NewTokenAmount(10000000000)
-
-	newActorAddr, err := addr.NewSecp256k1Address([]byte("publickeyfoo"))
-	if err != nil {
-		panic(err)
-	}
+	newActorAddr, _ := addr.NewSecp256k1Address([]byte("publickeyfoo"))
 	newActorInitBal := abi_spec.NewTokenAmount(10000)
-
 	expExitCode := exitcode_spec.Ok
-
-	//factory := NewFactories()
-	//builder := drivers.NewBuilder(context.Background(), factory).WithDefaultGasLimit(1000000000).WithDefaultGasPrice(big_spec.NewInt(1)).WithActorState(drivers.DefaultBuiltinActorsState...)
 
 	td := drivers.NewTestDriver()
 

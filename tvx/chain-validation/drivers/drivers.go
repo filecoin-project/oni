@@ -1,8 +1,13 @@
 package drivers
 
 import (
+	"context"
+
+	"github.com/filecoin-project/lotus/chain/state"
 	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
+	"github.com/filecoin-project/specs-actors/actors/runtime"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/oni/tvx/chain-validation/chain"
@@ -10,10 +15,13 @@ import (
 )
 
 func NewTestDriver() *TestDriver {
-	factory := NewFactories()
 	syscalls := NewChainValidationSysCalls()
-	stateWrapper, applier := factory.NewStateAndApplier(syscalls)
-	sd := NewStateDriver(stateWrapper, factory.NewKeyManager())
+	stateWrapper := NewState()
+	applier := NewApplier(stateWrapper, func(ctx context.Context, cstate *state.StateTree, cst cbor.IpldStore) runtime.Syscalls {
+		return syscalls
+	})
+
+	sd := NewStateDriver(stateWrapper, newKeyManager())
 	stateWrapper.NewVM()
 
 	err := initializeStoreWithAdtRoots(AsStore(sd.st))
@@ -30,14 +38,18 @@ func NewTestDriver() *TestDriver {
 	producer := chain.NewMessageProducer(1000000000, big_spec.NewInt(1)) // gas limit ; gas price
 	validator := chain.NewValidator(applier)
 
+	trackGas := false
+	checkExit := true
+	checkRet := true
+	checkState := true
+	config := NewConfig(trackGas, checkExit, checkRet, checkState)
+
 	return &TestDriver{
 		StateDriver:     sd,
 		MessageProducer: producer,
 		validator:       validator,
 		ExeCtx:          exeCtx,
-
-		Config: factory.NewValidationConfig(),
-
-		SysCalls: syscalls,
+		Config:          config,
+		SysCalls:        syscalls,
 	}
 }
