@@ -4,8 +4,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/urfave/cli/v2"
 
-	"context"
-
 	"github.com/filecoin-project/go-address"
 
 	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
@@ -37,10 +35,10 @@ func runMessagesTest(c *cli.Context) error {
 
 	expExitCode := exitcode_spec.Ok
 
-	factory := NewFactories()
-	builder := drivers.NewBuilder(context.Background(), factory).WithDefaultGasLimit(1000000000).WithDefaultGasPrice(big_spec.NewInt(1)).WithActorState(drivers.DefaultBuiltinActorsState...)
+	//factory := NewFactories()
+	//builder := drivers.NewBuilder(context.Background(), factory).WithDefaultGasLimit(1000000000).WithDefaultGasPrice(big_spec.NewInt(1)).WithActorState(drivers.DefaultBuiltinActorsState...)
 
-	td := builder.Build()
+	td := drivers.NewTestDriver()
 
 	existingAccountAddr, _ := td.NewAccountActor(existingActorType, existingActorBal)
 	msg := td.MessageProducer.Transfer(existingAccountAddr, newActorAddr, chain.Value(newActorInitBal), chain.Nonce(0))

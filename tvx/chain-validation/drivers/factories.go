@@ -1,4 +1,4 @@
-package main
+package drivers
 
 import (
 	"bytes"
@@ -33,12 +33,12 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/puppet"
 	"github.com/ipfs/go-cid"
 
-	vtypes "github.com/filecoin-project/oni/tvx/chain-validation/chain/types"
-	vstate "github.com/filecoin-project/oni/tvx/chain-validation/state"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
+	vtypes "github.com/filecoin-project/oni/tvx/chain-validation/chain/types"
+	vstate "github.com/filecoin-project/oni/tvx/chain-validation/state"
 )
 
 type Factories struct {
@@ -181,12 +181,12 @@ func (w *randWrapper) GetRandomness(ctx context.Context, pers acrypto.DomainSepa
 	return w.rnd.Randomness(ctx, pers, round, entropy)
 }
 
-//type vmRand struct {
-//}
+type vmRand struct {
+}
 
-//func (*vmRand) GetRandomness(ctx context.Context, dst crypto.DomainSeparationTag, h abi.ChainEpoch, input []byte) ([]byte, error) {
-//panic("implement me")
-//}
+func (*vmRand) GetRandomness(ctx context.Context, dst acrypto.DomainSeparationTag, h abi.ChainEpoch, input []byte) ([]byte, error) {
+	panic("implement me")
+}
 
 func (a *Applier) applyMessage(epoch abi.ChainEpoch, lm types.ChainMsg) (vtypes.MessageReceipt, abi.TokenAmount, abi.TokenAmount, error) {
 	ctx := context.TODO()
