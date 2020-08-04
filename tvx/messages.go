@@ -40,9 +40,6 @@ func runMessagesTest(c *cli.Context) error {
 	v.Pre.StateTree.CAR = td.MarshalState()
 	v.Pre.StateTree.RootCID = td.MarshalStateRoot()
 
-	td.MarshalStateRoot()
-	td.MarshalState()
-
 	existingAccountAddr, _ := td.NewAccountActor(existingActorType, existingActorBal)
 	msg := td.MessageProducer.Transfer(existingAccountAddr, newActorAddr, chain.Value(newActorInitBal), chain.Nonce(0))
 	result := td.ApplyFailure(
