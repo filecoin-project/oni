@@ -38,7 +38,7 @@ func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(10_000_000_000),
 
-			utils.NewSECP256K1Addr(t, "publickeyfoo"),
+			utils.NewSECP256K1Addr("publickeyfoo"),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.Ok,
@@ -48,7 +48,7 @@ func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(10_000_000_000),
 
-			utils.NewBLSAddr(t, 1),
+			utils.NewBLSAddr(1),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.Ok,
@@ -58,7 +58,7 @@ func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(9_999),
 
-			utils.NewSECP256K1Addr(t, "publickeybar"),
+			utils.NewSECP256K1Addr("publickeybar"),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.SysErrSenderStateInvalid,
@@ -68,7 +68,7 @@ func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(9_999),
 
-			utils.NewBLSAddr(t, 1),
+			utils.NewBLSAddr(1),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.SysErrSenderStateInvalid,
@@ -77,8 +77,8 @@ func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			td := builder.Build(t)
-			defer td.Complete()
+			td := builder.Build()
+			//defer td.Complete()
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
 			result := td.ApplyFailure(
@@ -99,8 +99,8 @@ func MessageTest_InitActorSequentialIDAddressCreate(t *testing.T, factory state.
 	td := drivers.NewBuilder(context.Background(), factory).
 		WithDefaultGasLimit(1_000_000_000).
 		WithDefaultGasPrice(big_spec.NewInt(1)).
-		WithActorState(drivers.DefaultBuiltinActorsState...).Build(t)
-	defer td.Complete()
+		WithActorState(drivers.DefaultBuiltinActorsState...).Build()
+	//defer td.Complete()
 
 	var initialBal = abi_spec.NewTokenAmount(200_000_000_000)
 	var toSend = abi_spec.NewTokenAmount(10_000)
@@ -109,8 +109,8 @@ func MessageTest_InitActorSequentialIDAddressCreate(t *testing.T, factory state.
 
 	receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
-	firstPaychAddr := utils.NewIDAddr(t, utils.IdFromAddress(receiverID)+1)
-	secondPaychAddr := utils.NewIDAddr(t, utils.IdFromAddress(receiverID)+2)
+	firstPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+1)
+	secondPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+2)
 
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)

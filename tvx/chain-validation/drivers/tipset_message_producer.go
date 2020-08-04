@@ -45,59 +45,59 @@ func (t *TipSetMessageBuilder) ApplyAndValidate() types.ApplyTipSetResult {
 	return result
 }
 
-func (t *TipSetMessageBuilder) apply() types.ApplyTipSetResult {
+func (tb *TipSetMessageBuilder) apply() types.ApplyTipSetResult {
 	var blks []types.BlockMessagesInfo
-	for _, b := range t.bbs {
+	for _, b := range tb.bbs {
 		blks = append(blks, b.build())
 	}
-	result, err := t.driver.validator.ApplyTipSetMessages(t.driver.ExeCtx.Epoch, blks, t.driver.Randomness())
-	require.NoError(t.driver.T, err)
+	result, err := tb.driver.validator.ApplyTipSetMessages(tb.driver.ExeCtx.Epoch, blks, tb.driver.Randomness())
+	require.NoError(t, err)
 
-	t.driver.StateTracker.TrackResult(result)
+	//t.driver.StateTracker.TrackResult(result)
 	return result
 }
 
-func (t *TipSetMessageBuilder) validateResult(result types.ApplyTipSetResult) {
+func (tb *TipSetMessageBuilder) validateResult(result types.ApplyTipSetResult) {
 	expected := []ExpectedResult{}
-	for _, b := range t.bbs {
+	for _, b := range tb.bbs {
 		expected = append(expected, b.expectedResults...)
 	}
 
 	if len(result.Receipts) > len(expected) {
-		t.driver.T.Fatalf("ApplyTipSetMessages returned more result than expected. Expected: %d, Actual: %d", len(expected), len(result.Receipts))
+		t.Fatalf("ApplyTipSetMessages returned more result than expected. Expected: %d, Actual: %d", len(expected), len(result.Receipts))
 		return
 	}
 
 	for i := range result.Receipts {
-		if t.driver.Config.ValidateExitCode() {
-			assert.Equal(t.driver.T, expected[i].ExitCode, result.Receipts[i].ExitCode, "Message Number: %d Expected ExitCode: %s Actual ExitCode: %s", i, expected[i].ExitCode.Error(), result.Receipts[i].ExitCode.Error())
+		if tb.driver.Config.ValidateExitCode() {
+			assert.Equal(t, expected[i].ExitCode, result.Receipts[i].ExitCode, "Message Number: %d Expected ExitCode: %s Actual ExitCode: %s", i, expected[i].ExitCode.Error(), result.Receipts[i].ExitCode.Error())
 		}
-		if t.driver.Config.ValidateReturnValue() {
-			assert.Equal(t.driver.T, expected[i].ReturnVal, result.Receipts[i].ReturnValue, "Message Number: %d Expected ReturnValue: %v Actual ReturnValue: %v", i, expected[i].ReturnVal, result.Receipts[i].ReturnValue)
+		if tb.driver.Config.ValidateReturnValue() {
+			assert.Equal(t, expected[i].ReturnVal, result.Receipts[i].ReturnValue, "Message Number: %d Expected ReturnValue: %v Actual ReturnValue: %v", i, expected[i].ReturnVal, result.Receipts[i].ReturnValue)
 		}
 	}
 }
 
 func (t *TipSetMessageBuilder) validateState(result types.ApplyTipSetResult) {
-	if t.driver.Config.ValidateGas() {
-		for i := range result.Receipts {
-			expectedGas, found := t.driver.StateTracker.NextExpectedGas()
-			if found {
-				assert.Equal(t.driver.T, expectedGas, result.Receipts[i].GasUsed, "Message Number: %d Expected GasUsed: %d Actual GasUsed: %d", i, expectedGas, result.Receipts[i].GasUsed)
-			} else {
-				t.driver.T.Logf("WARNING: failed to find expected gas cost for message number: %d", i)
-			}
-		}
-	}
-	if t.driver.Config.ValidateStateRoot() {
-		expectedRoot, found := t.driver.StateTracker.NextExpectedStateRoot()
-		actualRoot := t.driver.State().Root()
-		if found {
-			assert.Equal(t.driver.T, expectedRoot, actualRoot, "Expected StateRoot: %s Actual StateRoot: %s", expectedRoot, actualRoot)
-		} else {
-			t.driver.T.Log("WARNING: failed to find expected state  root for message number")
-		}
-	}
+	//if t.driver.Config.ValidateGas() {
+	//for i := range result.Receipts {
+	//expectedGas, found := t.driver.StateTracker.NextExpectedGas()
+	//if found {
+	//assert.Equal(t.driver.T, expectedGas, result.Receipts[i].GasUsed, "Message Number: %d Expected GasUsed: %d Actual GasUsed: %d", i, expectedGas, result.Receipts[i].GasUsed)
+	//} else {
+	//t.driver.T.Logf("WARNING: failed to find expected gas cost for message number: %d", i)
+	//}
+	//}
+	//}
+	//if t.driver.Config.ValidateStateRoot() {
+	//expectedRoot, found := t.driver.StateTracker.NextExpectedStateRoot()
+	//actualRoot := t.driver.State().Root()
+	//if found {
+	//assert.Equal(t.driver.T, expectedRoot, actualRoot, "Expected StateRoot: %s Actual StateRoot: %s", expectedRoot, actualRoot)
+	//} else {
+	//t.driver.T.Log("WARNING: failed to find expected state  root for message number")
+	//}
+	//}
 }
 
 func (t *TipSetMessageBuilder) Clear() {
@@ -200,13 +200,13 @@ func (bb *BlockBuilder) toSignedMessage(m *types.Message) *types.SignedMessage {
 		from = bb.TD.ActorPubKey(from)
 	}
 	if from.Protocol() != address.SECP256K1 {
-		bb.TD.T.Fatalf("Invalid address for SECP signature, address protocol: %v", from.Protocol())
+		t.Fatalf("Invalid address for SECP signature, address protocol: %v", from.Protocol())
 	}
 	raw, err := m.Serialize()
-	require.NoError(bb.TD.T, err)
+	require.NoError(t, err)
 
 	sig, err := bb.TD.Wallet().Sign(from, raw)
-	require.NoError(bb.TD.T, err)
+	require.NoError(t, err)
 
 	return &types.SignedMessage{
 		Message:   *m,

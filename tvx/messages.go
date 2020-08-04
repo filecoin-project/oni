@@ -12,9 +12,9 @@ import (
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 
+	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/oni/tvx/chain-validation/chain"
 	"github.com/filecoin-project/oni/tvx/chain-validation/drivers"
-	addr "github.com/filecoin-project/go-address"
 )
 
 var messagesTestCmd = &cli.Command{
@@ -40,7 +40,7 @@ func runMessagesTest(c *cli.Context) error {
 	factory := NewFactories()
 	builder := drivers.NewBuilder(context.Background(), factory).WithDefaultGasLimit(1000000000).WithDefaultGasPrice(big_spec.NewInt(1)).WithActorState(drivers.DefaultBuiltinActorsState...)
 
-	td := builder.Build(nil)
+	td := builder.Build()
 
 	existingAccountAddr, _ := td.NewAccountActor(existingActorType, existingActorBal)
 	msg := td.MessageProducer.Transfer(existingAccountAddr, newActorAddr, chain.Value(newActorInitBal), chain.Nonce(0))

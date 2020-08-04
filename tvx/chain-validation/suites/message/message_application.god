@@ -27,8 +27,8 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 	var transferAmnt = abi_spec.NewTokenAmount(10)
 
 	t.Run("fail to cover gas cost for message receipt on chain", func(t *testing.T) {
-		td := builder.Build(t)
-		defer td.Complete()
+		td := builder.Build()
+		//defer td.Complete()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 		td.ApplyFailure(
@@ -37,8 +37,8 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 	})
 
 	t.Run("not enough gas to pay message on-chain-size cost", func(t *testing.T) {
-		td := builder.Build(t)
-		defer td.Complete()
+		td := builder.Build()
+		//defer td.Complete()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 		// Expect Message application to fail due to lack of gas
@@ -47,7 +47,7 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 			exitcode.SysErrOutOfGas)
 
 		// Expect Message application to fail due to lack of gas when sender is unknown
-		unknown := utils.NewIDAddr(t, 10000000)
+		unknown := utils.NewIDAddr(10000000)
 		td.ApplyFailure(
 			td.MessageProducer.Transfer(unknown, alice, chain.Value(transferAmnt), chain.Nonce(0), chain.GasPrice(10), chain.GasLimit(1)),
 			exitcode.SysErrOutOfGas)
@@ -63,7 +63,7 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 			defer func() { aliceNonce++ }()
 			return aliceNonce
 		}
-		newAccountA := utils.NewSECP256K1Addr(t, "1")
+		newAccountA := utils.NewSECP256K1Addr("1")
 
 		// get the "true" gas cost of applying the message
 		result := td.ApplyOk(
@@ -73,7 +73,7 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 		// decrease the gas cost by `gasStep` for each apply and ensure `SysErrOutOfGas` is always returned.
 		trueGas := int64(result.GasUsed())
 		gasStep := int64(trueGas / 100)
-		newAccountB := utils.NewSECP256K1Addr(t, "2")
+		newAccountB := utils.NewSECP256K1Addr("2")
 		for tryGas := trueGas - gasStep; tryGas > 0; tryGas -= gasStep {
 			td.ApplyFailure(td.MessageProducer.Transfer(alice, newAccountB, chain.Value(transferAmnt), chain.Nonce(aliceNonceF()), chain.GasPrice(1), chain.GasLimit(tryGas)),
 				exitcode.SysErrOutOfGas,
@@ -93,7 +93,7 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 			exitcode.SysErrSenderStateInvalid)
 
 		// Expect message application to fail due to unknow actor when call seq num is also incorrect
-		unknown := utils.NewIDAddr(t, 10000000)
+		unknown := utils.NewIDAddr(10000000)
 		td.ApplyFailure(
 			td.MessageProducer.Transfer(unknown, alice, chain.Value(transferAmnt), chain.Nonce(1)),
 			exitcode.SysErrSenderInvalid)
@@ -120,7 +120,7 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 		receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
 		// the _expected_ address of the payment channel
-		paychAddr := utils.NewIDAddr(t, utils.IdFromAddress(receiverID)+1)
+		paychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+1)
 		createRet := td.ComputeInitActorExecReturn(sender, 0, 0, paychAddr)
 		td.ApplyExpect(
 			td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0)),
@@ -166,13 +166,13 @@ func MessageTest_MessageApplicationEdgecases(t *testing.T, factory state.Factori
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 
 		// Sending a message to non-existent ID address must produce an error.
-		unknownA := utils.NewIDAddr(t, 10000000)
+		unknownA := utils.NewIDAddr(10000000)
 		td.ApplyFailure(
 			td.MessageProducer.Transfer(alice, unknownA, chain.Value(transferAmnt), chain.Nonce(0)),
 			exitcode.SysErrInvalidReceiver)
 
 		// Sending a message to non-existing actor address must produce an error.
-		unknownB := utils.NewActorAddr(t, "1234")
+		unknownB := utils.NewActorAddr("1234")
 		td.ApplyFailure(
 			td.MessageProducer.Transfer(alice, unknownB, chain.Value(transferAmnt), chain.Nonce(1)),
 			exitcode.SysErrInvalidReceiver)
