@@ -53,7 +53,7 @@ func RecoverStateTree(ctx context.Context, raw []byte) (*state.StateTree, error)
 	if len(ch.Roots) != 1 {
 		return nil, fmt.Errorf("car should have 1 root, has %d", len(ch.Roots))
 	}
-	ipldStore := cbor.NewCborStore(store)
+	ipldStore := stateTreeNodeSetter{store}
 
 	fmt.Printf("root is %s\n", ch.Roots[0])
 
@@ -62,7 +62,12 @@ func RecoverStateTree(ctx context.Context, raw []byte) (*state.StateTree, error)
 		return nil, err
 	}
 	if err := nd.ForEach(ctx, func(k string, val interface{}) error {
-		fmt.Printf("hampt %s\n", k)
+		n, ok := val.(format.Node)
+		if !ok {
+			fmt.Printf("hampt %s (not node): %+v\n", k, val)
+		} else {
+			fmt.Printf("%s: %#v\n", k, n)
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -96,4 +101,21 @@ func (s stateTreeNodeGetter) GetMany(ctx context.Context, cids []cid.Cid) <-chan
 		}
 	}()
 	return ch
+}
+
+// stateTreeNodeSetter implments format.NodeGetter over a state tree
+type stateTreeNodeSetter struct {
+	bs.Blockstore
+}
+
+func (s stateTreeNodeSetter) Get(ctx context.Context, c cid.Cid, out interface{}) error {
+	block, err := s.Blockstore.Get(c)
+	if err != nil {
+		return err
+	}
+	return cbor.DecodeInto(block.RawData(), out)
+}
+
+func (s stateTreeNodeSetter) Put(context.Context, interface{}) (cid.Cid, error) {
+	return cid.Undef, fmt.Errorf("not implemented")
 }
