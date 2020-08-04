@@ -18,6 +18,8 @@ var listAccessedCmd = &cli.Command{
 }
 
 func runListAccessed(c *cli.Context) error {
+	ctx := context.Background()
+
 	node, err := makeClient(c.String(apiFlag.Name))
 	if err != nil {
 		return err
@@ -28,7 +30,11 @@ func runListAccessed(c *cli.Context) error {
 		return err
 	}
 
-	actors, err := state.GetActorsForMessage(context.TODO(), node, mid)
+	rtst := state.NewProxyingStore(ctx, node)
+
+	g := state.NewSurgeon(ctx, node, rtst)
+
+	actors, err := g.GetAccessedActors(context.TODO(), node, mid)
 	if err != nil {
 		return err
 	}

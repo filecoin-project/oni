@@ -23,8 +23,7 @@ func main() {
 		Commands: []*cli.Command{
 			deltaCmd,
 			listAccessedCmd,
-			filterCmd,
-			generateMessageCmd,
+			extractMsgCmd,
 			execLotusCmd,
 		},
 	}

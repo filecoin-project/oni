@@ -1,92 +1,68 @@
 package state
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 
 	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/lib/blockstore"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	cbg "github.com/whyrusleeping/cbor-gen"
 )
 
-// ReadThroughStore implements the ipld store where unknown items are fetched over the node API.
-type ReadThroughStore struct {
-	ctx   context.Context
-	api   api.FullNode
-	local map[cid.Cid][]byte
+// ProxyingStores implements the ipld store where unknown items are fetched over the node API.
+type ProxyingStores struct {
+	CBORStore  cbor.IpldStore
+	Datastore  ds.Batching
+	Blockstore blockstore.Blockstore
 }
 
-// NewReadThroughStore creates a new cache.
-func NewReadThroughStore(ctx context.Context, node api.FullNode) *ReadThroughStore {
-	return &ReadThroughStore{
-		ctx,
-		node,
-		make(map[cid.Cid][]byte),
-	}
+type proxyingBlockstore struct {
+	ctx context.Context
+	api api.FullNode
+
+	blockstore.Blockstore
 }
 
-// Context provides the context the store operates within.
-func (s *ReadThroughStore) Context() context.Context {
-	return s.ctx
+func (pb *proxyingBlockstore) Get(cid cid.Cid) (blocks.Block, error) {
+	if block, err := pb.Blockstore.Get(cid); err == nil {
+		return block, err
+	}
+
+	// fmt.Printf("fetching cid via rpc: %v\n", cid)
+	item, err := pb.api.ChainReadObj(pb.ctx, cid)
+	if err != nil {
+		return nil, err
+	}
+	block, err := blocks.NewBlockWithCid(item, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	err = pb.Blockstore.Put(block)
+	if err != nil {
+		return nil, err
+	}
+
+	return block, nil
 }
 
-// for dealing with HAMTs.
-type nodeset interface {
-	SetRaw(ctx context.Context, k string, raw []byte) error
-}
+// NewProxyingStore creates a new cache.
+func NewProxyingStore(ctx context.Context, api api.FullNode) *ProxyingStores {
+	ds := ds.NewMapDatastore()
 
-// Get populates `out` from `c`
-func (s *ReadThroughStore) Get(ctx context.Context, c cid.Cid, out interface{}) error {
-	var err error
-	var item []byte
-	var ok bool
-	if item, ok = s.local[c]; !ok {
-		fmt.Printf("fetching cid via rpc: %v\n", c)
-		item, err = s.api.ChainReadObj(ctx, c)
-		if err != nil {
-			if c.Prefix().Codec != cid.DagCBOR {
-				return nil
-			}
-			return fmt.Errorf("Failed for cid %v: %w", c, err)
-		}
-	} else {
-		fmt.Printf("cid cached locally: %v\n", c)
+	bs := &proxyingBlockstore{
+		ctx:        ctx,
+		api:        api,
+		Blockstore: blockstore.NewBlockstore(ds),
 	}
 
-	cu, ok := out.(cbg.CBORUnmarshaler)
-	if ok {
-		if err := cu.UnmarshalCBOR(bytes.NewReader(item)); err != nil {
-			return err
-		}
-		return nil
-	}
+	cborstore := cbor.NewCborStore(bs)
 
-	hn, ok := out.(nodeset)
-	if ok {
-		if err := hn.SetRaw(ctx, c.String(), item); err != nil {
-			return err
-		}
-		return nil
+	return &ProxyingStores{
+		CBORStore:  cborstore,
+		Datastore:  ds,
+		Blockstore: bs,
 	}
-
-	return cbor.DecodeInto(item, out)
-}
-
-// Put generates a cid for and stores `v`
-func (s *ReadThroughStore) Put(ctx context.Context, v interface{}) (cid.Cid, error) {
-	cm, ok := v.(cbg.CBORMarshaler)
-	if ok {
-		buf := bytes.Buffer{}
-		if err := cm.MarshalCBOR(&buf); err != nil {
-			return cid.Cid{}, err
-		}
-		idgen := cid.V1Builder{}
-		val := buf.Bytes()
-		lcid, _ := idgen.Sum(val)
-		s.local[lcid] = val
-		return lcid, nil
-	}
-	return cid.Cid{}, fmt.Errorf("Object doesnt impl cbormarshaler")
 }
