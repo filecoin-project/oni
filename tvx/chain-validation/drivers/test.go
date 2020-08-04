@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/go-bitfield"
+	"github.com/filecoin-project/lotus/chain/state"
 
 	"github.com/filecoin-project/go-address"
 	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
@@ -21,6 +22,7 @@ import (
 	power_spec "github.com/filecoin-project/specs-actors/actors/builtin/power"
 	reward_spec "github.com/filecoin-project/specs-actors/actors/builtin/reward"
 	"github.com/filecoin-project/specs-actors/actors/builtin/system"
+	"github.com/filecoin-project/specs-actors/actors/runtime"
 	runtime_spec "github.com/filecoin-project/specs-actors/actors/runtime"
 	"github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	adt_spec "github.com/filecoin-project/specs-actors/actors/util/adt"
@@ -33,7 +35,7 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain-validation/chain"
 	"github.com/filecoin-project/oni/tvx/chain-validation/chain/types"
-	"github.com/filecoin-project/oni/tvx/chain-validation/state"
+	vstate "github.com/filecoin-project/oni/tvx/chain-validation/state"
 )
 
 var (
@@ -199,20 +201,43 @@ func (m mockStore) Context() context.Context {
 	return m.ctx
 }
 
-type TestDriverBuilder struct {
-	ctx     context.Context
-	factory state.Factories
+func NewTestDriver() *TestDriver {
+	syscalls := NewChainValidationSysCalls()
+	stateWrapper := NewState()
+	applier := NewApplier(stateWrapper, func(ctx context.Context, cstate *state.StateTree, cst cbor.IpldStore) runtime.Syscalls {
+		return syscalls
+	})
 
-	actorStates []ActorState
+	sd := NewStateDriver(stateWrapper, newKeyManager())
 
-	defaultGasPrice abi_spec.TokenAmount
-	defaultGasLimit int64
-}
+	err := initializeStoreWithAdtRoots(AsStore(sd.st))
+	require.NoError(t, err)
 
-func NewBuilder(ctx context.Context, factory state.Factories) *TestDriverBuilder {
-	return &TestDriverBuilder{
-		factory: factory,
-		ctx:     ctx,
+	for _, acts := range DefaultBuiltinActorsState {
+		_, _, err := sd.State().CreateActor(acts.Code, acts.Addr, acts.Balance, acts.State)
+		require.NoError(t, err)
+	}
+
+	minerActorIDAddr := sd.newMinerAccountActor(TestSealProofType, abi_spec.ChainEpoch(0))
+
+	exeCtx := types.NewExecutionContext(1, minerActorIDAddr)
+	producer := chain.NewMessageProducer(1000000000, big_spec.NewInt(1)) // gas limit ; gas price
+
+	trackGas := false
+	checkExit := true
+	checkRet := true
+	checkState := true
+	config := NewConfig(trackGas, checkExit, checkRet, checkState)
+
+	return &TestDriver{
+		StateDriver: sd,
+
+		MessageProducer: producer,
+		ExeCtx:          exeCtx,
+		Config:          config,
+		SysCalls:        syscalls,
+
+		applier: applier,
 	}
 }
 
@@ -223,30 +248,15 @@ type ActorState struct {
 	State   runtime_spec.CBORMarshaler
 }
 
-func (b *TestDriverBuilder) WithActorState(acts ...ActorState) *TestDriverBuilder {
-	b.actorStates = append(b.actorStates, acts...)
-	return b
-}
-
-func (b *TestDriverBuilder) WithDefaultGasLimit(limit int64) *TestDriverBuilder {
-	b.defaultGasLimit = limit
-	return b
-}
-
-func (b *TestDriverBuilder) WithDefaultGasPrice(price abi_spec.TokenAmount) *TestDriverBuilder {
-	b.defaultGasPrice = price
-	return b
-}
-
 type TestDriver struct {
 	*StateDriver
-	applier state.Applier
+	applier vstate.Applier
 
 	MessageProducer      *chain.MessageProducer
 	TipSetMessageBuilder *TipSetMessageBuilder
 	ExeCtx               *types.ExecutionContext
 
-	Config state.ValidationConfig
+	Config vstate.ValidationConfig
 
 	SysCalls *ChainValidationSysCalls
 }
