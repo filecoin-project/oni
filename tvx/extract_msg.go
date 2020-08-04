@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 
-	state2 "github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/ipfs/go-cid"
 	"github.com/urfave/cli/v2"
@@ -23,6 +23,8 @@ var extractMsgCmd = &cli.Command{
 }
 
 func runExtractMsg(c *cli.Context) error {
+	_ = os.Setenv("LOTUS_DISABLE_VM_BUF", "iknowitsabadidea")
+
 	ctx := context.Background()
 
 	// get the output file.
@@ -65,10 +67,10 @@ func runExtractMsg(c *cli.Context) error {
 		return err
 	}
 
-	retain[builtin.RewardActorAddr] = struct{}{}
+	retain = append(retain, builtin.RewardActorAddr)
 
 	fmt.Println("accessed actors:")
-	for k := range retain {
+	for _, k := range retain {
 		fmt.Println("\t", k.String())
 	}
 
@@ -85,7 +87,7 @@ func runExtractMsg(c *cli.Context) error {
 	}
 
 	fmt.Println("getting the _before_ filtered state tree")
-	pretree, preroot, err := g.GetMaskedStateTree(prevTs.Parents(), retain)
+	preroot, err := g.GetMaskedStateTree(prevTs.Parents(), retain)
 	if err != nil {
 		return err
 	}
@@ -97,23 +99,18 @@ func runExtractMsg(c *cli.Context) error {
 		return fmt.Errorf("failed to execute message: %w", err)
 	}
 
-	posttree, err := state2.LoadStateTree(pst.CBORStore, postroot)
-	if err != nil {
-		return fmt.Errorf("failed to load post state tree: %w", err)
-	}
-
 	msgBytes, err := msg.Serialize()
 	if err != nil {
 		return err
 	}
 
-	// Serialize the trees.
-	preData, preRoot, err := state.SerializeStateTree(ctx, pretree)
-	if err != nil {
+	preout := new(bytes.Buffer)
+	if err := g.WriteCAR(preout, preroot); err != nil {
 		return err
 	}
-	postData, postroot, err := state.SerializeStateTree(ctx, posttree)
-	if err != nil {
+
+	postout := new(bytes.Buffer)
+	if err := g.WriteCAR(postout, postroot); err != nil {
 		return err
 	}
 
@@ -137,15 +134,13 @@ func runExtractMsg(c *cli.Context) error {
 		Pre: &Preconditions{
 			Epoch: ts.Height(),
 			StateTree: &StateTree{
-				CAR:     preData,
-				RootCID: preRoot.String(),
+				CAR: preout.Bytes(),
 			},
 		},
 		ApplyMessage: msgBytes,
 		Post: &Postconditions{
 			StateTree: &StateTree{
-				CAR:     postData,
-				RootCID: postroot.String(),
+				CAR: postout.Bytes(),
 			},
 		},
 	}

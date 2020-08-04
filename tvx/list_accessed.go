@@ -32,9 +32,9 @@ func runListAccessed(c *cli.Context) error {
 
 	rtst := state.NewProxyingStore(ctx, node)
 
-	g := state.NewSurgeon(ctx, node, rtst)
+	sg := state.NewSurgeon(ctx, node, rtst)
 
-	actors, err := g.GetAccessedActors(context.TODO(), node, mid)
+	actors, err := sg.GetAccessedActors(context.TODO(), node, mid)
 	if err != nil {
 		return err
 	}
