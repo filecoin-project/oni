@@ -89,7 +89,7 @@ func runFilter(c *cli.Context) error {
 				RootCID: preRoot.String(),
 			},
 		},
-		ApplyMessage: msgBytes,
+		ApplyMessages: []schema.HexEncodedBytes{msgBytes},
 		Post: &schema.Postconditions{
 			StateTree: &schema.StateTree{
 				CAR:     postData,

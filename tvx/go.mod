@@ -16,6 +16,7 @@ require (
 	github.com/filecoin-project/sector-storage v0.0.0-20200803184904-3cab915fd225
 	github.com/filecoin-project/specs-actors v0.8.6
 	github.com/gorilla/rpc v1.2.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834
 	github.com/ipfs/go-cid v0.0.7

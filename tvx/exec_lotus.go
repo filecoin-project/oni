@@ -100,7 +100,7 @@ func runExecLotus(c *cli.Context) error {
 		lvm, err := vm.NewVM(header.Roots[0], epoch, &vmRand{}, bs, mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)), nil)
 
 		fmt.Println("decoding message")
-		msg, err := types.DecodeMessage(tv.ApplyMessage)
+		msg, err := types.DecodeMessage(tv.ApplyMessages[0])
 		if err != nil {
 			return err
 		}

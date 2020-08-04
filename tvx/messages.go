@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/urfave/cli/v2"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/filecoin-project/go-address"
 
@@ -27,7 +28,11 @@ var suiteMessagesCmd = &cli.Command{
 }
 
 func suiteMessages(c *cli.Context) error {
-  return MessageTest_AccountActorCreation()
+	var err *multierror.Error
+	err = multierror.Append(MessageTest_AccountActorCreation())
+	err = multierror.Append(MessageTest_InitActorSequentialIDAddressCreate())
+
+	return err.ErrorOrNil()
 }
 
 func MessageTest_AccountActorCreation() error {
@@ -97,8 +102,14 @@ func MessageTest_AccountActorCreation() error {
 			v.Pre.StateTree.RootCID = td.MarshalStateRoot()
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
+			msg := td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0))
+      b, err := msg.Serialize()
+			if err != nil {
+				return err
+			}
+			v.ApplyMessages = []schema.HexEncodedBytes{b}
 			result := td.ApplyFailure(
-				td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0)),
+				msg,
 				tc.expExitCode,
 			)
 
@@ -124,6 +135,67 @@ func MessageTest_AccountActorCreation() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func MessageTest_InitActorSequentialIDAddressCreate() error {
+	fmt.Println()
+	fmt.Println("MessageTest_InitActorSequentialIDAddressCreate")
+	fmt.Println("=====")
+
+	td := drivers.NewTestDriver()
+
+	v := newEmptyMessageVector()
+	v.Pre.StateTree.CAR = td.MarshalState()
+	v.Pre.StateTree.RootCID = td.MarshalStateRoot()
+
+	var initialBal = abi_spec.NewTokenAmount(200_000_000_000)
+	var toSend = abi_spec.NewTokenAmount(10_000)
+
+	sender, _ := td.NewAccountActor(drivers.SECP, initialBal)
+
+	receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
+
+	firstPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+1)
+	secondPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+2)
+
+	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
+	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
+
+	msg1 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
+	td.ApplyExpect(
+		msg1,
+		chain.MustSerialize(&firstInitRet),
+	)
+
+	b1, err := msg1.Serialize()
+	if err != nil {
+		return err
+	}
+	v.ApplyMessages = append(v.ApplyMessages, b1)
+
+	msg2 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(1))
+	td.ApplyExpect(
+		msg2,
+		chain.MustSerialize(&secondInitRet),
+	)
+
+	b2, err := msg2.Serialize()
+	if err != nil {
+		return err
+	}
+	v.ApplyMessages = append(v.ApplyMessages, b2)
+
+	v.Post.StateTree.CAR = td.MarshalState()
+	v.Post.StateTree.RootCID = td.MarshalStateRoot()
+
+	// encode and output
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(&v); err != nil {
+		return err
 	}
 
 	return nil
