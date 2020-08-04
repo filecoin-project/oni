@@ -16,8 +16,8 @@ import (
 )
 
 var extractMsgCmd = &cli.Command{
-	Name:        "generate-message",
-	Description: "generate a message-class test vector",
+	Name:        "extract-message",
+	Description: "generate a message-class test vector by extracting it from a network",
 	Flags:       []cli.Flag{&cidFlag, &apiFlag, &fileFlag},
 	Action:      runExtractMsg,
 }

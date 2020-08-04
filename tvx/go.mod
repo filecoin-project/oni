@@ -20,7 +20,6 @@ require (
 	github.com/ipld/go-car v0.1.1-0.20200526133713-1c7508d55aae
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/multiformats/go-multiaddr-net v0.1.5
-	github.com/multiformats/go-multihash v0.0.14
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200723185710-6a3894a6352b
 )
