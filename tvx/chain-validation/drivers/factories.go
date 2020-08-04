@@ -38,7 +38,41 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
 	vtypes "github.com/filecoin-project/oni/tvx/chain-validation/chain/types"
+	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 )
+
+const (
+	totalFilecoin     = 2_000_000_000
+	filecoinPrecision = 1_000_000_000_000_000_000
+)
+
+var (
+	TotalNetworkBalance = big_spec.Mul(big_spec.NewInt(totalFilecoin), big_spec.NewInt(filecoinPrecision))
+	EmptyReturnValue    = []byte{}
+)
+
+// RandomnessSource provides randomness to actors.
+type RandomnessSource interface {
+	Randomness(ctx context.Context, tag acrypto.DomainSeparationTag, epoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error)
+}
+
+// Specifies a domain for randomness generation.
+type RandomnessType int
+
+// Actor is an abstraction over the actor states stored in the root of the state tree.
+type Actor interface {
+	Code() cid.Cid
+	Head() cid.Cid
+	CallSeqNum() uint64
+	Balance() big.Int
+}
+
+type ValidationConfig interface {
+	ValidateGas() bool
+	ValidateExitCode() bool
+	ValidateReturnValue() bool
+	ValidateStateRoot() bool
+}
 
 // Applier applies messages to state trees and storage.
 type Applier struct {
