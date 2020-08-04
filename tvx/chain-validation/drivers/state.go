@@ -8,7 +8,6 @@ import (
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 	miner_spec "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	power_spec "github.com/filecoin-project/specs-actors/actors/builtin/power"
-	acrypto "github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/filecoin-project/specs-actors/actors/runtime"
 	adt_spec "github.com/filecoin-project/specs-actors/actors/util/adt"
 	"github.com/ipfs/go-cid"
@@ -25,17 +24,6 @@ var (
 	SECP = address.SECP256K1
 	BLS  = address.BLS
 )
-
-type fakeRandSrc struct {
-}
-
-func (r fakeRandSrc) Randomness(_ context.Context, _ acrypto.DomainSeparationTag, _ abi_spec.ChainEpoch, _ []byte) (abi_spec.Randomness, error) {
-	return abi_spec.Randomness("sausages"), nil
-}
-
-func NewRandomnessSource() RandomnessSource {
-	return &fakeRandSrc{}
-}
 
 // StateDriver mutates and inspects a state.
 type StateDriver struct {

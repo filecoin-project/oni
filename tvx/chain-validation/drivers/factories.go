@@ -51,14 +51,6 @@ var (
 	EmptyReturnValue    = []byte{}
 )
 
-// RandomnessSource provides randomness to actors.
-type RandomnessSource interface {
-	Randomness(ctx context.Context, tag acrypto.DomainSeparationTag, epoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error)
-}
-
-// Specifies a domain for randomness generation.
-type RandomnessType int
-
 // Actor is an abstraction over the actor states stored in the root of the state tree.
 type Actor interface {
 	Code() cid.Cid
@@ -166,21 +158,6 @@ func (a *Applier) ApplyTipSetMessages(epoch abi.ChainEpoch, blocks []vtypes.Bloc
 		Receipts: receipts,
 		Root:     a.stateWrapper.Root().String(),
 	}, nil
-}
-
-type randWrapper struct {
-	rnd RandomnessSource
-}
-
-func (w *randWrapper) GetRandomness(ctx context.Context, pers acrypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return w.rnd.Randomness(ctx, pers, round, entropy)
-}
-
-type vmRand struct {
-}
-
-func (*vmRand) GetRandomness(ctx context.Context, dst acrypto.DomainSeparationTag, h abi.ChainEpoch, input []byte) ([]byte, error) {
-	panic("implement me")
 }
 
 func (a *Applier) applyMessage(epoch abi.ChainEpoch, lm types.ChainMsg) (vtypes.MessageReceipt, abi.TokenAmount, abi.TokenAmount, error) {
