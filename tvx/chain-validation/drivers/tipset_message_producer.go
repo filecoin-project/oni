@@ -50,7 +50,7 @@ func (tb *TipSetMessageBuilder) apply() types.ApplyTipSetResult {
 	for _, b := range tb.bbs {
 		blks = append(blks, b.build())
 	}
-	result, err := tb.driver.validator.ApplyTipSetMessages(tb.driver.ExeCtx.Epoch, blks, tb.driver.Randomness())
+	result, err := tb.driver.applier.ApplyTipSetMessages(tb.driver.ExeCtx.Epoch, blks, tb.driver.Randomness())
 	require.NoError(t, err)
 
 	//t.driver.StateTracker.TrackResult(result)

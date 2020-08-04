@@ -240,10 +240,10 @@ func (b *TestDriverBuilder) WithDefaultGasPrice(price abi_spec.TokenAmount) *Tes
 
 type TestDriver struct {
 	*StateDriver
+	applier state.Applier
 
 	MessageProducer      *chain.MessageProducer
 	TipSetMessageBuilder *TipSetMessageBuilder
-	validator            *chain.Validator
 	ExeCtx               *types.ExecutionContext
 
 	Config state.ValidationConfig
@@ -287,7 +287,7 @@ func (td *TestDriver) applyMessage(msg *types.Message) (result types.ApplyMessag
 		}
 	}()
 
-	result, err := td.validator.ApplyMessage(td.ExeCtx.Epoch, msg)
+	result, err := td.applier.ApplyMessage(td.ExeCtx.Epoch, msg)
 	require.NoError(t, err)
 
 	//td.StateTracker.TrackResult(result)
@@ -338,7 +338,7 @@ func (td *TestDriver) applyMessageSigned(msg *types.Message) (result types.Apply
 		Message:   *msg,
 		Signature: msgSig,
 	}
-	result, err = td.validator.ApplySignedMessage(td.ExeCtx.Epoch, smsgs)
+	result, err = td.applier.ApplySignedMessage(td.ExeCtx.Epoch, smsgs)
 	require.NoError(t, err)
 
 	//td.StateTracker.TrackResult(result)
