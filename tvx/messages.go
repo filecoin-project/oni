@@ -11,8 +11,8 @@ import (
 	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 
 	addr "github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/oni/tvx/chain-validation/chain"
-	"github.com/filecoin-project/oni/tvx/chain-validation/drivers"
+	"github.com/filecoin-project/oni/tvx/chain"
+	"github.com/filecoin-project/oni/tvx/drivers"
 )
 
 var messagesTestCmd = &cli.Command{

@@ -5,7 +5,7 @@ go 1.14
 replace github.com/supranational/blst => github.com/supranational/blst v0.1.2-alpha.1
 
 require (
-	github.com/dave/jennifer v1.4.0
+	github.com/dave/jennifer v1.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/filecoin-ffi v0.30.4-0.20200716204036-cddc56607e1d
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
@@ -15,7 +15,7 @@ require (
 	github.com/filecoin-project/lotus v0.4.3-0.20200803225238-cd8537e76fc0
 	github.com/filecoin-project/sector-storage v0.0.0-20200803184904-3cab915fd225
 	github.com/filecoin-project/specs-actors v0.8.6
-	github.com/gorilla/rpc v1.2.0
+	github.com/gorilla/rpc v1.2.0 // indirect
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834
 	github.com/ipfs/go-cid v0.0.7
@@ -24,7 +24,7 @@ require (
 	github.com/ipfs/go-ipfs-exchange-offline v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.5-0.20200428170625-a0bd04d3cbdf
 	github.com/ipfs/go-ipld-format v0.2.0
-	github.com/ipfs/go-log v1.0.4
+	github.com/ipfs/go-log v1.0.4 // indirect
 	github.com/ipfs/go-merkledag v0.3.1
 	github.com/ipld/go-car v0.1.1-0.20200526133713-1c7508d55aae
 	github.com/ipsn/go-secp256k1 v0.0.0-20180726113642-9d62b9f0bc52
