@@ -219,7 +219,7 @@ func toLotusSignedMsg(msg *vtypes.SignedMessage) *types.SignedMessage {
 	}
 }
 
-var _ vstate.VMWrapper = &StateWrapper{}
+//var _ vstate.VMWrapper = &StateWrapper{}
 
 type StateWrapper struct {
 	// The blockstore underlying the state tree and storage.
@@ -258,9 +258,9 @@ func NewState() *StateWrapper {
 	}
 }
 
-func (s *StateWrapper) NewVM() {
-	return
-}
+//func (s *StateWrapper) NewVM() {
+//return
+//}
 
 func (s *StateWrapper) Root() cid.Cid {
 	return s.stateRoot

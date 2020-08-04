@@ -40,7 +40,7 @@ func NewRandomnessSource() state.RandomnessSource {
 
 // StateDriver mutates and inspects a state.
 type StateDriver struct {
-	st state.VMWrapper
+	st *StateWrapper
 	w  state.KeyManager
 	rs state.RandomnessSource
 
@@ -60,12 +60,12 @@ type MinerInfo struct {
 }
 
 // NewStateDriver creates a new state driver for a state.
-func NewStateDriver(st state.VMWrapper, w state.KeyManager) *StateDriver {
+func NewStateDriver(st *StateWrapper, w state.KeyManager) *StateDriver {
 	return &StateDriver{st, w, NewRandomnessSource(), nil, make(map[address.Address]address.Address)}
 }
 
 // State returns the state.
-func (d *StateDriver) State() state.VMWrapper {
+func (d *StateDriver) State() *StateWrapper {
 	return d.st
 }
 
@@ -199,12 +199,12 @@ func (d *StateDriver) newMinerAccountActor(sealProofType abi_spec.RegisteredSeal
 	return minerActorIDAddr
 }
 
-func AsStore(vmw state.VMWrapper) adt_spec.Store {
+func AsStore(vmw *StateWrapper) adt_spec.Store {
 	return &storeWrapper{vmw: vmw}
 }
 
 type storeWrapper struct {
-	vmw state.VMWrapper
+	vmw *StateWrapper
 }
 
 func (s storeWrapper) Context() context.Context {

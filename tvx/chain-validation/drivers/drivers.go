@@ -22,7 +22,6 @@ func NewTestDriver() *TestDriver {
 	})
 
 	sd := NewStateDriver(stateWrapper, newKeyManager())
-	stateWrapper.NewVM()
 
 	err := initializeStoreWithAdtRoots(AsStore(sd.st))
 	require.NoError(t, err)

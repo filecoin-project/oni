@@ -238,38 +238,6 @@ func (b *TestDriverBuilder) WithDefaultGasPrice(price abi_spec.TokenAmount) *Tes
 	return b
 }
 
-func (b *TestDriverBuilder) Build() *TestDriver {
-	syscalls := NewChainValidationSysCalls()
-	stateWrapper, applier := b.factory.NewStateAndApplier(syscalls)
-	sd := NewStateDriver(stateWrapper, b.factory.NewKeyManager())
-	stateWrapper.NewVM()
-
-	err := initializeStoreWithAdtRoots(AsStore(sd.st))
-	require.NoError(t, err)
-
-	for _, acts := range b.actorStates {
-		_, _, err := sd.State().CreateActor(acts.Code, acts.Addr, acts.Balance, acts.State)
-		require.NoError(t, err)
-	}
-
-	minerActorIDAddr := sd.newMinerAccountActor(TestSealProofType, abi_spec.ChainEpoch(0))
-
-	exeCtx := types.NewExecutionContext(1, minerActorIDAddr)
-	producer := chain.NewMessageProducer(b.defaultGasLimit, b.defaultGasPrice)
-	validator := chain.NewValidator(applier)
-
-	return &TestDriver{
-		StateDriver:     sd,
-		MessageProducer: producer,
-		validator:       validator,
-		ExeCtx:          exeCtx,
-
-		Config: b.factory.NewValidationConfig(),
-
-		SysCalls: syscalls,
-	}
-}
-
 type TestDriver struct {
 	*StateDriver
 
