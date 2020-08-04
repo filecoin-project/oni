@@ -202,7 +202,7 @@ func (m mockStore) Context() context.Context {
 
 func NewTestDriver() *TestDriver {
 	syscalls := NewChainValidationSysCalls()
-	stateWrapper := NewState()
+	stateWrapper := NewStateWrapper()
 	applier := NewApplier(stateWrapper, func(ctx context.Context, cstate *state.StateTree, cst cbor.IpldStore) runtime.Syscalls {
 		return syscalls
 	})
