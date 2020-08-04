@@ -83,10 +83,6 @@
           "description": "state tree postconditions that must be true for this test vector to pass",
           "type": "object",
           "properties": {
-            "root_cid": {
-              "title": "the root CID of the state tree",
-              "type": "string"
-            },
             "car_bytes": {
               "title": "the hex-encoded CAR containing the full state tree",
               "description": "the hex-encoded CAR containing the full state tree, for debugging/diffing purposes",
