@@ -19,14 +19,14 @@ import (
 	"github.com/filecoin-project/oni/tvx/schema"
 )
 
-var messagesTestCmd = &cli.Command{
-	Name:        "messages-test",
+var suiteMessagesCmd = &cli.Command{
+	Name:        "suite-messages",
 	Description: "",
 	Flags:       []cli.Flag{&cidFlag, &apiFlag},
-	Action:      runMessagesTest,
+	Action:      suiteMessages,
 }
 
-func runMessagesTest(c *cli.Context) error {
+func suiteMessages(c *cli.Context) error {
   return MessageTest_AccountActorCreation()
 }
 

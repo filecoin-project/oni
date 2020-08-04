@@ -26,7 +26,7 @@ func main() {
 			filterCmd,
 			generateMessageCmd,
 			execLotusCmd,
-			messagesTestCmd,
+			suiteMessagesCmd,
 		},
 	}
 
