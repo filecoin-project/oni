@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
 	"os"
 
@@ -91,10 +90,6 @@ func MessageTest_AccountActorCreation() error {
 	}
 	for _, tc := range testCases {
 		err := func() error {
-			fmt.Println()
-			fmt.Println(tc.desc)
-			fmt.Println("=====")
-
 			td := drivers.NewTestDriver()
 
 			v := newEmptyMessageVector()
@@ -124,7 +119,7 @@ func MessageTest_AccountActorCreation() error {
 
 			// encode and output
 			enc := json.NewEncoder(os.Stdout)
-			enc.SetIndent("", "  ")
+			//enc.SetIndent("", "  ")
 			if err := enc.Encode(&v); err != nil {
 				return err
 			}
@@ -141,10 +136,6 @@ func MessageTest_AccountActorCreation() error {
 }
 
 func MessageTest_InitActorSequentialIDAddressCreate() error {
-	fmt.Println()
-	fmt.Println("MessageTest_InitActorSequentialIDAddressCreate")
-	fmt.Println("=====")
-
 	td := drivers.NewTestDriver()
 
 	v := newEmptyMessageVector()
@@ -193,7 +184,7 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 
 	// encode and output
 	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
+	//enc.SetIndent("", "  ")
 	if err := enc.Encode(&v); err != nil {
 		return err
 	}
