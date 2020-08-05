@@ -16,12 +16,14 @@ import (
 )
 
 type Message struct {
+	Version int64
+
 	// Address of the receiving actor.
 	To address.Address
 	// Address of the sending actor.
 	From address.Address
 	// Expected CallSeqNum of the sending actor (only for top-level messages).
-	CallSeqNum uint64
+	Nonce uint64
 
 	// Amount of value to transfer from sender's to receiver's balance.
 	Value big.Int
@@ -59,7 +61,7 @@ func (t *Message) MarshalCBOR(w io.Writer) error {
 
 	// t.Nonce (uint64) (uint64)
 
-	if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajUnsignedInt, uint64(t.CallSeqNum))); err != nil {
+	if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajUnsignedInt, uint64(t.Nonce))); err != nil {
 		return err
 	}
 
@@ -148,7 +150,7 @@ func (t *Message) UnmarshalCBOR(r io.Reader) error {
 		if maj != cbg.MajUnsignedInt {
 			return fmt.Errorf("wrong type for uint64 field")
 		}
-		t.CallSeqNum = uint64(extra)
+		t.Nonce = uint64(extra)
 
 	}
 	// t.Value (big.Int) (struct)

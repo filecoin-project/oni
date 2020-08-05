@@ -32,16 +32,16 @@ func (mp *MessageProducer) Messages() []*types.Message {
 }
 
 // BuildFull creates and returns a single message.
-func (mp *MessageProducer) BuildFull(from, to address.Address, method abi_spec.MethodNum, callSeq uint64, value, gasPrice big_spec.Int, gasLimit int64, params []byte) *types.Message {
+func (mp *MessageProducer) BuildFull(from, to address.Address, method abi_spec.MethodNum, nonce uint64, value, gasPrice big_spec.Int, gasLimit int64, params []byte) *types.Message {
 	fm := &types.Message{
-		To:         to,
-		From:       from,
-		CallSeqNum: callSeq,
-		Value:      value,
-		Method:     method,
-		Params:     params,
-		GasPrice:   gasPrice,
-		GasLimit:   gasLimit,
+		To:       to,
+		From:     from,
+		Nonce:    nonce,
+		Value:    value,
+		Method:   method,
+		Params:   params,
+		GasPrice: gasPrice,
+		GasLimit: gasLimit,
 	}
 	mp.messages = append(mp.messages, fm)
 	return fm
