@@ -41,10 +41,10 @@ workflows:
   version: 2
   main:
     jobs:
-      - build-linux
+      - build-test-linux
 
 jobs:
-  build-linux:
+  build-test-linux:
     executor: linux
     steps:
       - setup
@@ -54,10 +54,7 @@ jobs:
       - run:
           name: "build tvx"
           command: pushd tvx && go build .
-  run-test-vector-suites:
-    executor: linux
-    steps:
       - run:
-          name: "messages test vector suite"
-          command: ./tvx suite-messages | ./tvx exec-lotus --stdin
+          name: "run messages test vector suite"
+          command: pushd tvx && ./tvx suite-messages | ./tvx exec-lotus --stdin
 
