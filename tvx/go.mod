@@ -35,7 +35,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200723185710-6a3894a6352b
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi

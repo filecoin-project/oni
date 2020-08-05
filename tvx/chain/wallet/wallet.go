@@ -1,13 +1,13 @@
 package wallet
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/ipsn/go-secp256k1"
 	blake2b "github.com/minio/blake2b-simd"
-	"golang.org/x/xerrors"
 
 	bls "github.com/filecoin-project/filecoin-ffi"
 )
@@ -40,15 +40,15 @@ func NewKey(keyinfo KeyInfo) (*Key, error) {
 	case crypto.SigTypeSecp256k1:
 		k.Address, err = address.NewSecp256k1Address(k.PublicKey)
 		if err != nil {
-			return nil, xerrors.Errorf("converting Secp256k1 to address: %w", err)
+			return nil, fmt.Errorf("converting Secp256k1 to address: %w", err)
 		}
 	case crypto.SigTypeBLS:
 		k.Address, err = address.NewBLSAddress(k.PublicKey)
 		if err != nil {
-			return nil, xerrors.Errorf("converting BLS to address: %w", err)
+			return nil, fmt.Errorf("converting BLS to address: %w", err)
 		}
 	default:
-		return nil, xerrors.Errorf("unknown key type")
+		return nil, errors.New("unknown key type")
 	}
 	return k, nil
 
