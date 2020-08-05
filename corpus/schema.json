@@ -152,11 +152,11 @@
       },
       "then": {
         "required": [
-          "apply_message"
+          "apply_messages"
         ],
         "properties": {
-          "apply_message": {
-            "$ref": "#/definitions/apply_message"
+          "apply_messages": {
+            "$ref": "#/definitions/apply_messages"
           }
         }
       }
