@@ -29,7 +29,6 @@ func (t *TipSetMessageBuilder) WithBlockBuilder(bb *BlockBuilder) *TipSetMessage
 
 func (t *TipSetMessageBuilder) Apply() types.ApplyTipSetResult {
 	result := t.apply()
-	t.validateState(result)
 
 	t.Clear()
 	return result
@@ -39,7 +38,6 @@ func (t *TipSetMessageBuilder) ApplyAndValidate() types.ApplyTipSetResult {
 	result := t.apply()
 
 	t.validateResult(result)
-	t.validateState(result)
 
 	t.Clear()
 	return result
@@ -76,28 +74,6 @@ func (tb *TipSetMessageBuilder) validateResult(result types.ApplyTipSetResult) {
 			assert.Equal(t, expected[i].ReturnVal, result.Receipts[i].ReturnValue, "Message Number: %d Expected ReturnValue: %v Actual ReturnValue: %v", i, expected[i].ReturnVal, result.Receipts[i].ReturnValue)
 		}
 	}
-}
-
-func (t *TipSetMessageBuilder) validateState(result types.ApplyTipSetResult) {
-	//if t.driver.Config.ValidateGas() {
-	//for i := range result.Receipts {
-	//expectedGas, found := t.driver.StateTracker.NextExpectedGas()
-	//if found {
-	//assert.Equal(t.driver.T, expectedGas, result.Receipts[i].GasUsed, "Message Number: %d Expected GasUsed: %d Actual GasUsed: %d", i, expectedGas, result.Receipts[i].GasUsed)
-	//} else {
-	//t.driver.T.Logf("WARNING: failed to find expected gas cost for message number: %d", i)
-	//}
-	//}
-	//}
-	//if t.driver.Config.ValidateStateRoot() {
-	//expectedRoot, found := t.driver.StateTracker.NextExpectedStateRoot()
-	//actualRoot := t.driver.State().Root()
-	//if found {
-	//assert.Equal(t.driver.T, expectedRoot, actualRoot, "Expected StateRoot: %s Actual StateRoot: %s", expectedRoot, actualRoot)
-	//} else {
-	//t.driver.T.Log("WARNING: failed to find expected state  root for message number")
-	//}
-	//}
 }
 
 func (t *TipSetMessageBuilder) Clear() {

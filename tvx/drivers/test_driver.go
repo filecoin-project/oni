@@ -266,7 +266,6 @@ type TestDriver struct {
 
 func (td *TestDriver) ApplyMessage(msg *types.Message) types.ApplyMessageResult {
 	result := td.applyMessage(msg)
-	//td.validateState(msg, result)
 	return result
 }
 
@@ -285,7 +284,6 @@ func (td *TestDriver) ApplyFailure(msg *types.Message, code exitcode.ExitCode) t
 func (td *TestDriver) applyMessageExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) types.ApplyMessageResult {
 	result := td.applyMessage(msg)
 	td.validateResult(result, code, retval)
-	//td.validateState(msg, result)
 	return result
 }
 
@@ -299,7 +297,6 @@ func (td *TestDriver) applyMessage(msg *types.Message) (result types.ApplyMessag
 	result, err := td.applier.ApplyMessage(td.ExeCtx.Epoch, msg)
 	require.NoError(t, err)
 
-	//td.StateTracker.TrackResult(result)
 	return result
 }
 
@@ -309,7 +306,6 @@ func (td *TestDriver) applyMessage(msg *types.Message) (result types.ApplyMessag
 
 func (td *TestDriver) ApplySigned(msg *types.Message) types.ApplyMessageResult {
 	result := td.applyMessageSigned(msg)
-	//td.validateState(msg, result)
 	return result
 }
 
@@ -328,7 +324,6 @@ func (td *TestDriver) ApplySignedFailure(msg *types.Message, code exitcode.ExitC
 func (td *TestDriver) applyMessageSignedExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) types.ApplyMessageResult {
 	result := td.applyMessageSigned(msg)
 	td.validateResult(result, code, retval)
-	//td.validateState(msg, result)
 	return result
 }
 func (td *TestDriver) applyMessageSigned(msg *types.Message) (result types.ApplyMessageResult) {
@@ -350,7 +345,6 @@ func (td *TestDriver) applyMessageSigned(msg *types.Message) (result types.Apply
 	result, err = td.applier.ApplySignedMessage(td.ExeCtx.Epoch, smsgs)
 	require.NoError(t, err)
 
-	//td.StateTracker.TrackResult(result)
 	return result
 }
 
