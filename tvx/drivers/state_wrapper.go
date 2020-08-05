@@ -56,10 +56,6 @@ func NewStateWrapper() *StateWrapper {
 	}
 }
 
-//func (s *StateWrapper) NewVM() {
-//return
-//}
-
 func (s *StateWrapper) Root() cid.Cid {
 	return s.stateRoot
 }
