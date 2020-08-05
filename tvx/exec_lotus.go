@@ -58,13 +58,14 @@ func runExecLotus(_ *cli.Context) error {
 	switch tv.Class {
 	case "message":
 		var (
-			ctx   = context.Background()
-			epoch = tv.Pre.Epoch
+			ctx     = context.Background()
+			epoch   = tv.Pre.Epoch
+			preroot = tv.Pre.StateTree.RootCID
 		)
 
 		bs := blockstore.NewTemporary()
 
-		buf := bytes.NewReader(tv.Pre.StateTree.CAR)
+		buf := bytes.NewReader(tv.CAR)
 		gr, err := gzip.NewReader(buf)
 		if err != nil {
 			return err
@@ -80,8 +81,6 @@ func runExecLotus(_ *cli.Context) error {
 
 		driver := lotus.NewDriver(ctx)
 
-		root := header.Roots[0]
-
 		for i, m := range tv.ApplyMessages {
 			fmt.Printf("decoding message %v\n", i)
 			msg, err := types.DecodeMessage(m)
@@ -91,7 +90,7 @@ func runExecLotus(_ *cli.Context) error {
 
 			fmt.Printf("executing message %v\n", i)
 			var applyRet *vm.ApplyRet
-			applyRet, root, err = driver.ExecuteMessage(msg, root, bs, epoch)
+			applyRet, preroot, err = driver.ExecuteMessage(msg, preroot, bs, epoch)
 			if err != nil {
 				return err
 			}
