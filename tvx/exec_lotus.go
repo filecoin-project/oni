@@ -9,6 +9,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/filecoin-project/oni/tvx/schema"
 
@@ -78,16 +79,25 @@ func runExecLotus(_ *cli.Context) error {
 
 		fmt.Println("roots: ", header.Roots)
 
-		fmt.Println("decoding message")
-		msg, err := types.DecodeMessage(tv.ApplyMessages[0])
-		if err != nil {
-			return err
-		}
-
 		driver := lotus.NewDriver(ctx)
 
-		fmt.Println("executing message")
-		spew.Dump(driver.ExecuteMessage(msg, header.Roots[0], bs, epoch))
+		root := header.Roots[0]
+
+		for i, m := range tv.ApplyMessages {
+			fmt.Printf("decoding message %v\n", i)
+			msg, err := types.DecodeMessage(m)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("executing message %v\n", i)
+			var applyRet *vm.ApplyRet
+			applyRet, root, err = driver.ExecuteMessage(msg, root, bs, epoch)
+			if err != nil {
+				return err
+			}
+			spew.Dump(applyRet)
+		}
 
 		return nil
 
