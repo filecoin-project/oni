@@ -7,7 +7,6 @@ import (
 
 	"github.com/ipld/go-car"
 
-
 	"github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipfs/go-blockservice"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/urfave/cli/v2"
 	"github.com/hashicorp/go-multierror"
+	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/go-address"
 
@@ -15,8 +15,8 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
-	utils "github.com/filecoin-project/oni/tvx/test-suites/utils"
 	"github.com/filecoin-project/oni/tvx/schema"
+	utils "github.com/filecoin-project/oni/tvx/test-suites/utils"
 )
 
 var suiteMessagesCmd = &cli.Command{
@@ -98,7 +98,7 @@ func MessageTest_AccountActorCreation() error {
 			v.Pre.StateTree.CAR = td.MarshalState()
 
 			msg := td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0))
-      b, err := msg.Serialize()
+			b, err := msg.Serialize()
 			if err != nil {
 				return err
 			}
@@ -145,8 +145,8 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 
 	receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
-	firstPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+1)
-	secondPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+2)
+	firstPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID) + 1)
+	secondPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID) + 2)
 
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
@@ -208,4 +208,3 @@ func newEmptyMessageVector() schema.TestVector {
 		},
 	}
 }
-

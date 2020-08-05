@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"os"
 
-	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 	paych_spec "github.com/filecoin-project/specs-actors/actors/builtin/paych"
 	crypto_spec "github.com/filecoin-project/specs-actors/actors/crypto"
+	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 
 	"github.com/filecoin-project/oni/tvx/chain"
-	"github.com/filecoin-project/oni/tvx/test-suites/utils"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/test-suites/utils"
 )
 
 func MessageTest_MessageApplicationEdgecases() error {
@@ -192,7 +192,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
 		// the _expected_ address of the payment channel
-		paychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID)+1)
+		paychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID) + 1)
 		createRet := td.ComputeInitActorExecReturn(sender, 0, 0, paychAddr)
 
 		msg := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
@@ -202,21 +202,21 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			chain.MustSerialize(&createRet))
 
-			msg = td.MessageProducer.PaychUpdateChannelState(sender, paychAddr, &paych_spec.UpdateChannelStateParams{
-				Sv: paych_spec.SignedVoucher{
-					ChannelAddr:     paychAddr,
-					TimeLockMin:     pcTimeLock,
-					TimeLockMax:     pcTimeLock,
-					SecretPreimage:  nil,
-					Extra:           nil,
-					Lane:            pcLane,
-					Nonce:           pcNonce,
-					Amount:          pcAmount,
-					MinSettleHeight: 0,
-					Merges:          nil,
-					Signature:       pcSig, // construct with invalid signature
-				},
-			}, chain.Nonce(1), chain.Value(big_spec.Zero()))
+		msg = td.MessageProducer.PaychUpdateChannelState(sender, paychAddr, &paych_spec.UpdateChannelStateParams{
+			Sv: paych_spec.SignedVoucher{
+				ChannelAddr:     paychAddr,
+				TimeLockMin:     pcTimeLock,
+				TimeLockMax:     pcTimeLock,
+				SecretPreimage:  nil,
+				Extra:           nil,
+				Lane:            pcLane,
+				Nonce:           pcNonce,
+				Amount:          pcAmount,
+				MinSettleHeight: 0,
+				Merges:          nil,
+				Signature:       pcSig, // construct with invalid signature
+			},
+		}, chain.Nonce(1), chain.Value(big_spec.Zero()))
 		v.ApplyMessages = append(v.ApplyMessages, msg.MustSerialize())
 
 		// message application fails due to invalid argument (signature).
@@ -248,7 +248,6 @@ func MessageTest_MessageApplicationEdgecases() error {
 
 		msg := td.MessageProducer.MarketComputeDataCommitment(alice, alice, nil, chain.Nonce(0))
 		v.ApplyMessages = append(v.ApplyMessages, msg.MustSerialize())
-
 
 		// message application fails because ComputeDataCommitment isn't defined
 		// on the recipient actor
