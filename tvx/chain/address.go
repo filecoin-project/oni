@@ -1,4 +1,4 @@
-package utils
+package chain
 
 import (
 	"encoding/binary"
@@ -11,7 +11,7 @@ import (
 func NewIDAddr(id uint64) addr.Address {
 	address, err := addr.NewIDAddress(id)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	return address
 }
@@ -20,7 +20,7 @@ func NewSECP256K1Addr(pubkey string) addr.Address {
 	// the pubkey of a secp256k1 address is hashed for consistent length.
 	address, err := addr.NewSecp256k1Address([]byte(pubkey))
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	return address
 }
@@ -31,7 +31,7 @@ func NewBLSAddr(seed int64) addr.Address {
 
 	address, err := addr.NewBLSAddress(buf)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	return address
 }
@@ -39,7 +39,7 @@ func NewBLSAddr(seed int64) addr.Address {
 func NewActorAddr(data string) addr.Address {
 	address, err := addr.NewActorAddress([]byte(data))
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	return address
 }

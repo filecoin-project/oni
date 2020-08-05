@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/oni/tvx/chain"
 	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 	miner_spec "github.com/filecoin-project/specs-actors/actors/builtin/miner"
@@ -16,8 +17,6 @@ import (
 
 	builtin_spec "github.com/filecoin-project/specs-actors/actors/builtin"
 	account_spec "github.com/filecoin-project/specs-actors/actors/builtin/account"
-
-	"github.com/filecoin-project/oni/tvx/test-suites/utils"
 )
 
 var (
@@ -121,7 +120,7 @@ func (d *StateDriver) newMinerAccountActor(sealProofType abi_spec.RegisteredSeal
 	// creat a miner, owner, and its worker
 	minerOwnerPk, minerOwnerID := d.NewAccountActor(address.SECP256K1, big_spec.NewInt(1_000_000_000))
 	minerWorkerPk, minerWorkerID := d.NewAccountActor(address.BLS, big_spec.Zero())
-	expectedMinerActorIDAddress := utils.NewIDAddr(utils.IdFromAddress(minerWorkerID) + 1)
+	expectedMinerActorIDAddress := chain.NewIDAddr(chain.IdFromAddress(minerWorkerID) + 1)
 	minerActorAddrs := computeInitActorExecReturn(minerWorkerPk, 0, 1, expectedMinerActorIDAddress)
 
 	d.minerInfo = &MinerInfo{

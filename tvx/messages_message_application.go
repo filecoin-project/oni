@@ -12,7 +12,6 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
-	"github.com/filecoin-project/oni/tvx/test-suites/utils"
 )
 
 func MessageTest_MessageApplicationEdgecases() error {
@@ -64,7 +63,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 			exitcode_spec.SysErrOutOfGas)
 
 		// Expect Message application to fail due to lack of gas when sender is unknown
-		unknown := utils.NewIDAddr(10000000)
+		unknown := chain.NewIDAddr(10000000)
 		msg := td.MessageProducer.Transfer(unknown, alice, chain.Value(transferAmnt), chain.Nonce(0), chain.GasPrice(10), chain.GasLimit(1))
 		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
 
@@ -102,7 +101,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 			defer func() { aliceNonce++ }()
 			return aliceNonce
 		}
-		newAccountA := utils.NewSECP256K1Addr("1")
+		newAccountA := chain.NewSECP256K1Addr("1")
 
 		msg := td.MessageProducer.Transfer(alice, newAccountA, chain.Value(transferAmnt), chain.Nonce(aliceNonceF()))
 		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
@@ -113,7 +112,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		// decrease the gas cost by `gasStep` for each apply and ensure `SysErrOutOfGas` is always returned.
 		trueGas := int64(result.GasUsed())
 		gasStep := int64(trueGas / 100)
-		newAccountB := utils.NewSECP256K1Addr("2")
+		newAccountB := chain.NewSECP256K1Addr("2")
 		for tryGas := trueGas - gasStep; tryGas > 0; tryGas -= gasStep {
 			msg := td.MessageProducer.Transfer(alice, newAccountB, chain.Value(transferAmnt), chain.Nonce(aliceNonceF()), chain.GasPrice(1), chain.GasLimit(tryGas))
 			v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
@@ -158,7 +157,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			exitcode_spec.SysErrSenderStateInvalid)
 
-		unknown := utils.NewIDAddr(10000000)
+		unknown := chain.NewIDAddr(10000000)
 		msg = td.MessageProducer.Transfer(unknown, alice, chain.Value(transferAmnt), chain.Nonce(1))
 		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
 
@@ -208,7 +207,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
 		// the _expected_ address of the payment channel
-		paychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID) + 1)
+		paychAddr := chain.NewIDAddr(chain.IdFromAddress(receiverID) + 1)
 		createRet := td.ComputeInitActorExecReturn(sender, 0, 0, paychAddr)
 
 		msg := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
@@ -302,7 +301,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 
 		// Sending a message to non-existent ID address must produce an error.
-		unknownA := utils.NewIDAddr(10000000)
+		unknownA := chain.NewIDAddr(10000000)
 		msg := td.MessageProducer.Transfer(alice, unknownA, chain.Value(transferAmnt), chain.Nonce(0))
 
 		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
@@ -312,7 +311,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 			exitcode_spec.SysErrInvalidReceiver)
 
 		// Sending a message to non-existing actor address must produce an error.
-		unknownB := utils.NewActorAddr("1234")
+		unknownB := chain.NewActorAddr("1234")
 		msg = td.MessageProducer.Transfer(alice, unknownB, chain.Value(transferAmnt), chain.Nonce(1))
 		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
 

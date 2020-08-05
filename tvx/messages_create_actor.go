@@ -15,7 +15,6 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
-	utils "github.com/filecoin-project/oni/tvx/test-suites/utils"
 )
 
 var suiteMessagesCmd = &cli.Command{
@@ -49,7 +48,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(10_000_000_000),
 
-			utils.NewSECP256K1Addr("publickeyfoo"),
+			chain.NewSECP256K1Addr("publickeyfoo"),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.Ok,
@@ -59,7 +58,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(10_000_000_000),
 
-			utils.NewBLSAddr(1),
+			chain.NewBLSAddr(1),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.Ok,
@@ -69,7 +68,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(9_999),
 
-			utils.NewSECP256K1Addr("publickeybar"),
+			chain.NewSECP256K1Addr("publickeybar"),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.SysErrSenderStateInvalid,
@@ -79,7 +78,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(9_999),
 
-			utils.NewBLSAddr(1),
+			chain.NewBLSAddr(1),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.SysErrSenderStateInvalid,
@@ -148,8 +147,8 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 
 	receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
-	firstPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID) + 1)
-	secondPaychAddr := utils.NewIDAddr(utils.IdFromAddress(receiverID) + 2)
+	firstPaychAddr := chain.NewIDAddr(chain.IdFromAddress(receiverID) + 1)
+	secondPaychAddr := chain.NewIDAddr(chain.IdFromAddress(receiverID) + 2)
 
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
