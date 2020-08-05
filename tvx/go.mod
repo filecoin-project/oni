@@ -8,6 +8,7 @@ require (
 	github.com/filecoin-project/lotus v0.4.3-0.20200801235920-43491cb7edfd
 	github.com/filecoin-project/sector-storage v0.0.0-20200730203805-7153e1dd05b5
 	github.com/filecoin-project/specs-actors v0.8.6
+	github.com/google/go-cmp v0.4.0
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834
 	github.com/ipfs/go-cid v0.0.7

@@ -9,9 +9,7 @@ import (
 	"github.com/filecoin-project/lotus/chain/state"
 	bs "github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-hamt-ipld"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	"github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 )
 
@@ -34,21 +32,24 @@ func RecoverStateTree(ctx context.Context, raw []byte, root cid.Cid) (*state.Sta
 
 	fmt.Printf("roots are %v\n", ch.Roots)
 
-	nd, err := hamt.LoadNode(ctx, cborstore, root, hamt.UseTreeBitWidth(5))
+	return state.LoadStateTree(cborstore, root)
+}
+
+// RecoverStore reads hex encoded car back the store of cids.
+func RecoverStore(ctx context.Context, raw []byte) (*ProxyingStores, error) {
+	ps := NewProxyingStore(ctx, nil)
+
+	buf := bytes.NewBuffer(raw)
+	gr, err := gzip.NewReader(buf)
 	if err != nil {
 		return nil, err
 	}
-	if err := nd.ForEach(ctx, func(k string, val interface{}) error {
-		n, ok := val.(format.Node)
-		if !ok {
-			fmt.Printf("hampt %s (not node): %+v\n", k, val)
-		} else {
-			fmt.Printf("%s: %#v\n", k, n)
-		}
-		return nil
-	}); err != nil {
+	defer gr.Close()
+
+	_, err = car.LoadCar(ps.Blockstore, gr)
+	if err != nil {
 		return nil, err
 	}
 
-	return state.LoadStateTree(cborstore, root)
+	return ps, nil
 }

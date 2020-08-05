@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/lib/blockstore"
@@ -40,6 +41,10 @@ type proxyingBlockstore struct {
 func (pb *proxyingBlockstore) Get(cid cid.Cid) (blocks.Block, error) {
 	if block, err := pb.Blockstore.Get(cid); err == nil {
 		return block, err
+	}
+
+	if pb.api == nil {
+		return nil, fmt.Errorf("not found")
 	}
 
 	// fmt.Printf("fetching cid via rpc: %v\n", cid)

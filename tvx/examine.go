@@ -4,32 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"math/big"
 	"os"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/ipfs/go-cid"
+	hamt "github.com/ipfs/go-hamt-ipld"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/urfave/cli/v2"
 
-	"github.com/filecoin-project/specs-actors/actors/builtin"
-	init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
-	"github.com/filecoin-project/specs-actors/actors/util/adt"
+	"github.com/filecoin-project/lotus/chain/types"
+
+	// "github.com/filecoin-project/specs-actors/actors/builtin"
+	// init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
+	// "github.com/filecoin-project/specs-actors/actors/util/adt"
 
 	"github.com/filecoin-project/oni/tvx/state"
 )
 
-func trimQuotes(s string) string {
-	if len(s) >= 2 {
-		if s[0] == '"' && s[len(s)-1] == '"' {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
-}
-
 var examineFlags struct {
 	file string
-	pre  bool
-	post bool
 }
 
 var examineCmd = &cli.Command{
@@ -42,16 +36,6 @@ var examineCmd = &cli.Command{
 			Usage:       "test vector file",
 			Required:    true,
 			Destination: &examineFlags.file,
-		},
-		&cli.BoolFlag{
-			Name:        "pre",
-			Usage:       "examine the precondition state tree",
-			Destination: &examineFlags.pre,
-		},
-		&cli.BoolFlag{
-			Name:        "post",
-			Usage:       "examine the postcondition state tree",
-			Destination: &examineFlags.post,
 		},
 	},
 }
@@ -67,48 +51,108 @@ func runExamineCmd(_ *cli.Context) error {
 		return err
 	}
 
-	examine := func(root cid.Cid) error {
-		encoded := tv.CAR
-		tree, err := state.RecoverStateTree(context.TODO(), encoded, root)
-		if err != nil {
-			return err
-		}
+	/*
+		examine := func(root cid.Cid) error {
+			encoded := tv.CAR
+			tree, err := state.RecoverStateTree(context.TODO(), encoded, root)
+			if err != nil {
+				return err
+			}
 
-		initActor, err := tree.GetActor(builtin.InitActorAddr)
-		if err != nil {
-			return fmt.Errorf("cannot recover init actor: %w", err)
-		}
+			initActor, err := tree.GetActor(builtin.InitActorAddr)
+			if err != nil {
+				return fmt.Errorf("cannot recover init actor: %w", err)
+			}
 
-		var ias init_.State
-		if err := tree.Store.Get(context.TODO(), initActor.Head, &ias); err != nil {
-			return err
-		}
+			var ias init_.State
+			if err := tree.Store.Get(context.TODO(), initActor.Head, &ias); err != nil {
+				return err
+			}
 
-		adtStore := adt.WrapStore(context.TODO(), tree.Store)
-		m, err := adt.AsMap(adtStore, ias.AddressMap)
-		if err != nil {
-			return err
+			adtStore := adt.WrapStore(context.TODO(), tree.Store)
+			m, err := adt.AsMap(adtStore, ias.AddressMap)
+			if err != nil {
+				return err
+			}
+			actors, err := m.CollectKeys()
+			for _, actor := range actors {
+				fmt.Printf("%s\n", actor)
+			}
+			return nil
 		}
-		actors, err := m.CollectKeys()
-		for _, actor := range actors {
-			fmt.Printf("%s\n", actor)
-		}
-		return nil
+	*/
+
+	encoded, err := state.RecoverStore(context.TODO(), tv.CAR)
+	if err != nil {
+		return err
+	}
+	preTree, err := hamt.LoadNode(context.TODO(), encoded.CBORStore, tv.Pre.StateTree.RootCID, hamt.UseTreeBitWidth(5))
+	if err != nil {
+		return err
+	}
+	postTree, err := hamt.LoadNode(context.TODO(), encoded.CBORStore, tv.Post.StateTree.RootCID, hamt.UseTreeBitWidth(5))
+	if err != nil {
+		return err
 	}
 
-	if examineFlags.pre {
-		log.Print("examining precondition tree")
-		if err := examine(tv.Pre.StateTree.RootCID); err != nil {
-			return err
-		}
-	}
-
-	if examineFlags.post {
-		log.Print("examining postcondition tree")
-		if err := examine(tv.Post.StateTree.RootCID); err != nil {
-			return err
-		}
-	}
+	diff(encoded,
+		&hamtNode{tv.Pre.StateTree.RootCID, preTree},
+		&hamtNode{tv.Pre.StateTree.RootCID, preTree},
+		&hamtNode{tv.Post.StateTree.RootCID, postTree})
 
 	return nil
+}
+
+func diff(store *state.ProxyingStores, root, a, b *hamtNode) {
+	hamtExpander := func(n *hamtNode) *dag {
+		d := dag{
+			ID:       n.Cid,
+			Children: make(map[cid.Cid]interface{}),
+			KVs:      make([]kv, 0),
+		}
+		for _, p := range n.Node.Pointers {
+			if p.Link.Defined() {
+				child, _ := hamt.LoadNode(context.TODO(), store.CBORStore, p.Link, hamt.UseTreeBitWidth(5))
+				d.Children[p.Link] = hamtNode{p.Link, child}
+			} else {
+				for _, pkv := range p.KVs {
+					var actor types.Actor
+					cbor.DecodeInto(pkv.Value.Raw, &actor)
+					d.KVs = append(d.KVs, kv{pkv.Key, &actor})
+				}
+			}
+		}
+		return &d
+	}
+
+	if d := cmp.Diff(a, b,
+		cmp.Comparer(cidComparer),
+		cmp.Comparer(bigIntComparer),
+		cmp.Transformer("hamt.Node", hamtExpander)); d != "" {
+		fmt.Printf("Diff: %v\n", d)
+	}
+}
+
+type dag struct {
+	ID       cid.Cid
+	Children map[cid.Cid]interface{}
+	KVs      []kv
+}
+
+type kv struct {
+	Key   []byte
+	Value *types.Actor
+}
+
+type hamtNode struct {
+	Cid  cid.Cid
+	Node *hamt.Node
+}
+
+func cidComparer(a, b cid.Cid) bool {
+	return a.Equals(b)
+}
+
+func bigIntComparer(a, b *big.Int) bool {
+	return a.Cmp(b) == 0
 }
