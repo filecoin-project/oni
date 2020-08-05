@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,8 +18,7 @@ import (
 )
 
 var execLotusFlags struct {
-	file  string
-	stdin bool
+	file string
 }
 
 var execLotusCmd = &cli.Command{
@@ -32,35 +30,12 @@ var execLotusCmd = &cli.Command{
 			Usage:       "input file",
 			Destination: &execLotusFlags.file,
 		},
-		&cli.BoolFlag{
-			Name:        "stdin",
-			Usage:       "",
-			Destination: &execLotusFlags.stdin,
-		},
 	},
 	Action: runExecLotus,
 }
 
 func runExecLotus(_ *cli.Context) error {
 	switch {
-	case execLotusFlags.stdin == true:
-		dec := json.NewDecoder(os.Stdin)
-		for {
-			var tv TestVector
-
-			err := dec.Decode(&tv)
-			if err == io.EOF {
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-
-			err = executeTestVector(tv)
-			if err != nil {
-				return err
-			}
-		}
 	case execLotusFlags.file != "":
 		file, err := os.Open(execLotusFlags.file)
 		if err != nil {
@@ -78,7 +53,23 @@ func runExecLotus(_ *cli.Context) error {
 
 		return executeTestVector(tv)
 	default:
-		return errors.New("no test vector input specified, use a file or stdin")
+		dec := json.NewDecoder(os.Stdin)
+		for {
+			var tv TestVector
+
+			err := dec.Decode(&tv)
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			err = executeTestVector(tv)
+			if err != nil {
+				return err
+			}
+		}
 	}
 }
 
