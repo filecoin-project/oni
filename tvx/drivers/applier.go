@@ -29,8 +29,7 @@ func NewApplier(sw *StateWrapper, syscalls vm.SyscallBuilder) *Applier {
 	return &Applier{sw, syscalls}
 }
 
-func (a *Applier) ApplyMessage(epoch abi.ChainEpoch, message *vtypes.Message) (vtypes.ApplyMessageResult, error) {
-	lm := toLotusMsg(message)
+func (a *Applier) ApplyMessage(epoch abi.ChainEpoch, lm *types.Message) (vtypes.ApplyMessageResult, error) {
 	receipt, penalty, reward, err := a.applyMessage(epoch, lm)
 
 	return vtypes.ApplyMessageResult{
@@ -41,13 +40,13 @@ func (a *Applier) ApplyMessage(epoch abi.ChainEpoch, message *vtypes.Message) (v
 	}, err
 }
 
-func (a *Applier) ApplySignedMessage(epoch abi.ChainEpoch, msg *vtypes.SignedMessage) (vtypes.ApplyMessageResult, error) {
+func (a *Applier) ApplySignedMessage(epoch abi.ChainEpoch, msg *types.SignedMessage) (vtypes.ApplyMessageResult, error) {
 	var lm types.ChainMsg
 	switch msg.Signature.Type {
 	case acrypto.SigTypeSecp256k1:
-		lm = toLotusSignedMsg(msg)
+		lm = msg
 	case acrypto.SigTypeBLS:
-		lm = toLotusMsg(&msg.Message)
+		lm = &msg.Message
 	default:
 		return vtypes.ApplyMessageResult{}, errors.New("Unknown signature type")
 	}
@@ -74,11 +73,11 @@ func (a *Applier) ApplyTipSetMessages(epoch abi.ChainEpoch, blocks []vtypes.Bloc
 		}
 
 		for _, m := range b.BLSMessages {
-			bm.BlsMessages = append(bm.BlsMessages, toLotusMsg(m))
+			bm.BlsMessages = append(bm.BlsMessages, m)
 		}
 
 		for _, m := range b.SECPMessages {
-			bm.SecpkMessages = append(bm.SecpkMessages, toLotusSignedMsg(m))
+			bm.SecpkMessages = append(bm.SecpkMessages, m)
 		}
 
 		bms = append(bms, bm)

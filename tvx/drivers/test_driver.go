@@ -33,8 +33,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/oni/tvx/chain"
-	"github.com/filecoin-project/oni/tvx/chain/types"
+	vtypes "github.com/filecoin-project/oni/tvx/chain/types"
 )
 
 var (
@@ -219,7 +220,7 @@ func NewTestDriver() *TestDriver {
 
 	minerActorIDAddr := sd.newMinerAccountActor(TestSealProofType, abi_spec.ChainEpoch(0))
 
-	exeCtx := types.NewExecutionContext(1, minerActorIDAddr)
+	exeCtx := vtypes.NewExecutionContext(1, minerActorIDAddr)
 	producer := chain.NewMessageProducer(1000000000, big_spec.NewInt(1)) // gas limit ; gas price
 
 	trackGas := false
@@ -253,7 +254,7 @@ type TestDriver struct {
 
 	MessageProducer      *chain.MessageProducer
 	TipSetMessageBuilder *TipSetMessageBuilder
-	ExeCtx               *types.ExecutionContext
+	ExeCtx               *vtypes.ExecutionContext
 
 	Config *Config
 
@@ -264,30 +265,30 @@ type TestDriver struct {
 // Unsigned Message Appliers
 //
 
-func (td *TestDriver) ApplyMessage(msg *types.Message) types.ApplyMessageResult {
+func (td *TestDriver) ApplyMessage(msg *types.Message) vtypes.ApplyMessageResult {
 	result := td.applyMessage(msg)
 	return result
 }
 
-func (td *TestDriver) ApplyOk(msg *types.Message) types.ApplyMessageResult {
+func (td *TestDriver) ApplyOk(msg *types.Message) vtypes.ApplyMessageResult {
 	return td.ApplyExpect(msg, EmptyReturnValue)
 }
 
-func (td *TestDriver) ApplyExpect(msg *types.Message, retval []byte) types.ApplyMessageResult {
+func (td *TestDriver) ApplyExpect(msg *types.Message, retval []byte) vtypes.ApplyMessageResult {
 	return td.applyMessageExpectCodeAndReturn(msg, exitcode.Ok, retval)
 }
 
-func (td *TestDriver) ApplyFailure(msg *types.Message, code exitcode.ExitCode) types.ApplyMessageResult {
+func (td *TestDriver) ApplyFailure(msg *types.Message, code exitcode.ExitCode) vtypes.ApplyMessageResult {
 	return td.applyMessageExpectCodeAndReturn(msg, code, EmptyReturnValue)
 }
 
-func (td *TestDriver) applyMessageExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) types.ApplyMessageResult {
+func (td *TestDriver) applyMessageExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) vtypes.ApplyMessageResult {
 	result := td.applyMessage(msg)
 	td.validateResult(result, code, retval)
 	return result
 }
 
-func (td *TestDriver) applyMessage(msg *types.Message) (result types.ApplyMessageResult) {
+func (td *TestDriver) applyMessage(msg *types.Message) (result vtypes.ApplyMessageResult) {
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("message application panicked: %v", r)
@@ -304,29 +305,29 @@ func (td *TestDriver) applyMessage(msg *types.Message) (result types.ApplyMessag
 // Signed Message Appliers
 //
 
-func (td *TestDriver) ApplySigned(msg *types.Message) types.ApplyMessageResult {
+func (td *TestDriver) ApplySigned(msg *types.Message) vtypes.ApplyMessageResult {
 	result := td.applyMessageSigned(msg)
 	return result
 }
 
-func (td *TestDriver) ApplySignedOk(msg *types.Message) types.ApplyMessageResult {
+func (td *TestDriver) ApplySignedOk(msg *types.Message) vtypes.ApplyMessageResult {
 	return td.ApplySignedExpect(msg, EmptyReturnValue)
 }
 
-func (td *TestDriver) ApplySignedExpect(msg *types.Message, retval []byte) types.ApplyMessageResult {
+func (td *TestDriver) ApplySignedExpect(msg *types.Message, retval []byte) vtypes.ApplyMessageResult {
 	return td.applyMessageSignedExpectCodeAndReturn(msg, exitcode.Ok, retval)
 }
 
-func (td *TestDriver) ApplySignedFailure(msg *types.Message, code exitcode.ExitCode) types.ApplyMessageResult {
+func (td *TestDriver) ApplySignedFailure(msg *types.Message, code exitcode.ExitCode) vtypes.ApplyMessageResult {
 	return td.applyMessageExpectCodeAndReturn(msg, code, EmptyReturnValue)
 }
 
-func (td *TestDriver) applyMessageSignedExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) types.ApplyMessageResult {
+func (td *TestDriver) applyMessageSignedExpectCodeAndReturn(msg *types.Message, code exitcode.ExitCode, retval []byte) vtypes.ApplyMessageResult {
 	result := td.applyMessageSigned(msg)
 	td.validateResult(result, code, retval)
 	return result
 }
-func (td *TestDriver) applyMessageSigned(msg *types.Message) (result types.ApplyMessageResult) {
+func (td *TestDriver) applyMessageSigned(msg *types.Message) (result vtypes.ApplyMessageResult) {
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("message application panicked: %v", r)
@@ -348,7 +349,7 @@ func (td *TestDriver) applyMessageSigned(msg *types.Message) (result types.Apply
 	return result
 }
 
-func (td *TestDriver) validateResult(result types.ApplyMessageResult, code exitcode.ExitCode, retval []byte) {
+func (td *TestDriver) validateResult(result vtypes.ApplyMessageResult, code exitcode.ExitCode, retval []byte) {
 	if td.Config.ValidateExitCode() {
 		assert.Equal(t, code, result.Receipt.ExitCode, "Expected ExitCode: %s Actual ExitCode: %s", code.Error(), result.Receipt.ExitCode.Error())
 	}

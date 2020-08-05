@@ -10,7 +10,7 @@ import (
 	power_spec "github.com/filecoin-project/specs-actors/actors/builtin/power"
 	"github.com/libp2p/go-libp2p-core/peer"
 
-	"github.com/filecoin-project/oni/tvx/chain/types"
+	"github.com/filecoin-project/lotus/chain/types"
 )
 
 var noParams []byte

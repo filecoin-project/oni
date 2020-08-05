@@ -2,11 +2,12 @@ package drivers
 
 import (
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/oni/tvx/chain/types"
+	vtypes "github.com/filecoin-project/oni/tvx/chain/types"
 )
 
 type TipSetMessageBuilder struct {
@@ -27,14 +28,14 @@ func (t *TipSetMessageBuilder) WithBlockBuilder(bb *BlockBuilder) *TipSetMessage
 	return t
 }
 
-func (t *TipSetMessageBuilder) Apply() types.ApplyTipSetResult {
+func (t *TipSetMessageBuilder) Apply() vtypes.ApplyTipSetResult {
 	result := t.apply()
 
 	t.Clear()
 	return result
 }
 
-func (t *TipSetMessageBuilder) ApplyAndValidate() types.ApplyTipSetResult {
+func (t *TipSetMessageBuilder) ApplyAndValidate() vtypes.ApplyTipSetResult {
 	result := t.apply()
 
 	t.validateResult(result)
@@ -43,8 +44,8 @@ func (t *TipSetMessageBuilder) ApplyAndValidate() types.ApplyTipSetResult {
 	return result
 }
 
-func (tb *TipSetMessageBuilder) apply() types.ApplyTipSetResult {
-	var blks []types.BlockMessagesInfo
+func (tb *TipSetMessageBuilder) apply() vtypes.ApplyTipSetResult {
+	var blks []vtypes.BlockMessagesInfo
 	for _, b := range tb.bbs {
 		blks = append(blks, b.build())
 	}
@@ -55,7 +56,7 @@ func (tb *TipSetMessageBuilder) apply() types.ApplyTipSetResult {
 	return result
 }
 
-func (tb *TipSetMessageBuilder) validateResult(result types.ApplyTipSetResult) {
+func (tb *TipSetMessageBuilder) validateResult(result vtypes.ApplyTipSetResult) {
 	expected := []ExpectedResult{}
 	for _, b := range tb.bbs {
 		expected = append(expected, b.expectedResults...)
@@ -190,8 +191,8 @@ func (bb *BlockBuilder) toSignedMessage(m *types.Message) *types.SignedMessage {
 	}
 }
 
-func (bb *BlockBuilder) build() types.BlockMessagesInfo {
-	return types.BlockMessagesInfo{
+func (bb *BlockBuilder) build() vtypes.BlockMessagesInfo {
+	return vtypes.BlockMessagesInfo{
 		BLSMessages:  bb.blsMsgs,
 		SECPMessages: bb.secpMsgs,
 		Miner:        bb.miner,

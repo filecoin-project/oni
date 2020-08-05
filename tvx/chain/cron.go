@@ -6,7 +6,7 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/cron"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
 
-	"github.com/filecoin-project/oni/tvx/chain/types"
+	"github.com/filecoin-project/lotus/chain/types"
 )
 
 func (mp *MessageProducer) CronConstructor(from, to address.Address, params *cron.ConstructorParams, opts ...MsgOpt) *types.Message {

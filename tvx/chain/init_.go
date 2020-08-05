@@ -5,7 +5,7 @@ import (
 	builtin_spec "github.com/filecoin-project/specs-actors/actors/builtin"
 	init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
 
-	"github.com/filecoin-project/oni/tvx/chain/types"
+	"github.com/filecoin-project/lotus/chain/types"
 )
 
 func (mp *MessageProducer) InitConstructor(from, to address.Address, params *init_.ConstructorParams, opts ...MsgOpt) *types.Message {

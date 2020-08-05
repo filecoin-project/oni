@@ -17,8 +17,6 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 	"github.com/ipfs/go-cid"
 
-	"github.com/filecoin-project/lotus/chain/types"
-	vtypes "github.com/filecoin-project/oni/tvx/chain/types"
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 )
 
@@ -38,29 +36,6 @@ type Actor interface {
 	Head() cid.Cid
 	CallSeqNum() uint64
 	Balance() big.Int
-}
-
-func toLotusMsg(msg *vtypes.Message) *types.Message {
-	return &types.Message{
-		To:   msg.To,
-		From: msg.From,
-
-		Nonce:  msg.Nonce,
-		Method: msg.Method,
-
-		Value:    types.BigInt{Int: msg.Value.Int},
-		GasPrice: types.BigInt{Int: msg.GasPrice.Int},
-		GasLimit: msg.GasLimit,
-
-		Params: msg.Params,
-	}
-}
-
-func toLotusSignedMsg(msg *vtypes.SignedMessage) *types.SignedMessage {
-	return &types.SignedMessage{
-		Message:   *toLotusMsg(&msg.Message),
-		Signature: msg.Signature,
-	}
 }
 
 type contextStore struct {
