@@ -195,7 +195,6 @@ func runExtractMsg(c *cli.Context) error {
 	defer file.Close()
 
 	enc := json.NewEncoder(file)
-	enc.SetIndent("", "  ")
 	if err := enc.Encode(&vector); err != nil {
 		return err
 	}

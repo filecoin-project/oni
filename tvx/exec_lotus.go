@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/davecgh/go-spew/spew"
@@ -47,60 +48,67 @@ func runExecLotus(_ *cli.Context) error {
 	}
 
 	var (
-		dec = json.NewDecoder(file)
-		tv  TestVector
+		tv TestVector
 	)
 
-	if err = dec.Decode(&tv); err != nil {
-		return fmt.Errorf("failed to decode test vector: %w", err)
-	}
+Loop:
+	for dec := json.NewDecoder(file); ; {
+		switch err := dec.Decode(&tv); err {
+		case nil:
+			fmt.Printf("\ndecoding testcase\n")
 
-	switch tv.Class {
-	case "message":
-		var (
-			ctx   = context.Background()
-			epoch = tv.Pre.Epoch
-		)
+			switch tv.Class {
+			case "message":
+				var (
+					ctx   = context.Background()
+					epoch = tv.Pre.Epoch
+				)
 
-		bs := blockstore.NewTemporary()
+				bs := blockstore.NewTemporary()
 
-		buf := bytes.NewReader(tv.Pre.StateTree.CAR)
-		gr, err := gzip.NewReader(buf)
-		if err != nil {
+				buf := bytes.NewReader(tv.Pre.StateTree.CAR)
+				gr, err := gzip.NewReader(buf)
+				if err != nil {
+					return err
+				}
+				defer gr.Close()
+
+				header, err := car.LoadCar(bs, buf)
+				if err != nil {
+					return fmt.Errorf("failed to load state tree car from test vector: %w", err)
+				}
+
+				fmt.Println("roots: ", header.Roots)
+
+				driver := lotus.NewDriver(ctx)
+
+				root := header.Roots[0]
+
+				for i, m := range tv.ApplyMessages {
+					fmt.Printf("decoding message %v\n", i)
+					msg, err := types.DecodeMessage(m)
+					if err != nil {
+						return err
+					}
+
+					fmt.Printf("executing message %v\n", i)
+					var applyRet *vm.ApplyRet
+					_, root, err = driver.ExecuteMessage(msg, root, bs, epoch)
+					if err != nil {
+						return err
+					}
+					spew.Dump(applyRet)
+				}
+
+			default:
+				return fmt.Errorf("test vector class not supported")
+			}
+		case io.EOF:
+			break Loop
+		default:
 			return err
 		}
-		defer gr.Close()
-
-		header, err := car.LoadCar(bs, gr)
-		if err != nil {
-			return fmt.Errorf("failed to load state tree car from test vector: %w", err)
-		}
-
-		fmt.Println("roots: ", header.Roots)
-
-		driver := lotus.NewDriver(ctx)
-
-		root := header.Roots[0]
-
-		for i, m := range tv.ApplyMessages {
-			fmt.Printf("decoding message %v\n", i)
-			msg, err := types.DecodeMessage(m)
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("executing message %v\n", i)
-			var applyRet *vm.ApplyRet
-			applyRet, root, err = driver.ExecuteMessage(msg, root, bs, epoch)
-			if err != nil {
-				return err
-			}
-			spew.Dump(applyRet)
-		}
-
-		return nil
-
-	default:
-		return fmt.Errorf("test vector class not supported")
 	}
+
+	return nil
 }
