@@ -13,7 +13,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/oni/tvx/lotus"
-	"github.com/filecoin-project/oni/tvx/schema"
 	"github.com/filecoin-project/oni/tvx/state"
 )
 
@@ -132,29 +131,15 @@ func runExtractMsg(c *cli.Context) error {
 		return err
 	}
 
-	getZippedCAR := func(root cid.Cid) ([]byte, error) {
-		out := new(bytes.Buffer)
-		gw := gzip.NewWriter(out)
-		if err := g.WriteCAR(gw, root); err != nil {
-			return nil, err
-		}
-		if err = gw.Flush(); err != nil {
-			return nil, err
-		}
-		if err = gw.Close(); err != nil {
-			return nil, err
-		}
-
-		return out.Bytes(), nil
-	}
-
-	pretree, err := getZippedCAR(preroot)
-	if err != nil {
+	out := new(bytes.Buffer)
+	gw := gzip.NewWriter(out)
+	if err := g.WriteCAR(gw, preroot, postroot); err != nil {
 		return err
 	}
-
-	posttree, err := getZippedCAR(postroot)
-	if err != nil {
+	if err = gw.Flush(); err != nil {
+		return err
+	}
+	if err = gw.Close(); err != nil {
 		return err
 	}
 
@@ -164,27 +149,28 @@ func runExtractMsg(c *cli.Context) error {
 	}
 
 	// Write out the test vector.
-	vector := schema.TestVector{
-		Class:    schema.ClassMessage,
+	vector := TestVector{
+		Class:    ClassMessage,
 		Selector: "",
-		Meta: &schema.Metadata{
+		Meta: &Metadata{
 			ID:      "TK",
 			Version: "TK",
-			Gen: schema.GenerationData{
+			Gen: GenerationData{
 				Source:  "TK",
 				Version: version.String(),
 			},
 		},
-		Pre: &schema.Preconditions{
+		CAR: out.Bytes(),
+		Pre: &Preconditions{
 			Epoch: ts.Height(),
-			StateTree: &schema.StateTree{
-				CAR: pretree,
+			StateTree: &StateTree{
+				RootCID: preroot,
 			},
 		},
-		ApplyMessages: []schema.HexEncodedBytes{msgBytes},
-		Post: &schema.Postconditions{
-			StateTree: &schema.StateTree{
-				CAR: posttree,
+		ApplyMessages: []HexEncodedBytes{msgBytes},
+		Post: &Postconditions{
+			StateTree: &StateTree{
+				RootCID: postroot,
 			},
 		},
 	}

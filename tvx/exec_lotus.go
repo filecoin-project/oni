@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,8 +12,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/lib/blockstore"
-	"github.com/filecoin-project/oni/tvx/schema"
-
 	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
 
@@ -49,7 +48,7 @@ func runExecLotus(_ *cli.Context) error {
 
 	var (
 		dec = json.NewDecoder(file)
-		tv  schema.TestVector
+		tv  TestVector
 	)
 
 	if err = dec.Decode(&tv); err != nil {
@@ -59,20 +58,21 @@ func runExecLotus(_ *cli.Context) error {
 	switch tv.Class {
 	case "message":
 		var (
-			ctx   = context.Background()
-			epoch = tv.Pre.Epoch
+			ctx     = context.Background()
+			epoch   = tv.Pre.Epoch
+			preroot = tv.Pre.StateTree.RootCID
 		)
 
 		bs := blockstore.NewTemporary()
 
-		buf := bytes.NewReader(tv.Pre.StateTree.CAR)
-		//gr, err := gzip.NewReader(buf)
-		//if err != nil {
-		//return err
-		//}
-		//defer gr.Close()
+		buf := bytes.NewReader(tv.CAR)
+		gr, err := gzip.NewReader(buf)
+		if err != nil {
+			return err
+		}
+		defer gr.Close()
 
-		header, err := car.LoadCar(bs, buf)
+		header, err := car.LoadCar(bs, gr)
 		if err != nil {
 			return fmt.Errorf("failed to load state tree car from test vector: %w", err)
 		}
@@ -80,8 +80,6 @@ func runExecLotus(_ *cli.Context) error {
 		fmt.Println("roots: ", header.Roots)
 
 		driver := lotus.NewDriver(ctx)
-
-		root := header.Roots[0]
 
 		for i, m := range tv.ApplyMessages {
 			fmt.Printf("decoding message %v\n", i)
@@ -92,7 +90,7 @@ func runExecLotus(_ *cli.Context) error {
 
 			fmt.Printf("executing message %v\n", i)
 			var applyRet *vm.ApplyRet
-			applyRet, root, err = driver.ExecuteMessage(msg, root, bs, epoch)
+			applyRet, preroot, err = driver.ExecuteMessage(msg, preroot, bs, epoch)
 			if err != nil {
 				return err
 			}
