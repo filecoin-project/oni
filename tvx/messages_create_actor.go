@@ -15,7 +15,6 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
-	"github.com/filecoin-project/oni/tvx/schema"
 	utils "github.com/filecoin-project/oni/tvx/test-suites/utils"
 )
 
@@ -95,14 +94,14 @@ func MessageTest_AccountActorCreation() error {
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
 
-			v.Pre.StateTree.CAR = td.MarshalState()
+			preroot := td.GetStateRoot()
 
 			msg := td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0))
 			b, err := msg.Serialize()
 			if err != nil {
 				return err
 			}
-			v.ApplyMessages = []schema.HexEncodedBytes{b}
+			v.ApplyMessages = []HexEncodedBytes{b}
 			result := td.ApplyFailure(
 				msg,
 				tc.expExitCode,
@@ -114,7 +113,11 @@ func MessageTest_AccountActorCreation() error {
 				td.AssertBalance(existingAccountAddr, big_spec.Sub(big_spec.Sub(tc.existingActorBal, result.Receipt.GasUsed.Big()), tc.newActorInitBal))
 			}
 
-			v.Post.StateTree.CAR = td.MarshalState()
+			postroot := td.GetStateRoot()
+
+			v.CAR = td.MustMarshalCAR(preroot, postroot)
+			v.Pre.StateTree.RootCID = preroot
+			v.Post.StateTree.RootCID = postroot
 
 			// encode and output
 			enc := json.NewEncoder(os.Stdout)
@@ -151,7 +154,7 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
 
-	v.Pre.StateTree.CAR = td.MarshalState()
+	preroot := td.GetStateRoot()
 
 	msg1 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
 	td.ApplyExpect(
@@ -177,7 +180,11 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	}
 	v.ApplyMessages = append(v.ApplyMessages, b2)
 
-	v.Post.StateTree.CAR = td.MarshalState()
+	postroot := td.GetStateRoot()
+
+	v.CAR = td.MustMarshalCAR(preroot, postroot)
+	v.Pre.StateTree.RootCID = preroot
+	v.Post.StateTree.RootCID = postroot
 
 	// encode and output
 	enc := json.NewEncoder(os.Stdout)
@@ -188,23 +195,23 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	return nil
 }
 
-func newEmptyMessageVector() schema.TestVector {
-	return schema.TestVector{
-		Class:    schema.ClassMessage,
+func newEmptyMessageVector() TestVector {
+	return TestVector{
+		Class:    ClassMessage,
 		Selector: "",
-		Meta: &schema.Metadata{
+		Meta: &Metadata{
 			ID:      "TK",
 			Version: "TK",
-			Gen: schema.GenerationData{
+			Gen: GenerationData{
 				Source:  "TK",
 				Version: "TK",
 			},
 		},
-		Pre: &schema.Preconditions{
-			StateTree: &schema.StateTree{},
+		Pre: &Preconditions{
+			StateTree: &StateTree{},
 		},
-		Post: &schema.Postconditions{
-			StateTree: &schema.StateTree{},
+		Post: &Postconditions{
+			StateTree: &StateTree{},
 		},
 	}
 }

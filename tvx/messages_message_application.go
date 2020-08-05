@@ -23,7 +23,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-		v.Pre.StateTree.CAR = td.MarshalState()
+		preroot := td.GetStateRoot()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 		msg := td.MessageProducer.Transfer(alice, alice, chain.Value(transferAmnt), chain.Nonce(0), chain.GasPrice(1), chain.GasLimit(8))
@@ -33,7 +33,11 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			exitcode_spec.SysErrOutOfGas)
 
-		v.Post.StateTree.CAR = td.MarshalState()
+		postroot := td.GetStateRoot()
+
+		v.CAR = td.MustMarshalCAR(preroot, postroot)
+		v.Pre.StateTree.RootCID = preroot
+		v.Post.StateTree.RootCID = postroot
 
 		// encode and output
 		enc := json.NewEncoder(os.Stdout)
@@ -51,7 +55,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-		v.Pre.StateTree.CAR = td.MarshalState()
+		preroot := td.GetStateRoot()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 		// Expect Message application to fail due to lack of gas
@@ -68,7 +72,11 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			exitcode_spec.SysErrOutOfGas)
 
-		v.Post.StateTree.CAR = td.MarshalState()
+		postroot := td.GetStateRoot()
+
+		v.CAR = td.MustMarshalCAR(preroot, postroot)
+		v.Pre.StateTree.RootCID = preroot
+		v.Post.StateTree.RootCID = postroot
 
 		// encode and output
 		enc := json.NewEncoder(os.Stdout)
@@ -86,7 +94,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-		v.Pre.StateTree.CAR = td.MarshalState()
+		preroot := td.GetStateRoot()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 		aliceNonce := uint64(0)
@@ -116,7 +124,11 @@ func MessageTest_MessageApplicationEdgecases() error {
 			)
 		}
 
-		v.Post.StateTree.CAR = td.MarshalState()
+		postroot := td.GetStateRoot()
+
+		v.CAR = td.MustMarshalCAR(preroot, postroot)
+		v.Pre.StateTree.RootCID = preroot
+		v.Post.StateTree.RootCID = postroot
 
 		// encode and output
 		enc := json.NewEncoder(os.Stdout)
@@ -134,7 +146,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-		v.Pre.StateTree.CAR = td.MarshalState()
+		preroot := td.GetStateRoot()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 
@@ -155,7 +167,11 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			exitcode_spec.SysErrSenderInvalid)
 
-		v.Post.StateTree.CAR = td.MarshalState()
+		postroot := td.GetStateRoot()
+
+		v.CAR = td.MustMarshalCAR(preroot, postroot)
+		v.Pre.StateTree.RootCID = preroot
+		v.Post.StateTree.RootCID = postroot
 
 		// encode and output
 		enc := json.NewEncoder(os.Stdout)
@@ -173,7 +189,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-		v.Pre.StateTree.CAR = td.MarshalState()
+		preroot := td.GetStateRoot()
 
 		const pcTimeLock = abi_spec.ChainEpoch(10)
 		const pcLane = uint64(123)
@@ -224,7 +240,11 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			exitcode_spec.ErrIllegalArgument)
 
-		v.Post.StateTree.CAR = td.MarshalState()
+		postroot := td.GetStateRoot()
+
+		v.CAR = td.MustMarshalCAR(preroot, postroot)
+		v.Pre.StateTree.RootCID = preroot
+		v.Post.StateTree.RootCID = postroot
 
 		// encode and output
 		enc := json.NewEncoder(os.Stdout)
@@ -242,7 +262,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-		v.Pre.StateTree.CAR = td.MarshalState()
+		preroot := td.GetStateRoot()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 
@@ -255,7 +275,11 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			exitcode_spec.SysErrInvalidMethod)
 
-		v.Post.StateTree.CAR = td.MarshalState()
+		postroot := td.GetStateRoot()
+
+		v.CAR = td.MustMarshalCAR(preroot, postroot)
+		v.Pre.StateTree.RootCID = preroot
+		v.Post.StateTree.RootCID = postroot
 
 		// encode and output
 		enc := json.NewEncoder(os.Stdout)
@@ -273,7 +297,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-		v.Pre.StateTree.CAR = td.MarshalState()
+		preroot := td.GetStateRoot()
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 
@@ -296,7 +320,11 @@ func MessageTest_MessageApplicationEdgecases() error {
 			msg,
 			exitcode_spec.SysErrInvalidReceiver)
 
-		v.Post.StateTree.CAR = td.MarshalState()
+		postroot := td.GetStateRoot()
+
+		v.CAR = td.MustMarshalCAR(preroot, postroot)
+		v.Pre.StateTree.RootCID = preroot
+		v.Post.StateTree.RootCID = postroot
 
 		// encode and output
 		enc := json.NewEncoder(os.Stdout)

@@ -2,17 +2,8 @@ package drivers
 
 import (
 	"context"
-	"fmt"
-	"io"
 
-	"github.com/ipld/go-car"
-
-	"github.com/filecoin-project/lotus/lib/blockstore"
-	"github.com/ipfs/go-blockservice"
-	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	format "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
 
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 	"github.com/ipfs/go-cid"
@@ -45,30 +36,4 @@ type contextStore struct {
 
 func (s *contextStore) Context() context.Context {
 	return s.ctx
-}
-
-func serialise(bs blockstore.Blockstore, c cid.Cid, w io.Writer) error {
-	ctx := context.Background()
-
-	offl := offline.Exchange(bs)
-	blkserv := blockservice.New(bs, offl)
-	dserv := merkledag.NewDAGService(blkserv)
-
-	if err := car.WriteCarWithWalker(ctx, dserv, []cid.Cid{c}, w, walker); err != nil {
-		return fmt.Errorf("failed to write car file: %w", err)
-	}
-
-	return nil
-}
-
-func walker(nd format.Node) (out []*format.Link, err error) {
-	for _, link := range nd.Links() {
-		//spew.Dump(link)
-		if link.Cid.Prefix().Codec == cid.FilCommitmentSealed || link.Cid.Prefix().Codec == cid.FilCommitmentUnsealed {
-			continue
-		}
-		out = append(out, link)
-	}
-
-	return out, nil
 }

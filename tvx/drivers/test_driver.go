@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -26,12 +27,18 @@ import (
 	runtime_spec "github.com/filecoin-project/specs-actors/actors/runtime"
 	"github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	adt_spec "github.com/filecoin-project/specs-actors/actors/util/adt"
+	"github.com/ipfs/go-blockservice"
 	cid "github.com/ipfs/go-cid"
 	datastore "github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbor "github.com/ipfs/go-ipld-cbor"
+	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ipld/go-car"
 
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/oni/tvx/chain"
@@ -516,15 +523,47 @@ func (td *TestDriver) GetRewardSummary() *RewardSummary {
 	}
 }
 
-func (td *TestDriver) MarshalStateRoot() string {
-	return td.st.stateRoot.String()
+func (td *TestDriver) GetStateRoot() cid.Cid {
+	return td.st.stateRoot
 }
 
-func (td *TestDriver) MarshalState() []byte {
-	var buffer bytes.Buffer
+func (td *TestDriver) MustMarshalCAR(roots ...cid.Cid) []byte {
+	b, err := td.MarshalCAR(roots...)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
 
-	serialise(td.st.bs, td.st.stateRoot, &buffer)
+func (td *TestDriver) MarshalCAR(roots ...cid.Cid) ([]byte, error) {
+	var b bytes.Buffer
 
-	//return []byte(hex.EncodeToString(buffer.Bytes()))
-	return buffer.Bytes()
+	gw := gzip.NewWriter(&b)
+
+	ctx := context.Background()
+
+	offl := offline.Exchange(td.st.bs)
+	blkserv := blockservice.New(td.st.bs, offl)
+	dserv := merkledag.NewDAGService(blkserv)
+
+	var cids []cid.Cid
+	cids = append(cids, roots...)
+
+	if err := car.WriteCarWithWalker(ctx, dserv, cids, gw, walker); err != nil {
+		return nil, fmt.Errorf("failed to write car file: %w", err)
+	}
+	gw.Close()
+
+	return b.Bytes(), nil
+}
+
+func walker(nd format.Node) (out []*format.Link, err error) {
+	for _, link := range nd.Links() {
+		if link.Cid.Prefix().Codec == cid.FilCommitmentSealed || link.Cid.Prefix().Codec == cid.FilCommitmentUnsealed {
+			continue
+		}
+		out = append(out, link)
+	}
+
+	return out, nil
 }
