@@ -1,8 +1,11 @@
-package message
+package main
 
 import (
-	"context"
-	"testing"
+	"encoding/json"
+	"os"
+
+	"github.com/urfave/cli/v2"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/filecoin-project/go-address"
 
@@ -12,16 +15,27 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
-
-	""
+	utils "github.com/filecoin-project/oni/tvx/test-suites/utils"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
-func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
-	builder := drivers.NewBuilder(context.Background(), factory).
-		WithDefaultGasLimit(1_000_000_000).
-		WithDefaultGasPrice(big_spec.NewInt(1)).
-		WithActorState(drivers.DefaultBuiltinActorsState...)
+var suiteMessagesCmd = &cli.Command{
+	Name:        "suite-messages",
+	Description: "",
+	Action:      suiteMessages,
+}
 
+func suiteMessages(c *cli.Context) error {
+	var err *multierror.Error
+	err = multierror.Append(MessageTest_AccountActorCreation())
+	err = multierror.Append(MessageTest_InitActorSequentialIDAddressCreate())
+	err = multierror.Append(MessageTest_MessageApplicationEdgecases())
+
+
+	return err.ErrorOrNil()
+}
+
+func MessageTest_AccountActorCreation() error {
 	testCases := []struct {
 		desc string
 
@@ -76,13 +90,21 @@ func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
 		// TODO add edge case tests that have insufficient balance after gas fees
 	}
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			td := builder.Build()
-			//defer td.Complete()
+		err := func() error {
+			td := drivers.NewTestDriver()
+
+			v := newEmptyMessageVector()
+			v.Pre.StateTree.CAR = td.MarshalState()
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
+			msg := td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0))
+      b, err := msg.Serialize()
+			if err != nil {
+				return err
+			}
+			v.ApplyMessages = []schema.HexEncodedBytes{b}
 			result := td.ApplyFailure(
-				td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0)),
+				msg,
 				tc.expExitCode,
 			)
 
@@ -91,16 +113,31 @@ func MessageTest_AccountActorCreation(t *testing.T, factory state.Factories) {
 				td.AssertBalance(tc.newActorAddr, tc.newActorInitBal)
 				td.AssertBalance(existingAccountAddr, big_spec.Sub(big_spec.Sub(tc.existingActorBal, result.Receipt.GasUsed.Big()), tc.newActorInitBal))
 			}
-		})
+
+			v.Post.StateTree.CAR = td.MarshalState()
+
+			// encode and output
+			enc := json.NewEncoder(os.Stdout)
+			if err := enc.Encode(&v); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func MessageTest_InitActorSequentialIDAddressCreate(t *testing.T, factory state.Factories) {
-	td := drivers.NewBuilder(context.Background(), factory).
-		WithDefaultGasLimit(1_000_000_000).
-		WithDefaultGasPrice(big_spec.NewInt(1)).
-		WithActorState(drivers.DefaultBuiltinActorsState...).Build()
-	//defer td.Complete()
+func MessageTest_InitActorSequentialIDAddressCreate() error {
+	td := drivers.NewTestDriver()
+
+	v := newEmptyMessageVector()
+	v.Pre.StateTree.CAR = td.MarshalState()
 
 	var initialBal = abi_spec.NewTokenAmount(200_000_000_000)
 	var toSend = abi_spec.NewTokenAmount(10_000)
@@ -115,13 +152,59 @@ func MessageTest_InitActorSequentialIDAddressCreate(t *testing.T, factory state.
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
 
+	msg1 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
 	td.ApplyExpect(
-		td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0)),
+		msg1,
 		chain.MustSerialize(&firstInitRet),
 	)
 
+	b1, err := msg1.Serialize()
+	if err != nil {
+		return err
+	}
+	v.ApplyMessages = append(v.ApplyMessages, b1)
+
+	msg2 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(1))
 	td.ApplyExpect(
-		td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(1)),
+		msg2,
 		chain.MustSerialize(&secondInitRet),
 	)
+
+	b2, err := msg2.Serialize()
+	if err != nil {
+		return err
+	}
+	v.ApplyMessages = append(v.ApplyMessages, b2)
+
+	v.Post.StateTree.CAR = td.MarshalState()
+
+	// encode and output
+	enc := json.NewEncoder(os.Stdout)
+	if err := enc.Encode(&v); err != nil {
+		return err
+	}
+
+	return nil
 }
+
+func newEmptyMessageVector() schema.TestVector {
+	return schema.TestVector{
+		Class:    schema.ClassMessage,
+		Selector: "",
+		Meta: &schema.Metadata{
+			ID:      "TK",
+			Version: "TK",
+			Gen: schema.GenerationData{
+				Source:  "TK",
+				Version: "TK",
+			},
+		},
+		Pre: &schema.Preconditions{
+			StateTree: &schema.StateTree{},
+		},
+		Post: &schema.Postconditions{
+			StateTree: &schema.StateTree{},
+		},
+	}
+}
+
