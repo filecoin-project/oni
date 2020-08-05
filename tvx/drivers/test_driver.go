@@ -521,9 +521,10 @@ func (td *TestDriver) MarshalStateRoot() string {
 
 func (td *TestDriver) MarshalState() []byte {
 	var buffer bytes.Buffer
+	//gw := gzip.NewWriter(&buffer)
 
+	//serialise(td.st.bs, td.st.stateRoot, gw)
 	serialise(td.st.bs, td.st.stateRoot, &buffer)
 
-	//return []byte(hex.EncodeToString(buffer.Bytes()))
 	return buffer.Bytes()
 }

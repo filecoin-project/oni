@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -66,13 +65,13 @@ func runExecLotus(_ *cli.Context) error {
 		bs := blockstore.NewTemporary()
 
 		buf := bytes.NewReader(tv.Pre.StateTree.CAR)
-		gr, err := gzip.NewReader(buf)
-		if err != nil {
-			return err
-		}
-		defer gr.Close()
+		//gr, err := gzip.NewReader(buf)
+		//if err != nil {
+		//return err
+		//}
+		//defer gr.Close()
 
-		header, err := car.LoadCar(bs, gr)
+		header, err := car.LoadCar(bs, buf)
 		if err != nil {
 			return fmt.Errorf("failed to load state tree car from test vector: %w", err)
 		}

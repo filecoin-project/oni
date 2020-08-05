@@ -46,7 +46,7 @@ func toLotusMsg(msg *vtypes.Message) *types.Message {
 		To:   msg.To,
 		From: msg.From,
 
-		Nonce:  msg.CallSeqNum,
+		//Nonce:  msg.CallSeqNum,
 		Method: msg.Method,
 
 		Value:    types.BigInt{Int: msg.Value.Int},

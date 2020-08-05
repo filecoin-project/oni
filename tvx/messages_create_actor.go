@@ -29,7 +29,7 @@ func suiteMessages(c *cli.Context) error {
 	var err *multierror.Error
 	err = multierror.Append(MessageTest_AccountActorCreation())
 	err = multierror.Append(MessageTest_InitActorSequentialIDAddressCreate())
-	err = multierror.Append(MessageTest_MessageApplicationEdgecases())
+	//err = multierror.Append(MessageTest_MessageApplicationEdgecases())
 	return err.ErrorOrNil()
 }
 
@@ -205,4 +205,3 @@ func newEmptyMessageVector() schema.TestVector {
 		},
 	}
 }
-
