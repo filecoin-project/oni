@@ -30,12 +30,10 @@ require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/multiformats/go-multiaddr-net v0.1.5
-	github.com/multiformats/go-multihash v0.0.14
 	github.com/multiformats/go-varint v0.0.6
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200723185710-6a3894a6352b
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
