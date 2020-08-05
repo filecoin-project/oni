@@ -272,11 +272,6 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	if t.StringParam("mining_mode") != "natural" {
 		mineBlock := make(chan miner.MineReq)
 
-		//type MineReq struct {
-		//InjectNulls abi.ChainEpoch
-		//Done        func(bool, error)
-		//}
-
 		minerOpts = append(minerOpts,
 			node.Override(new(*miner.Miner), miner.NewTestMiner(mineBlock, minerAddr)))
 

@@ -41,8 +41,6 @@ type GenerationData struct {
 type StateTree struct {
 	// CAR is the car representation of a state tree
 	CAR HexEncodedBytes `json:"car_hex"`
-	// RootCID is the root CID of the state tree.
-	RootCID string `json:"root_cid"`
 }
 
 // HexEncodedBytes is a hex-encoded binary value.

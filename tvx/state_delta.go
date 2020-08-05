@@ -9,24 +9,44 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var deltaFlags struct {
+	from string
+	to   string
+}
+
 var deltaCmd = &cli.Command{
 	Name:        "state-delta",
 	Description: "collect affected state between two tipsets, addressed by blocks",
-	Flags:       []cli.Flag{&fromFlag, &toFlag, &apiFlag},
 	Action:      runStateDelta,
+	Flags: []cli.Flag{
+		&apiFlag,
+		&cli.StringFlag{
+			Name:        "from",
+			Usage:       "block CID of initial state",
+			Required:    true,
+			Destination: &deltaFlags.from,
+		},
+		&cli.StringFlag{
+			Name:        "to",
+			Usage:       "block CID of ending state",
+			Required:    true,
+			Destination: &deltaFlags.to,
+		},
+	},
 }
 
 func runStateDelta(c *cli.Context) error {
-	node, err := makeClient(c.String(apiFlag.Name))
+	node, err := makeClient(c)
 	if err != nil {
 		return err
 	}
 
-	to, err := cid.Decode(c.String(toFlag.Name))
+	from, err := cid.Decode(deltaFlags.from)
 	if err != nil {
 		return err
 	}
-	from, err := cid.Decode(c.String(fromFlag.Name))
+
+	to, err := cid.Decode(deltaFlags.to)
 	if err != nil {
 		return err
 	}

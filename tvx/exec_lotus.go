@@ -8,38 +8,40 @@ import (
 	"os"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/filecoin-project/oni/tvx/schema"
 
-	"github.com/filecoin-project/sector-storage/ffiwrapper"
-	"github.com/filecoin-project/specs-actors/actors/abi"
-	"github.com/filecoin-project/specs-actors/actors/crypto"
-	"github.com/filecoin-project/specs-actors/actors/runtime"
-
-	"github.com/ipfs/go-cid"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
+
+	"github.com/filecoin-project/oni/tvx/lotus"
 )
+
+var execLotusFlags struct {
+	file string
+}
 
 var execLotusCmd = &cli.Command{
 	Name:        "exec-lotus",
 	Description: "execute a test vector against Lotus",
-	Flags:       []cli.Flag{&fileFlag},
-	Action:      runExecLotus,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:        "file",
+			Usage:       "input file",
+			Required:    true,
+			Destination: &execLotusFlags.file,
+		},
+	},
+	Action: runExecLotus,
 }
 
-func runExecLotus(c *cli.Context) error {
-	f := c.String("file")
-	if f == "" {
+func runExecLotus(_ *cli.Context) error {
+	if execLotusFlags.file == "" {
 		return fmt.Errorf("test vector file cannot be empty")
 	}
 
-	file, err := os.Open(f)
+	file, err := os.Open(execLotusFlags.file)
 	if err != nil {
 		return fmt.Errorf("failed to open test vector: %w", err)
 	}
@@ -56,9 +58,8 @@ func runExecLotus(c *cli.Context) error {
 	switch tv.Class {
 	case "message":
 		var (
-			ctx   = context.TODO()
+			ctx   = context.Background()
 			epoch = tv.Pre.Epoch
-			root  = tv.Pre.StateTree.RootCID
 		)
 
 		bs := blockstore.NewTemporary()
@@ -68,36 +69,7 @@ func runExecLotus(c *cli.Context) error {
 			return fmt.Errorf("failed to load state tree car from test vector: %w", err)
 		}
 
-		fmt.Println(header.Roots)
-
-		cst := cbor.NewCborStore(bs)
-		rootCid, err := cid.Decode(root)
-		if err != nil {
-			return err
-		}
-
-		// Load the state tree.
-		st, err := state.LoadStateTree(cst, rootCid)
-		if err != nil {
-			return err
-		}
-
-		_ = fmt.Sprint(st)
-
-		addr, err := address.NewFromString("t3vxjqfuuxayx26cetvhdmsjwl2mss6uwiiv6t4ssmdcloucy6b4t5jfy5j56sdnj2bw7ypkm7p6f4ud2fleoq")
-		if err != nil {
-			return err
-		}
-
-		actor, err := st.GetActor(addr)
-		if err != nil {
-			return fmt.Errorf("failed to find actor: %w", err)
-		}
-
-		spew.Dump(actor)
-
-		fmt.Println("creating vm")
-		lvm, err := vm.NewVM(header.Roots[0], epoch, &vmRand{}, bs, mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)), nil)
+		fmt.Println("roots: ", header.Roots)
 
 		fmt.Println("decoding message")
 		msg, err := types.DecodeMessage(tv.ApplyMessages[0])
@@ -105,56 +77,14 @@ func runExecLotus(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Println("applying message")
+		driver := lotus.NewDriver(ctx)
 
-		ret, err := lvm.ApplyMessage(ctx, msg)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("applied message: %+v\n", ret)
-
-		rval := ret.Return
-		if rval == nil {
-			rval = []byte{}
-		}
-
-		fmt.Println("flushing")
-		rootCid, err = lvm.Flush(ctx)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(rootCid)
-		fmt.Println(tv.Post.StateTree.RootCID)
-		fmt.Println(ret)
+		fmt.Println("executing message")
+		spew.Dump(driver.ExecuteMessage(msg, header.Roots[0], bs, epoch))
 
 		return nil
 
 	default:
 		return fmt.Errorf("test vector class not supported")
-	}
-}
-
-type vmRand struct {
-}
-
-func (*vmRand) GetRandomness(ctx context.Context, dst crypto.DomainSeparationTag, h abi.ChainEpoch, input []byte) ([]byte, error) {
-	panic("implement me")
-}
-
-type fakedSigSyscalls struct {
-	runtime.Syscalls
-}
-
-func (fss *fakedSigSyscalls) VerifySignature(_ crypto.Signature, _ address.Address, plaintext []byte) error {
-	return nil
-}
-
-func mkFakedSigSyscalls(base vm.SyscallBuilder) vm.SyscallBuilder {
-	return func(ctx context.Context, cstate *state.StateTree, cst cbor.IpldStore) runtime.Syscalls {
-		return &fakedSigSyscalls{
-			base(ctx, cstate, cst),
-		}
 	}
 }

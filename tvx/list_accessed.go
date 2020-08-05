@@ -10,25 +10,43 @@ import (
 	"github.com/filecoin-project/oni/tvx/state"
 )
 
+var listAccessedFlags struct {
+	cid string
+}
+
 var listAccessedCmd = &cli.Command{
 	Name:        "list-accessed",
 	Description: "extract actors accessed during the execution of a message",
-	Flags:       []cli.Flag{&cidFlag, &apiFlag},
 	Action:      runListAccessed,
+	Flags: []cli.Flag{
+		&apiFlag,
+		&cli.StringFlag{
+			Name:        "cid",
+			Usage:       "message CID",
+			Required:    true,
+			Destination: &listAccessedFlags.cid,
+		},
+	},
 }
 
 func runListAccessed(c *cli.Context) error {
-	node, err := makeClient(c.String(apiFlag.Name))
+	ctx := context.Background()
+
+	node, err := makeClient(c)
 	if err != nil {
 		return err
 	}
 
-	mid, err := cid.Decode(c.String(cidFlag.Name))
+	mid, err := cid.Decode(listAccessedFlags.cid)
 	if err != nil {
 		return err
 	}
 
-	actors, err := state.GetActorsForMessage(context.TODO(), node, mid)
+	rtst := state.NewProxyingStore(ctx, node)
+
+	sg := state.NewSurgeon(ctx, node, rtst)
+
+	actors, err := sg.GetAccessedActors(context.TODO(), node, mid)
 	if err != nil {
 		return err
 	}

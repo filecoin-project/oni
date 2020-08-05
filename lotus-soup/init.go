@@ -46,6 +46,4 @@ func init() {
 		abi.RegisteredSealProof_StackedDrg2KiBV1: {},
 	}
 	verifreg.MinVerifiedDealSize = big.NewInt(256)
-
-	//build.MinDealDuration = abi.ChainEpoch(2000) // instead of 180 days
 }
