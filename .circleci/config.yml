@@ -48,9 +48,9 @@ jobs:
     executor: linux
     steps:
       - setup
-      - run:
-          name: "build lotus-soup"
-          command: pushd lotus-soup && go build -tags=testground .
+      #- run:
+          #name: "build lotus-soup"
+          #command: pushd lotus-soup && go build -tags=testground .
       - run:
           name: "build tvx"
           command: pushd tvx && go build .

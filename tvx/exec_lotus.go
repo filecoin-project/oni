@@ -44,10 +44,10 @@ var execLotusCmd = &cli.Command{
 func runExecLotus(_ *cli.Context) error {
 	switch {
 	case execLotusFlags.stdin == true:
-		var tv TestVector
-
 		dec := json.NewDecoder(os.Stdin)
 		for {
+			var tv TestVector
+
 			err := dec.Decode(&tv)
 			if err == io.EOF {
 				return nil
