@@ -115,7 +115,7 @@ func MessageTest_AccountActorCreation() error {
 
 			postroot := td.GetStateRoot()
 
-			v.CAR = td.MustMarshalCAR(preroot, postroot)
+			v.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
 			v.Pre.StateTree.RootCID = preroot
 			v.Post.StateTree.RootCID = postroot
 
@@ -182,7 +182,7 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 
 	postroot := td.GetStateRoot()
 
-	v.CAR = td.MustMarshalCAR(preroot, postroot)
+	v.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
 	v.Pre.StateTree.RootCID = preroot
 	v.Post.StateTree.RootCID = postroot
 

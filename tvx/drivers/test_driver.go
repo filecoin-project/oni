@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/lotus/chain/state"
@@ -527,19 +528,20 @@ func (td *TestDriver) GetStateRoot() cid.Cid {
 	return td.st.stateRoot
 }
 
-func (td *TestDriver) MustMarshalCAR(roots ...cid.Cid) []byte {
-	b, err := td.MarshalCAR(roots...)
+func (td *TestDriver) MustMarshalGzippedCAR(roots ...cid.Cid) []byte {
+	var b bytes.Buffer
+	gw := gzip.NewWriter(&b)
+
+	err := td.MarshalCAR(gw, roots...)
 	if err != nil {
 		panic(err)
 	}
-	return b
+
+	gw.Close()
+	return b.Bytes()
 }
 
-func (td *TestDriver) MarshalCAR(roots ...cid.Cid) ([]byte, error) {
-	var b bytes.Buffer
-
-	gw := gzip.NewWriter(&b)
-
+func (td *TestDriver) MarshalCAR(w io.Writer, roots ...cid.Cid) error {
 	ctx := context.Background()
 
 	offl := offline.Exchange(td.st.bs)
@@ -548,13 +550,11 @@ func (td *TestDriver) MarshalCAR(roots ...cid.Cid) ([]byte, error) {
 
 	var cids []cid.Cid
 	cids = append(cids, roots...)
-
-	if err := car.WriteCarWithWalker(ctx, dserv, cids, gw, walker); err != nil {
-		return nil, fmt.Errorf("failed to write car file: %w", err)
+	if err := car.WriteCarWithWalker(ctx, dserv, cids, w, walker); err != nil {
+		return fmt.Errorf("failed to write car file: %w", err)
 	}
-	gw.Close()
 
-	return b.Bytes(), nil
+	return nil
 }
 
 func walker(nd format.Node) (out []*format.Link, err error) {
