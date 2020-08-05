@@ -93,7 +93,6 @@ func MessageTest_AccountActorCreation() error {
 
 			v := newEmptyMessageVector()
 			v.Pre.StateTree.CAR = td.MarshalState()
-			//v.Pre.StateTree.RootCID = td.MarshalStateRoot()
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
 			msg := td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0))
@@ -114,11 +113,9 @@ func MessageTest_AccountActorCreation() error {
 			}
 
 			v.Post.StateTree.CAR = td.MarshalState()
-			//v.Post.StateTree.RootCID = td.MarshalStateRoot()
 
 			// encode and output
 			enc := json.NewEncoder(os.Stdout)
-			//enc.SetIndent("", "  ")
 			if err := enc.Encode(&v); err != nil {
 				return err
 			}
@@ -139,7 +136,6 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 
 	v := newEmptyMessageVector()
 	v.Pre.StateTree.CAR = td.MarshalState()
-	//v.Pre.StateTree.RootCID = td.MarshalStateRoot()
 
 	var initialBal = abi_spec.NewTokenAmount(200_000_000_000)
 	var toSend = abi_spec.NewTokenAmount(10_000)
@@ -179,11 +175,9 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	v.ApplyMessages = append(v.ApplyMessages, b2)
 
 	v.Post.StateTree.CAR = td.MarshalState()
-	//v.Post.StateTree.RootCID = td.MarshalStateRoot()
 
 	// encode and output
 	enc := json.NewEncoder(os.Stdout)
-	//enc.SetIndent("", "  ")
 	if err := enc.Encode(&v); err != nil {
 		return err
 	}
