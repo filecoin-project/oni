@@ -92,9 +92,11 @@ func MessageTest_AccountActorCreation() error {
 			td := drivers.NewTestDriver()
 
 			v := newEmptyMessageVector()
-			v.Pre.StateTree.CAR = td.MarshalState()
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
+
+			v.Pre.StateTree.CAR = td.MarshalState()
+
 			msg := td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0))
       b, err := msg.Serialize()
 			if err != nil {
@@ -135,7 +137,6 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	td := drivers.NewTestDriver()
 
 	v := newEmptyMessageVector()
-	v.Pre.StateTree.CAR = td.MarshalState()
 
 	var initialBal = abi_spec.NewTokenAmount(200_000_000_000)
 	var toSend = abi_spec.NewTokenAmount(10_000)
@@ -149,6 +150,8 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
+
+	v.Pre.StateTree.CAR = td.MarshalState()
 
 	msg1 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
 	td.ApplyExpect(
