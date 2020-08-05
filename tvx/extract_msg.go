@@ -180,7 +180,7 @@ func runExtractMsg(c *cli.Context) error {
 				CAR: pretree,
 			},
 		},
-		ApplyMessage: msgBytes,
+		ApplyMessages: []HexEncodedBytes{msgBytes},
 		Post: &Postconditions{
 			StateTree: &StateTree{
 				CAR: posttree,

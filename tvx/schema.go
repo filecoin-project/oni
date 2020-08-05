@@ -81,10 +81,10 @@ func (heb *HexEncodedBytes) UnmarshalJSON(v []byte) error {
 
 // TestVector is a single test case
 type TestVector struct {
-	Class        `json:"class"`
-	Selector     `json:"selector"`
-	Meta         *Metadata       `json:"_meta"`
-	Pre          *Preconditions  `json:"preconditions"`
-	ApplyMessage HexEncodedBytes `json:"apply_message"`
-	Post         *Postconditions `json:"postconditions"`
+	Class         `json:"class"`
+	Selector      `json:"selector"`
+	Meta          *Metadata         `json:"_meta"`
+	Pre           *Preconditions    `json:"preconditions"`
+	ApplyMessages []HexEncodedBytes `json:"apply_messages"`
+	Post          *Postconditions   `json:"postconditions"`
 }
