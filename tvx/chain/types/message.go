@@ -228,6 +228,14 @@ func (t *Message) UnmarshalCBOR(r io.Reader) error {
 	return nil
 }
 
+func (m *Message) MustSerialize() []byte {
+	buf := new(bytes.Buffer)
+	if err := m.MarshalCBOR(buf); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
 func (m *Message) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := m.MarshalCBOR(buf); err != nil {
