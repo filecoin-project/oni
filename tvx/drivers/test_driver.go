@@ -231,11 +231,9 @@ func NewTestDriver() *TestDriver {
 	exeCtx := vtypes.NewExecutionContext(1, minerActorIDAddr)
 	producer := chain.NewMessageProducer(1000000000, big_spec.NewInt(1)) // gas limit ; gas price
 
-	trackGas := false
 	checkExit := true
 	checkRet := true
-	checkState := true
-	config := NewConfig(trackGas, checkExit, checkRet, checkState)
+	config := NewConfig(checkExit, checkRet)
 
 	return &TestDriver{
 		StateDriver: sd,

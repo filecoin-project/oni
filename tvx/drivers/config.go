@@ -1,23 +1,15 @@
 package drivers
 
 type Config struct {
-	trackGas         bool
 	checkExitCode    bool
 	checkReturnValue bool
-	checkState       bool
 }
 
-func NewConfig(gas, exit, ret, state bool) *Config {
+func NewConfig(exit, ret bool) *Config {
 	return &Config{
-		trackGas:         gas,
 		checkExitCode:    exit,
 		checkReturnValue: ret,
-		checkState:       state,
 	}
-}
-
-func (v Config) ValidateGas() bool {
-	return v.trackGas
 }
 
 func (v Config) ValidateExitCode() bool {
@@ -26,8 +18,4 @@ func (v Config) ValidateExitCode() bool {
 
 func (v Config) ValidateReturnValue() bool {
 	return v.checkReturnValue
-}
-
-func (v Config) ValidateStateRoot() bool {
-	return v.checkState
 }
