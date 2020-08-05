@@ -48,7 +48,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(10_000_000_000),
 
-			chain.NewSECP256K1Addr("publickeyfoo"),
+			chain.MustNewSECP256K1Addr("publickeyfoo"),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.Ok,
@@ -58,7 +58,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(10_000_000_000),
 
-			chain.NewBLSAddr(1),
+			chain.MustNewBLSAddr(1),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.Ok,
@@ -68,7 +68,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(9_999),
 
-			chain.NewSECP256K1Addr("publickeybar"),
+			chain.MustNewSECP256K1Addr("publickeybar"),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.SysErrSenderStateInvalid,
@@ -78,7 +78,7 @@ func MessageTest_AccountActorCreation() error {
 			address.SECP256K1,
 			abi_spec.NewTokenAmount(9_999),
 
-			chain.NewBLSAddr(1),
+			chain.MustNewBLSAddr(1),
 			abi_spec.NewTokenAmount(10_000),
 
 			exitcode_spec.SysErrSenderStateInvalid,
@@ -147,8 +147,8 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 
 	receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
-	firstPaychAddr := chain.NewIDAddr(chain.IdFromAddress(receiverID) + 1)
-	secondPaychAddr := chain.NewIDAddr(chain.IdFromAddress(receiverID) + 2)
+	firstPaychAddr := chain.MustNewIDAddr(chain.MustIdFromAddress(receiverID) + 1)
+	secondPaychAddr := chain.MustNewIDAddr(chain.MustIdFromAddress(receiverID) + 2)
 
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
