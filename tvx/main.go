@@ -15,6 +15,13 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var apiFlag = cli.StringFlag{
+	Name:    "api",
+	Usage:   "api endpoint, formatted as token:multiaddr",
+	Value:   "",
+	EnvVars: []string{"FULLNODE_API_INFO"},
+}
+
 func main() {
 	app := &cli.App{
 		Name:        "tvx",
@@ -39,7 +46,8 @@ func main() {
 	}
 }
 
-func makeClient(api string) (api.FullNode, error) {
+func makeClient(c *cli.Context) (api.FullNode, error) {
+	api := c.String(apiFlag.Name)
 	sp := strings.SplitN(api, ":", 2)
 	if len(sp) != 2 {
 		return nil, fmt.Errorf("invalid api value, missing token or address: %s", api)

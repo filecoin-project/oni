@@ -16,20 +16,30 @@ import (
 	"github.com/filecoin-project/oni/tvx/lotus"
 )
 
+var execLotusFlags struct {
+	file string
+}
+
 var execLotusCmd = &cli.Command{
 	Name:        "exec-lotus",
 	Description: "execute a test vector against Lotus",
-	Flags:       []cli.Flag{&fileFlag},
-	Action:      runExecLotus,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:        "file",
+			Usage:       "input file",
+			Required:    true,
+			Destination: &execLotusFlags.file,
+		},
+	},
+	Action: runExecLotus,
 }
 
-func runExecLotus(c *cli.Context) error {
-	f := c.String("file")
-	if f == "" {
+func runExecLotus(_ *cli.Context) error {
+	if execLotusFlags.file == "" {
 		return fmt.Errorf("test vector file cannot be empty")
 	}
 
-	file, err := os.Open(f)
+	file, err := os.Open(execLotusFlags.file)
 	if err != nil {
 		return fmt.Errorf("failed to open test vector: %w", err)
 	}

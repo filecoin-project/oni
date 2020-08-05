@@ -15,11 +15,30 @@ import (
 	"github.com/filecoin-project/oni/tvx/state"
 )
 
+var extractMsgFlags struct {
+	cid  string
+	file string
+}
+
 var extractMsgCmd = &cli.Command{
 	Name:        "extract-message",
 	Description: "generate a message-class test vector by extracting it from a network",
-	Flags:       []cli.Flag{&cidFlag, &apiFlag, &fileFlag},
 	Action:      runExtractMsg,
+	Flags: []cli.Flag{
+		&apiFlag,
+		&cli.StringFlag{
+			Name:        "cid",
+			Usage:       "message CID to generate test vector from",
+			Required:    true,
+			Destination: &extractMsgFlags.cid,
+		},
+		&cli.StringFlag{
+			Name:        "file",
+			Usage:       "output file",
+			Required:    true,
+			Destination: &extractMsgFlags.file,
+		},
+	},
 }
 
 func runExtractMsg(c *cli.Context) error {
@@ -28,18 +47,17 @@ func runExtractMsg(c *cli.Context) error {
 	ctx := context.Background()
 
 	// get the output file.
-	outputFile := c.String(fileFlag.Name)
-	if outputFile == "" {
+	if extractMsgFlags.file == "" {
 		return fmt.Errorf("output file required")
 	}
 
-	mid, err := cid.Decode(c.String(cidFlag.Name))
+	mid, err := cid.Decode(extractMsgFlags.cid)
 	if err != nil {
 		return err
 	}
 
 	// Make the client.
-	api, err := makeClient(c.String(apiFlag.Name))
+	api, err := makeClient(c)
 	if err != nil {
 		return err
 	}
@@ -145,7 +163,7 @@ func runExtractMsg(c *cli.Context) error {
 		},
 	}
 
-	file, err := os.Create(outputFile)
+	file, err := os.Create(extractMsgFlags.file)
 	if err != nil {
 		return err
 	}

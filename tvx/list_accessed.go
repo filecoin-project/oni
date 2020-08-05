@@ -10,22 +10,34 @@ import (
 	"github.com/filecoin-project/oni/tvx/state"
 )
 
+var listAccessedFlags struct {
+	cid string
+}
+
 var listAccessedCmd = &cli.Command{
 	Name:        "list-accessed",
 	Description: "extract actors accessed during the execution of a message",
-	Flags:       []cli.Flag{&cidFlag, &apiFlag},
 	Action:      runListAccessed,
+	Flags: []cli.Flag{
+		&apiFlag,
+		&cli.StringFlag{
+			Name:        "cid",
+			Usage:       "message CID",
+			Required:    true,
+			Destination: &listAccessedFlags.cid,
+		},
+	},
 }
 
 func runListAccessed(c *cli.Context) error {
 	ctx := context.Background()
 
-	node, err := makeClient(c.String(apiFlag.Name))
+	node, err := makeClient(c)
 	if err != nil {
 		return err
 	}
 
-	mid, err := cid.Decode(c.String(cidFlag.Name))
+	mid, err := cid.Decode(listAccessedFlags.cid)
 	if err != nil {
 		return err
 	}
