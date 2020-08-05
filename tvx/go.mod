@@ -34,6 +34,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200723185710-6a3894a6352b
+	go.uber.org/zap v1.15.0
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi

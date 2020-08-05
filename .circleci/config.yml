@@ -54,3 +54,10 @@ jobs:
       - run:
           name: "build tvx"
           command: pushd tvx && go build .
+  run-test-vector-suites:
+    executor: linux
+    steps:
+      - run:
+          name: "messages test vector suite"
+          command: ./tvx suite-messages | ./tvx exec-lotus --stdin
+

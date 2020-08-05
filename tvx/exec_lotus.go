@@ -5,12 +5,12 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
@@ -19,7 +19,8 @@ import (
 )
 
 var execLotusFlags struct {
-	file string
+	file  string
+	stdin bool
 }
 
 var execLotusCmd = &cli.Command{
@@ -29,38 +30,66 @@ var execLotusCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:        "file",
 			Usage:       "input file",
-			Required:    true,
 			Destination: &execLotusFlags.file,
+		},
+		&cli.BoolFlag{
+			Name:        "stdin",
+			Usage:       "",
+			Destination: &execLotusFlags.stdin,
 		},
 	},
 	Action: runExecLotus,
 }
 
 func runExecLotus(_ *cli.Context) error {
-	if execLotusFlags.file == "" {
-		return fmt.Errorf("test vector file cannot be empty")
+	switch {
+	case execLotusFlags.stdin == true:
+		var tv TestVector
+
+		dec := json.NewDecoder(os.Stdin)
+		for {
+			err := dec.Decode(&tv)
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			err = executeTestVector(tv)
+			if err != nil {
+				return err
+			}
+		}
+	case execLotusFlags.file != "":
+		file, err := os.Open(execLotusFlags.file)
+		if err != nil {
+			return fmt.Errorf("failed to open test vector: %w", err)
+		}
+
+		var (
+			dec = json.NewDecoder(file)
+			tv  TestVector
+		)
+
+		if err = dec.Decode(&tv); err != nil {
+			return fmt.Errorf("failed to decode test vector: %w", err)
+		}
+
+		return executeTestVector(tv)
+	default:
+		return errors.New("no test vector input specified, use a file or stdin")
 	}
+}
 
-	file, err := os.Open(execLotusFlags.file)
-	if err != nil {
-		return fmt.Errorf("failed to open test vector: %w", err)
-	}
-
-	var (
-		dec = json.NewDecoder(file)
-		tv  TestVector
-	)
-
-	if err = dec.Decode(&tv); err != nil {
-		return fmt.Errorf("failed to decode test vector: %w", err)
-	}
-
+func executeTestVector(tv TestVector) error {
+	fmt.Println("executing test vector")
 	switch tv.Class {
 	case "message":
 		var (
-			ctx     = context.Background()
-			epoch   = tv.Pre.Epoch
-			preroot = tv.Pre.StateTree.RootCID
+			ctx   = context.Background()
+			epoch = tv.Pre.Epoch
+			root  = tv.Pre.StateTree.RootCID
 		)
 
 		bs := blockstore.NewTemporary()
@@ -89,12 +118,14 @@ func runExecLotus(_ *cli.Context) error {
 			}
 
 			fmt.Printf("executing message %v\n", i)
-			var applyRet *vm.ApplyRet
-			applyRet, preroot, err = driver.ExecuteMessage(msg, preroot, bs, epoch)
+			_, root, err = driver.ExecuteMessage(msg, root, bs, epoch)
 			if err != nil {
 				return err
 			}
-			spew.Dump(applyRet)
+		}
+
+		if root != tv.Post.StateTree.RootCID {
+			return fmt.Errorf("wrong post root cid; expected %v , but got %v", tv.Post.StateTree.RootCID, root)
 		}
 
 		return nil
