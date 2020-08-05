@@ -3,7 +3,6 @@ module github.com/filecoin-project/oni/tvx
 go 1.14
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/filecoin-ffi v0.30.4-0.20200716204036-cddc56607e1d
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
 	github.com/filecoin-project/go-bitfield v0.1.2
@@ -34,7 +33,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200723185710-6a3894a6352b
-	go.uber.org/zap v1.15.0
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
