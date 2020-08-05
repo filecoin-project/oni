@@ -32,6 +32,7 @@ func main() {
 			listAccessedCmd,
 			extractMsgCmd,
 			execLotusCmd,
+			examineCmd,
 		},
 	}
 
