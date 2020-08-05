@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -131,13 +132,29 @@ func runExtractMsg(c *cli.Context) error {
 		return err
 	}
 
-	preout := new(bytes.Buffer)
-	if err := g.WriteCAR(preout, preroot); err != nil {
+	getZippedCAR := func(root cid.Cid) ([]byte, error) {
+		out := new(bytes.Buffer)
+		gw := gzip.NewWriter(out)
+		if err := g.WriteCAR(gw, root); err != nil {
+			return nil, err
+		}
+		if err = gw.Flush(); err != nil {
+			return nil, err
+		}
+		if err = gw.Close(); err != nil {
+			return nil, err
+		}
+
+		return out.Bytes(), nil
+	}
+
+	pretree, err := getZippedCAR(preroot)
+	if err != nil {
 		return err
 	}
 
-	postout := new(bytes.Buffer)
-	if err := g.WriteCAR(postout, postroot); err != nil {
+	posttree, err := getZippedCAR(postroot)
+	if err != nil {
 		return err
 	}
 
@@ -161,13 +178,13 @@ func runExtractMsg(c *cli.Context) error {
 		Pre: &schema.Preconditions{
 			Epoch: ts.Height(),
 			StateTree: &schema.StateTree{
-				CAR: preout.Bytes(),
+				CAR: pretree,
 			},
 		},
 		ApplyMessages: []schema.HexEncodedBytes{msgBytes},
 		Post: &schema.Postconditions{
 			StateTree: &schema.StateTree{
-				CAR: postout.Bytes(),
+				CAR: posttree,
 			},
 		},
 	}

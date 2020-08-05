@@ -2,8 +2,6 @@ module github.com/filecoin-project/oni/tvx
 
 go 1.14
 
-replace github.com/supranational/blst => github.com/supranational/blst v0.1.2-alpha.1
-
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/filecoin-ffi v0.30.4-0.20200716204036-cddc56607e1d
@@ -19,6 +17,7 @@ require (
 	github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.4
+	github.com/ipfs/go-hamt-ipld v0.1.1
 	github.com/ipfs/go-ipfs-blockstore v1.0.0
 	github.com/ipfs/go-ipfs-exchange-interface v0.0.1
 	github.com/ipfs/go-ipfs-exchange-offline v0.0.1
@@ -40,3 +39,5 @@ require (
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
+
+replace github.com/supranational/blst => github.com/supranational/blst v0.1.2-alpha.1
