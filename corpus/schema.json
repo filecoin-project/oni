@@ -79,12 +79,13 @@
       }
     },
     "receipt": {
-      "additionalProperties": false,
+      "type": "object",
       "required": [
         "exit_code",
         "return",
         "gas_used"
       ],
+      "additionalProperties": false,
       "properties": {
         "exit_code": {
           "type": "number"
@@ -121,29 +122,23 @@
           "title": "state tree postconditions",
           "description": "state tree postconditions that must be true for this test vector to pass",
           "$ref": "#/definitions/state_tree"
+        },
+        "receipts": {
+          "title": "receipts to match",
+          "description": "receipts to match, required when using messages-class test vectors; length of this array MUST be equal to length of apply_messages",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/receipt"
+          }
         }
       }
     },
     "apply_messages": {
       "title": "messages to apply, along with the receipt to expect for each",
       "type": "array",
-      "items": [
-        {
-          "type": "object",
-          "required": [
-            "msg",
-            "receipt"
-          ],
-          "properties": {
-            "msg": {
-              "$ref": "#/definitions/hex"
-            },
-            "receipt": {
-              "$ref": "#/definitions/receipt"
-            }
-          }
-        }
-      ]
+      "items": {
+        "$ref": "#/definitions/hex"
+      }
     }
   },
   "required": [
