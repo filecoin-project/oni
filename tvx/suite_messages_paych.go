@@ -45,8 +45,8 @@ func MessageTest_Paych() error {
 
 		var pcState paych_spec.State
 		td.GetActorState(paychAddr, &pcState)
-		assert.Equal(t, senderID, pcState.From)
-		assert.Equal(t, receiverID, pcState.To)
+		assert.Equal(drivers.T, senderID, pcState.From)
+		assert.Equal(drivers.T, receiverID, pcState.To)
 		td.AssertBalance(paychAddr, toSend)
 
 		postroot := td.GetStateRoot()
@@ -120,11 +120,11 @@ func MessageTest_Paych() error {
 
 		var pcState paych_spec.State
 		td.GetActorState(paychAddr, &pcState)
-		assert.Equal(t, 1, len(pcState.LaneStates))
+		assert.Equal(drivers.T, 1, len(pcState.LaneStates))
 		ls := pcState.LaneStates[0]
-		assert.Equal(t, pcAmount, ls.Redeemed)
-		assert.Equal(t, pcNonce, ls.Nonce)
-		assert.Equal(t, pcLane, ls.ID)
+		assert.Equal(drivers.T, pcAmount, ls.Redeemed)
+		assert.Equal(drivers.T, pcNonce, ls.Nonce)
+		assert.Equal(drivers.T, pcLane, ls.ID)
 
 		postroot := td.GetStateRoot()
 
