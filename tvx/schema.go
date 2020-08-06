@@ -31,6 +31,8 @@ type Selector string
 type Metadata struct {
 	ID      string         `json:"id"`
 	Version string         `json:"version"`
+	Desc    string         `json:"description"`
+	Comment string         `json:"comment"`
 	Gen     GenerationData `json:"gen"`
 }
 
