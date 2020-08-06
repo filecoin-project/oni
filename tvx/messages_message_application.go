@@ -52,26 +52,25 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		//TODO: this test is broken, fix later
-		return nil
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
-
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
 
 		preroot := td.GetStateRoot()
 		msg := td.MessageProducer.Transfer(alice, alice, chain.Value(transferAmnt), chain.Nonce(0), chain.GasPrice(10), chain.GasLimit(1))
+		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
+
 		// Expect Message application to fail due to lack of gas
 		td.ApplyFailure(
 			msg,
 			exitcode_spec.SysErrOutOfGas)
 
-		// Expect Message application to fail due to lack of gas when sender is unknown
 		unknown := chain.MustNewIDAddr(10000000)
 		msg = td.MessageProducer.Transfer(unknown, alice, chain.Value(transferAmnt), chain.Nonce(0), chain.GasPrice(10), chain.GasLimit(1))
 		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
 
+		// Expect Message application to fail due to lack of gas when sender is unknown
 		td.ApplyFailure(
 			msg,
 			exitcode_spec.SysErrOutOfGas)
@@ -148,8 +147,6 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		//TODO: this test is broken, fix me
-		return nil
 		td := drivers.NewTestDriver()
 
 		v := newEmptyMessageVector()
