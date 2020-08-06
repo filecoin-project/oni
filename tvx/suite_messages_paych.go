@@ -149,7 +149,6 @@ func MessageTest_Paych() error {
 
 		v := newEmptyMessageVector()
 
-
 		// create the payment channel
 		sender, _ := td.NewAccountActor(drivers.SECP, initialBal)
 		receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
