@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
+	github.com/filecoin-project/go-bitfield v0.1.2
 	github.com/filecoin-project/lotus v0.4.3-0.20200801235920-43491cb7edfd
 	github.com/filecoin-project/sector-storage v0.0.0-20200730203805-7153e1dd05b5
 	github.com/filecoin-project/specs-actors v0.8.6

@@ -6,18 +6,25 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 
+	"github.com/filecoin-project/lotus/chain/types"
+	bitfield "github.com/filecoin-project/go-bitfield"
+	chainState "github.com/filecoin-project/lotus/chain/state"
 	"github.com/google/go-cmp/cmp"
 	"github.com/ipfs/go-cid"
 	hamt "github.com/ipfs/go-hamt-ipld"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/urfave/cli/v2"
-
-	"github.com/filecoin-project/lotus/chain/types"
-
-	// "github.com/filecoin-project/specs-actors/actors/builtin"
-	// init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
-	// "github.com/filecoin-project/specs-actors/actors/util/adt"
+	cbg "github.com/whyrusleeping/cbor-gen"
+	blocks "github.com/ipfs/go-block-format"
+	addr "github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/specs-actors/actors/builtin"
+	initActor "github.com/filecoin-project/specs-actors/actors/builtin/init"
+	rewardActor "github.com/filecoin-project/specs-actors/actors/builtin/reward"
+	storagePowerActor "github.com/filecoin-project/specs-actors/actors/builtin/power"
+	storageMinerActor "github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	adt "github.com/filecoin-project/specs-actors/actors/util/adt"
 
 	"github.com/filecoin-project/oni/tvx/state"
 )
@@ -51,37 +58,6 @@ func runExamineCmd(_ *cli.Context) error {
 		return err
 	}
 
-	/*
-		examine := func(root cid.Cid) error {
-			encoded := tv.CAR
-			tree, err := state.RecoverStateTree(context.TODO(), encoded, root)
-			if err != nil {
-				return err
-			}
-
-			initActor, err := tree.GetActor(builtin.InitActorAddr)
-			if err != nil {
-				return fmt.Errorf("cannot recover init actor: %w", err)
-			}
-
-			var ias init_.State
-			if err := tree.Store.Get(context.TODO(), initActor.Head, &ias); err != nil {
-				return err
-			}
-
-			adtStore := adt.WrapStore(context.TODO(), tree.Store)
-			m, err := adt.AsMap(adtStore, ias.AddressMap)
-			if err != nil {
-				return err
-			}
-			actors, err := m.CollectKeys()
-			for _, actor := range actors {
-				fmt.Printf("%s\n", actor)
-			}
-			return nil
-		}
-	*/
-
 	encoded, err := state.RecoverStore(context.TODO(), tv.CAR)
 	if err != nil {
 		return err
@@ -103,45 +79,132 @@ func runExamineCmd(_ *cli.Context) error {
 	return nil
 }
 
+func getInitFor(store *state.ProxyingStores, root cid.Cid, helper func(act initActor.State) *initActorState) map[string]string {
+	inverseMap := make(map[string]string)
+	inverseMap[string(builtin.InitActorAddr.Bytes())] = "<InitActor>"
+	inverseMap[string(builtin.RewardActorAddr.Bytes())] = "<RewardActor>"
+	inverseMap[string(builtin.CronActorAddr.Bytes())] = "<CronActor>"
+	inverseMap[string(builtin.StoragePowerActorAddr.Bytes())] = "<StoragePowerActor>"
+	inverseMap[string(builtin.StorageMarketActorAddr.Bytes())] = "<StorageMarketActor>"
+	inverseMap[string(builtin.VerifiedRegistryActorAddr.Bytes())] = "<VerifiedRegistryActor>"
+	inverseMap[string(builtin.BurntFundsActorAddr.Bytes())] = "<BurntFundsActor>"
+	tree, err := chainState.LoadStateTree(store.CBORStore, root)
+	if err != nil {
+		fmt.Printf("failed to load root State Tree for account mapping\n")
+		return inverseMap
+	}
+	initAct, err := tree.GetActor(builtin.InitActorAddr)
+
+	var initState initActor.State
+	if err := store.CBORStore.Get(context.TODO(), initAct.Head, &initState); err != nil {
+		fmt.Printf("failed to load Init acct @%v: %v\n", initAct.Head, err)
+		return inverseMap
+	}
+	forward := helper(initState)
+	for k, v := range forward.ADT {
+		address, _ := addr.NewIDAddress(v)
+		inverseMap[string(address.Bytes())] = k
+	}
+	return inverseMap
+}
+
 func diff(store *state.ProxyingStores, root, a, b *hamtNode) {
-	hamtExpander := func(n *hamtNode) *dag {
-		d := dag{
-			ID:       n.Cid,
-			Children: make(map[cid.Cid]interface{}),
-			KVs:      make([]kv, 0),
+	initActorTransformer := func(act initActor.State) *initActorState {
+		am, _ := adt.AsMap(store.ADTStore, act.AddressMap)
+		var val cbg.CborInt
+		m := make(map[string]uint64)
+		am.ForEach(&val, func(k string) error {
+			address, _ := addr.NewFromBytes([]byte(k))
+			m[address.String()] = uint64(val)
+			return nil
+		})
+		return &initActorState{
+			NextID: act.NextID.String(),
+			NetworkName: act.NetworkName,
+			ADTRoot: act.AddressMap.String(),
+			ADT: m,
 		}
-		for _, p := range n.Node.Pointers {
-			if p.Link.Defined() {
-				child, _ := hamt.LoadNode(context.TODO(), store.CBORStore, p.Link, hamt.UseTreeBitWidth(5))
-				d.Children[p.Link] = hamtNode{p.Link, child}
+	}
+
+	stateTreeNamer := getInitFor(store, root.Cid, initActorTransformer)
+
+	hamtActorExpander := func (n *hamtNode) map[string]*types.Actor {
+		m := make(map[string]*types.Actor)
+		kv := hamt.KV{}
+		n.Node.ForEach(context.TODO(), func(k string, val interface{}) error {
+			kv.Key = []byte(k)
+			if v, ok := val.(*cbg.Deferred); !ok {
+				return fmt.Errorf("unexpected hamt node %v", val)
 			} else {
-				for _, pkv := range p.KVs {
-					var actor types.Actor
-					cbor.DecodeInto(pkv.Value.Raw, &actor)
-					d.KVs = append(d.KVs, kv{pkv.Key, &actor})
-				}
+				kv.Value = v
 			}
+	
+			var template types.Actor
+			cbor.DecodeInto(kv.Value.Raw, &template)
+	
+			if nk, ok := stateTreeNamer[k]; ok {
+				k = nk
+			}
+			m[k] = &template
+	
+			return nil
+		})
+		return m
+	}
+
+	initHampTransformer := func(n *hamtNode) map[string]string {
+		m := make(map[string]string)
+		n.Node.ForEach(context.TODO(), func(k string, val interface{}) error {
+			m[k] = fmt.Sprintf("%v", val)
+			return nil
+		})
+		return m
+	}
+
+	actorTransformer := func (act *types.Actor) *statefulActor {
+		var state interface{}
+		block, _ := store.Blockstore.Get(act.Head)
+
+		switch act.Code {
+		case builtin.InitActorCodeID:
+			var initState initActor.State
+			cbor.DecodeInto(block.RawData(), &initState)
+			state = initState
+		case builtin.RewardActorCodeID:
+			var rewardState rewardActor.State
+			cbor.DecodeInto(block.RawData(), &rewardState)
+			state = rewardState
+		case builtin.StoragePowerActorCodeID:
+			var storagePowerState storagePowerActor.State
+			cbor.DecodeInto(block.RawData(), &storagePowerState)
+			state = storagePowerState
+		case builtin.StorageMinerActorCodeID:
+			var storageMinerState storageMinerActor.State
+			cbor.DecodeInto(block.RawData(), &storageMinerState)
+			state = storageMinerState
+		default:
+			state = block
 		}
-		return &d
+		return &statefulActor{
+			Type: builtin.ActorNameByCode(act.Code),
+			State: state,
+			Nonce: act.Nonce,
+			Balance: act.Balance.String(),
+		}
 	}
 
 	if d := cmp.Diff(a, b,
 		cmp.Comparer(cidComparer),
 		cmp.Comparer(bigIntComparer),
-		cmp.Transformer("hamt.Node", hamtExpander)); d != "" {
+		cmp.AllowUnexported(blocks.BasicBlock{}),
+		cmp.Transformer("types.Actor", actorTransformer),
+		cmp.Transformer("bitfield.Bitfield", bitfieldTransformer),
+		cmp.Transformer("initActor.State", initActorTransformer),
+		cmp.FilterPath(filterIn("initActor"), cmp.Transformer("init.State", initHampTransformer)),
+		cmp.FilterPath(topFilter, cmp.Transformer("state.StateTree", hamtActorExpander)));
+		d != "" {
 		fmt.Printf("Diff: %v\n", d)
 	}
-}
-
-type dag struct {
-	ID       cid.Cid
-	Children map[cid.Cid]interface{}
-	KVs      []kv
-}
-
-type kv struct {
-	Key   []byte
-	Value *types.Actor
 }
 
 type hamtNode struct {
@@ -155,4 +218,33 @@ func cidComparer(a, b cid.Cid) bool {
 
 func bigIntComparer(a, b *big.Int) bool {
 	return a.Cmp(b) == 0
+}
+
+func topFilter(p cmp.Path) bool {
+	return !strings.Contains(p.GoString(), "Actor")
+}
+
+func filterIn(substr string) func(cmp.Path) bool {
+	return func(p cmp.Path) bool {
+		return strings.Contains(p.GoString(), substr)
+	}
+}
+
+func bitfieldTransformer(b *bitfield.BitField) string {
+	data, _ := b.MarshalJSON()
+	return string(data)
+}
+ 
+type statefulActor struct {
+	Type string
+	State interface{}
+	Nonce uint64
+	Balance string
+}
+
+type initActorState struct {
+	ADT map[string]uint64
+	ADTRoot string
+	NextID string
+	NetworkName string
 }
