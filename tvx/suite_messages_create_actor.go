@@ -101,7 +101,7 @@ func MessageTest_AccountActorCreation() error {
 			if err != nil {
 				return err
 			}
-			v.ApplyMessages = []HexEncodedBytes{b}
+			v.ApplyMessages = []Message{{Bytes: b}}
 			result := td.ApplyFailure(
 				msg,
 				tc.expExitCode,
@@ -166,7 +166,7 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	if err != nil {
 		return err
 	}
-	v.ApplyMessages = append(v.ApplyMessages, b1)
+	v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: b1})
 
 	msg2 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(1))
 	td.ApplyExpect(
@@ -178,7 +178,7 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	if err != nil {
 		return err
 	}
-	v.ApplyMessages = append(v.ApplyMessages, b2)
+	v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: b2})
 
 	postroot := td.GetStateRoot()
 

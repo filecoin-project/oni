@@ -36,7 +36,7 @@ func MessageTest_Paych() error {
 		createRet := td.ComputeInitActorExecReturn(sender, 0, 0, paychAddr)
 
 		msg := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
-		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
+		v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: chain.MustSerialize(msg)})
 
 		// init actor creates the payment channel
 		td.ApplyExpect(
@@ -72,7 +72,8 @@ func MessageTest_Paych() error {
 
 		v := newEmptyMessageVector()
 
-		const pcTimeLock = abi_spec.ChainEpoch(1)
+		//const pcTimeLock = abi_spec.ChainEpoch(1)
+		const pcTimeLock = abi_spec.ChainEpoch(0)
 		const pcLane = uint64(123)
 		const pcNonce = uint64(1)
 		var pcAmount = big_spec.NewInt(10)
@@ -92,10 +93,9 @@ func MessageTest_Paych() error {
 		// the _expected_ address of the payment channel
 		paychAddr := chain.MustNewIDAddr(chain.MustIdFromAddress(receiverID) + 1)
 		createRet := td.ComputeInitActorExecReturn(sender, 0, 0, paychAddr)
+
 		msg := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
-
-		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
-
+		v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: chain.MustSerialize(msg)})
 		td.ApplyExpect(
 			msg,
 			chain.MustSerialize(&createRet))
@@ -115,9 +115,7 @@ func MessageTest_Paych() error {
 				Signature:       pcSig,
 			},
 		}, chain.Nonce(1), chain.Value(big_spec.Zero()))
-
-		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
-
+		v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: chain.MustSerialize(msg)})
 		td.ApplyOk(msg)
 
 		var pcState paych_spec.State
@@ -151,7 +149,6 @@ func MessageTest_Paych() error {
 
 		v := newEmptyMessageVector()
 
-		preroot := td.GetStateRoot()
 
 		// create the payment channel
 		sender, _ := td.NewAccountActor(drivers.SECP, initialBal)
@@ -159,8 +156,10 @@ func MessageTest_Paych() error {
 		paychAddr := chain.MustNewIDAddr(chain.MustIdFromAddress(receiverID) + 1)
 		initRet := td.ComputeInitActorExecReturn(sender, 0, 0, paychAddr)
 
+		preroot := td.GetStateRoot()
+
 		msg := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
-		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
+		v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: chain.MustSerialize(msg)})
 		td.ApplyExpect(
 			msg,
 			chain.MustSerialize(&initRet))
@@ -169,7 +168,7 @@ func MessageTest_Paych() error {
 		msg = td.MessageProducer.PaychUpdateChannelState(sender, paychAddr, &paych_spec.UpdateChannelStateParams{
 			Sv: paych_spec.SignedVoucher{
 				ChannelAddr:     paychAddr,
-				TimeLockMin:     abi_spec.ChainEpoch(1),
+				TimeLockMin:     abi_spec.ChainEpoch(0),
 				TimeLockMax:     0, // TimeLockMax set to 0 means no timeout
 				SecretPreimage:  nil,
 				Extra:           nil,
@@ -185,21 +184,21 @@ func MessageTest_Paych() error {
 			},
 		}, chain.Nonce(1), chain.Value(big_spec.Zero()))
 
-		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
+		v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: chain.MustSerialize(msg)})
 
 		td.ApplyOk(msg)
 
 		// settle the payment channel so it may be collected
 
 		msg = td.MessageProducer.PaychSettle(receiver, paychAddr, nil, chain.Value(big_spec.Zero()), chain.Nonce(0))
-		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
+		v.ApplyMessages = append(v.ApplyMessages, Message{Bytes: chain.MustSerialize(msg)})
 		settleResult := td.ApplyOk(msg)
 
 		// advance the epoch so the funds may be redeemed.
 		td.ExeCtx.Epoch += paych_spec.SettleDelay
 
 		msg = td.MessageProducer.PaychCollect(receiver, paychAddr, nil, chain.Nonce(1), chain.Value(big_spec.Zero()))
-		v.ApplyMessages = append(v.ApplyMessages, chain.MustSerialize(msg))
+		v.ApplyMessages = append(v.ApplyMessages, Message{Epoch: &td.ExeCtx.Epoch, Bytes: chain.MustSerialize(msg)})
 
 		collectResult := td.ApplyOk(msg)
 
