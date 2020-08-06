@@ -90,7 +90,12 @@ type TestVector struct {
 	// objects.
 	CAR HexEncodedBytes `json:"car_hex"`
 
-	Pre           *Preconditions    `json:"preconditions"`
-	ApplyMessages []HexEncodedBytes `json:"apply_messages"`
-	Post          *Postconditions   `json:"postconditions"`
+	Pre           *Preconditions  `json:"preconditions"`
+	ApplyMessages []Message       `json:"apply_messages"`
+	Post          *Postconditions `json:"postconditions"`
+}
+
+type Message struct {
+	Bytes HexEncodedBytes `json:"bytes"`
+	Epoch *abi.ChainEpoch `json:"epoch,omitempty"`
 }
