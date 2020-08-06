@@ -1,10 +1,11 @@
 {
   "class": "message",
   "selector": "<some predicate for the driver to determine if this vector applies to the implementation, e.g. to deal with protocol upgrades>",
-
   "_meta": {
     "id": "test_vector_id",
     "version": "version_id",
+    "description": "tests that the VM rejects a message containing...",
+    "comment": "this message should never actually be fed to the VM, because the block would be deemed invalid by the syncer",
     "gen": {
       "source": "lotus",
       "version": "0.4.1+git.27d74337+api0.8.1"

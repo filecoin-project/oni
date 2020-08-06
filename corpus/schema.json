@@ -21,9 +21,19 @@
       "additionalProperties": false,
       "properties": {
         "id": {
+          "title": "a unique identifier that identifies this test vector",
           "type": "string"
         },
         "version": {
+          "title": "the version of this test vector",
+          "type": "string"
+        },
+        "description": {
+          "title": "an optional description of the test vector",
+          "type": "string"
+        },
+        "comment": {
+          "title": "optional comments about this test vector, e.g. applicability, hints, rationale, etc.",
           "type": "string"
         },
         "gen": {
