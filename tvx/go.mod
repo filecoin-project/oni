@@ -3,6 +3,7 @@ module github.com/filecoin-project/oni/tvx
 go 1.14
 
 require (
+	github.com/dchest/blake2b v1.0.0
 	github.com/filecoin-project/filecoin-ffi v0.30.4-0.20200716204036-cddc56607e1d
 	github.com/filecoin-project/go-address v0.0.2-0.20200504173055-8b6f2fb2b3ef
 	github.com/filecoin-project/go-bitfield v0.1.2

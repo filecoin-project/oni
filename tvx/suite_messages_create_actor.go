@@ -28,6 +28,7 @@ func suiteMessages(c *cli.Context) error {
 	err = multierror.Append(MessageTest_AccountActorCreation())
 	err = multierror.Append(MessageTest_InitActorSequentialIDAddressCreate())
 	err = multierror.Append(MessageTest_MessageApplicationEdgecases())
+	err = multierror.Append(MessageTest_Paych())
 	return err.ErrorOrNil()
 }
 
