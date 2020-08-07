@@ -140,8 +140,8 @@ func MessageTest_NestedSends() error {
 		td := drivers.NewTestDriver()
 		td.Vector.Meta.Desc = testname
 
-		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		_, anotherId := td.NewAccountActor(drivers.SECP, big.Zero())
+		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		balanceBefore := td.GetBalance(stage.creator)
 
 		// Multisig sends to itself.
