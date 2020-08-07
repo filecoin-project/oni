@@ -31,6 +31,7 @@ func suiteMessages(c *cli.Context) error {
 	err = multierror.Append(MessageTest_Paych())
 	err = multierror.Append(MessageTest_ValueTransferSimple())
 	err = multierror.Append(MessageTest_ValueTransferAdvance())
+	err = multierror.Append(MessageTest_NestedSends())
 	return err.ErrorOrNil()
 }
 
