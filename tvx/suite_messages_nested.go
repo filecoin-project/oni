@@ -45,6 +45,7 @@ func MessageTest_NestedSends() error {
 
 	err := func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		balanceBefore := td.GetBalance(stage.creator)
@@ -71,6 +72,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		balanceBefore := td.GetBalance(stage.creator)
@@ -100,6 +102,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		balanceBefore := td.GetBalance(stage.creator)
@@ -135,6 +138,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		_, anotherId := td.NewAccountActor(drivers.SECP, big.Zero())
@@ -169,6 +173,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 
@@ -213,6 +218,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 
@@ -240,6 +246,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 
@@ -267,6 +274,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 
@@ -293,6 +301,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		balanceBefore := td.GetBalance(stage.creator)
@@ -338,6 +347,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		balanceBefore := td.GetBalance(stage.creator)
@@ -366,6 +376,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		balanceBefore := td.GetBalance(stage.creator)
@@ -400,6 +411,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		prevHead := td.GetHead(builtin.RewardActorAddr)
@@ -432,6 +444,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
 		prevHead := td.GetHead(builtin.InitActorAddr)
