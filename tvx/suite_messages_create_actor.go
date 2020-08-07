@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/hashicorp/go-multierror"
@@ -95,7 +94,7 @@ func MessageTest_AccountActorCreation() error {
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
 
-			preroot := td.GetStateRoot()
+			td.UpdatePreStateRoot()
 
 			msg := td.MessageProducer.Transfer(existingAccountAddr, tc.newActorAddr, chain.Value(tc.newActorInitBal), chain.Nonce(0))
 			result := td.ApplyFailure(
@@ -109,14 +108,7 @@ func MessageTest_AccountActorCreation() error {
 				td.AssertBalance(existingAccountAddr, big_spec.Sub(big_spec.Sub(tc.existingActorBal, result.Receipt.GasUsed.Big()), tc.newActorInitBal))
 			}
 
-			postroot := td.GetStateRoot()
-
-			td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-			td.Vector.Pre.StateTree.RootCID = preroot
-			td.Vector.Post.StateTree.RootCID = postroot
-
-			// encode and output
-			fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+			td.MustSerialize(os.Stdout)
 
 			return nil
 		}()
@@ -145,7 +137,7 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 	firstInitRet := td.ComputeInitActorExecReturn(sender, 0, 0, firstPaychAddr)
 	secondInitRet := td.ComputeInitActorExecReturn(sender, 1, 0, secondPaychAddr)
 
-	preroot := td.GetStateRoot()
+	td.UpdatePreStateRoot()
 
 	msg1 := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
 	td.ApplyExpect(
@@ -159,14 +151,7 @@ func MessageTest_InitActorSequentialIDAddressCreate() error {
 		chain.MustSerialize(&secondInitRet),
 	)
 
-	postroot := td.GetStateRoot()
-
-	td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-	td.Vector.Pre.StateTree.RootCID = preroot
-	td.Vector.Post.StateTree.RootCID = postroot
-
-	// encode and output
-	fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+	td.MustSerialize(os.Stdout)
 
 	return nil
 }

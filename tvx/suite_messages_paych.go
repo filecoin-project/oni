@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
@@ -27,7 +26,7 @@ func MessageTest_Paych() error {
 		// will be receiver on paych
 		receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		// the _expected_ address of the payment channel
 		paychAddr := chain.MustNewIDAddr(chain.MustIDFromAddress(receiverID) + 1)
@@ -46,14 +45,7 @@ func MessageTest_Paych() error {
 		assert.Equal(drivers.T, receiverID, pcState.To)
 		td.AssertBalance(paychAddr, toSend)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("happy path constructor")
@@ -80,7 +72,7 @@ func MessageTest_Paych() error {
 		// will be receiver on paych
 		receiver, receiverID := td.NewAccountActor(drivers.SECP, initialBal)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		// the _expected_ address of the payment channel
 		paychAddr := chain.MustNewIDAddr(chain.MustIDFromAddress(receiverID) + 1)
@@ -116,14 +108,7 @@ func MessageTest_Paych() error {
 		assert.Equal(drivers.T, pcNonce, ls.Nonce)
 		assert.Equal(drivers.T, pcLane, ls.ID)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("happy path update")
@@ -140,7 +125,7 @@ func MessageTest_Paych() error {
 		paychAddr := chain.MustNewIDAddr(chain.MustIDFromAddress(receiverID) + 1)
 		initRet := td.ComputeInitActorExecReturn(sender, 0, 0, paychAddr)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.CreatePaymentChannelActor(sender, receiver, chain.Value(toSend), chain.Nonce(0))
 		td.ApplyExpect(
@@ -185,14 +170,7 @@ func MessageTest_Paych() error {
 		// the paych actor should have been deleted after the collect
 		td.AssertNoActor(paychAddr)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("happy path collect")

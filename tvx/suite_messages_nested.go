@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 
 	address "github.com/filecoin-project/go-address"
@@ -57,13 +56,7 @@ func MessageTest_NestedSends() error {
 
 		td.AssertActor(stage.creator, big.Sub(big.Add(balanceBefore, amtSent), result.Receipt.GasUsed.Big()), nonce+1)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("ok basic")
@@ -87,13 +80,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.creator, big.Sub(balanceBefore, result.Receipt.GasUsed.Big()))
 		td.AssertBalance(newAddr, amtSent)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("ok to new actor")
@@ -123,13 +110,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.creator, big.Sub(balanceBefore, result.Receipt.GasUsed.Big()))
 		td.AssertBalance(newAddr, amtSent)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("ok to new actor with invoke")
@@ -158,13 +139,7 @@ func MessageTest_NestedSends() error {
 		td.GetActorState(stage.msAddr, &st)
 		assert.Equal(drivers.T, []address.Address{stage.creator, anotherId}, st.Signers)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("ok recursive")
@@ -187,13 +162,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.msAddr, big.Sub(multisigBalance, amtSent))
 		td.AssertBalance(newAddr, amtSent)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("ok non-CBOR params with transfer")
@@ -231,13 +200,7 @@ func MessageTest_NestedSends() error {
 		_, err := td.State().Actor(newAddr)
 		assert.Error(drivers.T, err)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail nonexistent ID address")
@@ -259,13 +222,7 @@ func MessageTest_NestedSends() error {
 		_, err := td.State().Actor(newAddr)
 		assert.Error(drivers.T, err)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail nonexistent actor address")
@@ -286,13 +243,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.msAddr, multisigBalance) // No change.
 		td.AssertNoActor(newAddr)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail invalid methodnum new actor")
@@ -313,13 +264,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.msAddr, multisigBalance)                                       // No change.
 		td.AssertBalance(stage.creator, big.Sub(balanceBefore, result.Receipt.GasUsed.Big())) // Pay gas, don't receive funds.
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail invalid methodnum for actor")
@@ -361,13 +306,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.msAddr, multisigBalance)        // No change.
 		assert.Equal(drivers.T, 1, len(stage.state().Signers)) // No new signers
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail missing params")
@@ -396,13 +335,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.msAddr, multisigBalance)        // No change.
 		assert.Equal(drivers.T, 1, len(stage.state().Signers)) // No new signers
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail mismatched params")
@@ -429,13 +362,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.msAddr, multisigBalance) // No change.
 		td.AssertHead(builtin.RewardActorAddr, prevHead)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail inner abort")
@@ -466,13 +393,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(stage.msAddr, multisigBalance) // No change.
 		td.AssertHead(builtin.InitActorAddr, prevHead)  // Init state unchanged.
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail aborted exec")
@@ -519,13 +440,7 @@ func MessageTest_NestedSends() error {
 		td.AssertBalance(alice, big.Sub(acctDefaultBalance, result.GasUsed().Big()))
 		td.AssertBalance(bob, big.Zero())
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail insufficient funds for transfer in inner send")
@@ -553,8 +468,7 @@ func prepareStage(td *drivers.TestDriver, creatorBalance, msBalance abi.TokenAmo
 
 	msg := td.MessageProducer.CreateMultisigActor(creatorId, []address.Address{creatorId}, 0, 1, chain.Value(msBalance), chain.Nonce(0))
 
-	preroot := td.GetStateRoot()
-	td.Vector.Pre.StateTree.RootCID = preroot
+	td.UpdatePreStateRoot()
 
 	result := td.ApplyMessage(msg)
 	require.Equal(drivers.T, exitcode_spec.Ok, result.Receipt.ExitCode)
