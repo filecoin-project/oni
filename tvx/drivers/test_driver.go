@@ -326,13 +326,11 @@ func (td *TestDriver) applyMessage(msg *types.Message) (result vtypes.ApplyMessa
 	}()
 
 	result, err := td.applier.ApplyMessage(td.ExeCtx.Epoch, msg)
-	require.NoError(T, err)
-
 	td.Vector.ApplyMessages = append(
 		td.Vector.ApplyMessages,
 		schema.Message{Bytes: chain.MustSerialize(msg)},
 	)
-
+	require.NoError(T, err)
 	return result
 }
 
@@ -379,13 +377,11 @@ func (td *TestDriver) applyMessageSigned(msg *types.Message) (result vtypes.Appl
 		Signature: msgSig,
 	}
 	result, err = td.applier.ApplySignedMessage(td.ExeCtx.Epoch, smsgs)
-	require.NoError(T, err)
-
 	td.Vector.ApplyMessages = append(
 		td.Vector.ApplyMessages,
 		schema.Message{Bytes: chain.MustSerialize(smsgs)},
 	)
-
+	require.NoError(T, err)
 	return result
 }
 
