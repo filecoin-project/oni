@@ -1,25 +1,26 @@
 package main
 
 import (
-	"fmt"
 	"bytes"
+	"fmt"
 	"os"
 
-	"github.com/filecoin-project/specs-actors/actors/abi"
+	address "github.com/filecoin-project/go-address"
 	vtypes "github.com/filecoin-project/oni/tvx/chain/types"
-	typegen "github.com/whyrusleeping/cbor-gen"
+	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 	builtin "github.com/filecoin-project/specs-actors/actors/builtin"
-	"github.com/filecoin-project/specs-actors/actors/builtin/multisig"
-	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
-	address "github.com/filecoin-project/go-address"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
+	"github.com/filecoin-project/specs-actors/actors/builtin/multisig"
 	"github.com/filecoin-project/specs-actors/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/actors/puppet"
 	"github.com/filecoin-project/specs-actors/actors/runtime"
+	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	typegen "github.com/whyrusleeping/cbor-gen"
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
@@ -357,8 +358,8 @@ func MessageTest_NestedSends() error {
 		result := stage.sendOk(stage.msAddr, amtSent, builtin.MethodsMultisig.AddSigner, params, nonce)
 
 		td.AssertBalance(stage.creator, big.Sub(balanceBefore, result.Receipt.GasUsed.Big()))
-		td.AssertBalance(stage.msAddr, multisigBalance) // No change.
-		assert.Equal(drivers.T, 1, len(stage.state().Signers))  // No new signers
+		td.AssertBalance(stage.msAddr, multisigBalance)        // No change.
+		assert.Equal(drivers.T, 1, len(stage.state().Signers)) // No new signers
 
 		postroot := td.GetStateRoot()
 
@@ -392,8 +393,8 @@ func MessageTest_NestedSends() error {
 		result := stage.sendOk(stage.msAddr, amtSent, builtin.MethodsMultisig.AddSigner, &params, nonce)
 
 		td.AssertBalance(stage.creator, big.Sub(balanceBefore, result.Receipt.GasUsed.Big()))
-		td.AssertBalance(stage.msAddr, multisigBalance) // No change.
-		assert.Equal(drivers.T, 1, len(stage.state().Signers))  // No new signers
+		td.AssertBalance(stage.msAddr, multisigBalance)        // No change.
+		assert.Equal(drivers.T, 1, len(stage.state().Signers)) // No new signers
 
 		postroot := td.GetStateRoot()
 
@@ -479,60 +480,56 @@ func MessageTest_NestedSends() error {
 		return err
 	}
 
+	err = func(testname string) error {
+		td := drivers.NewTestDriver()
+
+		// puppet actor has zero funds
+		puppetBalance := big.Zero()
+
+		_, _, err := td.StateDriver.State().CreateActor(puppet.PuppetActorCodeID, PuppetAddress, puppetBalance, &puppet.State{})
+		require.NoError(drivers.T, err)
+
+		alice, _ := td.NewAccountActor(drivers.SECP, acctDefaultBalance)
+		bob, _ := td.NewAccountActor(drivers.SECP, big.Zero())
+
+		// alice tells the puppet actor to send funds to bob, the puppet actor has 0 balance so the inner send will fail,
+		// and alice will pay the gas cost.
+		amtSent := abi.NewTokenAmount(1)
+		result := td.ApplyMessage(td.MessageProducer.PuppetSend(alice, PuppetAddress, &puppet.SendParams{
+			To:     bob,
+			Value:  amtSent,
+			Method: builtin.MethodSend,
+			Params: nil,
+		}))
+
+		// the outer message should be applied successfully
+		assert.Equal(drivers.T, exitcode_spec.Ok, result.Receipt.ExitCode)
+
+		var puppetRet puppet.SendReturn
+		chain.MustDeserialize(result.Receipt.ReturnValue, &puppetRet)
+
+		// the inner message should fail
+		assert.Equal(drivers.T, exitcode_spec.SysErrInsufficientFunds, puppetRet.Code)
+
+		// alice should be charged for the gas cost and bob should have not received any funds.
+		td.AssertBalance(alice, big.Sub(acctDefaultBalance, result.GasUsed().Big()))
+		td.AssertBalance(bob, big.Zero())
+
+		postroot := td.GetStateRoot()
+
+		td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
+		td.Vector.Post.StateTree.RootCID = postroot
+
+		// encode and output
+		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+
+		return nil
+	}("fail insufficient funds for transfer in inner send")
+	if err != nil {
+		return err
+	}
+
 	return nil
-
-	//err = func(testname string) error {
-		//td := drivers.NewTestDriver()
-
-		//// puppet actor has zero funds
-		//puppetBalance := big.Zero()
-		//td := builder.WithActorState(drivers.ActorState{
-			//Addr:    PuppetAddress,
-			//Balance: puppetBalance,
-			//Code:    puppet.PuppetActorCodeID,
-			//State:   &puppet.State{},
-		//}).Build(t)
-		//defer td.Complete()
-
-		//alice, _ := td.NewAccountActor(drivers.SECP, acctDefaultBalance)
-		//bob, _ := td.NewAccountActor(drivers.SECP, big.Zero())
-
-		//// alice tells the puppet actor to send funds to bob, the puppet actor has 0 balance so the inner send will fail,
-		//// and alice will pay the gas cost.
-		//amtSent := abi.NewTokenAmount(1)
-		//result := td.ApplyMessage(td.MessageProducer.PuppetSend(alice, PuppetAddress, &puppet.SendParams{
-			//To:     bob,
-			//Value:  amtSent,
-			//Method: builtin.MethodSend,
-			//Params: nil,
-		//}))
-
-		//// the outer message should be applied successfully
-		//assert.Equal(drivers.T, exitcode_spec.Ok, result.Receipt.ExitCode)
-
-		//var puppetRet puppet.SendReturn
-		//chain.MustDeserialize(result.Receipt.ReturnValue, &puppetRet)
-
-		//// the inner message should fail
-		//assert.Equal(drivers.T, exitcode_spec.SysErrInsufficientFunds, puppetRet.Code)
-
-		//// alice should be charged for the gas cost and bob should have not received any funds.
-		//td.AssertBalance(alice, big.Sub(acctDefaultBalance, result.GasUsed().Big()))
-		//td.AssertBalance(bob, big.Zero())
-
-		//postroot := td.GetStateRoot()
-
-		//td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, postroot)
-		//td.Vector.Post.StateTree.RootCID = postroot
-
-		//// encode and output
-		//fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
-
-		//return nil
-	//}("fail insufficient funds for transfer in inner send")
-	//if err != nil {
-		//return err
-	//}
 
 	// TODO more tests:
 	// fail send running out of gas on inner method
