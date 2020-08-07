@@ -20,7 +20,7 @@ import (
 
 var suiteMessagesCmd = &cli.Command{
 	Name:        "suite-messages",
-	Description: "",
+	Description: "generate test vectors from the messages test suite adapted from github.com/filecoin-project/chain-validation",
 	Action:      suiteMessages,
 }
 
