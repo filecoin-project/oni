@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	address "github.com/filecoin-project/go-address"
@@ -108,7 +107,7 @@ func MessageTest_ValueTransferSimple() error {
 			require.NoError(drivers.T, err)
 			require.Equal(drivers.T, tc.senderBal.String(), sendAct.Balance().String())
 
-			preroot := td.GetStateRoot()
+			td.UpdatePreStateRoot()
 
 			msg := td.MessageProducer.Transfer(tc.sender, tc.receiver, chain.Value(tc.transferAmnt), chain.Nonce(0))
 
@@ -130,14 +129,7 @@ func MessageTest_ValueTransferSimple() error {
 				}
 			}
 
-			postroot := td.GetStateRoot()
-
-			td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-			td.Vector.Pre.StateTree.RootCID = preroot
-			td.Vector.Post.StateTree.RootCID = postroot
-
-			// encode and output
-			fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+			td.MustSerialize(os.Stdout)
 
 			return nil
 		}(tc.desc)
@@ -158,7 +150,7 @@ func MessageTest_ValueTransferAdvance() error {
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
 		transferAmnt := abi_spec.NewTokenAmount(10)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.Transfer(alice, alice, chain.Value(transferAmnt), chain.Nonce(0))
 		result := td.ApplyOk(msg)
@@ -166,14 +158,7 @@ func MessageTest_ValueTransferAdvance() error {
 		// since this is a self transfer expect alice's balance to only decrease by the gasUsed
 		td.AssertBalance(alice, big_spec.Sub(aliceInitialBalance, result.Receipt.GasUsed.Big()))
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("self transfer secp to secp")
@@ -187,7 +172,7 @@ func MessageTest_ValueTransferAdvance() error {
 		alice, aliceId := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
 		transferAmnt := abi_spec.NewTokenAmount(10)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.Transfer(alice, aliceId, chain.Value(transferAmnt), chain.Nonce(0))
 
@@ -196,14 +181,7 @@ func MessageTest_ValueTransferAdvance() error {
 		// since this is a self transfer expect alice's balance to only decrease by the gasUsed
 		td.AssertBalance(alice, big_spec.Sub(aliceInitialBalance, result.Receipt.GasUsed.Big()))
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("self transfer secp to id address")
@@ -217,7 +195,7 @@ func MessageTest_ValueTransferAdvance() error {
 		alice, aliceId := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
 		transferAmnt := abi_spec.NewTokenAmount(10)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.Transfer(aliceId, alice, chain.Value(transferAmnt), chain.Nonce(0))
 
@@ -226,14 +204,7 @@ func MessageTest_ValueTransferAdvance() error {
 		// since this is a self transfer expect alice's balance to only decrease by the gasUsed
 		td.AssertBalance(alice, big_spec.Sub(aliceInitialBalance, result.Receipt.GasUsed.Big()))
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("self transfer id to secp address")
@@ -247,7 +218,7 @@ func MessageTest_ValueTransferAdvance() error {
 		alice, aliceId := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
 		transferAmnt := abi_spec.NewTokenAmount(10)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.Transfer(aliceId, aliceId, chain.Value(transferAmnt), chain.Nonce(0))
 
@@ -256,14 +227,7 @@ func MessageTest_ValueTransferAdvance() error {
 		// since this is a self transfer expect alice's balance to only decrease by the gasUsed
 		td.AssertBalance(alice, big_spec.Sub(aliceInitialBalance, result.Receipt.GasUsed.Big()))
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("self transfer id to id address")
@@ -278,7 +242,7 @@ func MessageTest_ValueTransferAdvance() error {
 		receiver := td.Wallet().NewSECP256k1AccountAddress()
 		transferAmnt := abi_spec.NewTokenAmount(10)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.Transfer(alice, receiver, chain.Value(transferAmnt), chain.Nonce(0))
 
@@ -286,14 +250,7 @@ func MessageTest_ValueTransferAdvance() error {
 		td.AssertBalance(alice, big_spec.Sub(big_spec.Sub(aliceInitialBalance, result.Receipt.GasUsed.Big()), transferAmnt))
 		td.AssertBalance(receiver, transferAmnt)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("ok transfer from known address to new account")
@@ -308,7 +265,7 @@ func MessageTest_ValueTransferAdvance() error {
 		unknown := td.Wallet().NewSECP256k1AccountAddress()
 		transferAmnt := abi_spec.NewTokenAmount(10)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.Transfer(unknown, alice, chain.Value(transferAmnt), chain.Nonce(0))
 
@@ -317,14 +274,7 @@ func MessageTest_ValueTransferAdvance() error {
 			exitcode_spec.SysErrSenderInvalid)
 		td.AssertBalance(alice, aliceInitialBalance)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail to transfer from unknown account to known address")
@@ -339,7 +289,7 @@ func MessageTest_ValueTransferAdvance() error {
 		receiver := td.Wallet().NewSECP256k1AccountAddress()
 		transferAmnt := abi_spec.NewTokenAmount(10)
 
-		preroot := td.GetStateRoot()
+		td.UpdatePreStateRoot()
 
 		msg := td.MessageProducer.Transfer(sender, receiver, chain.Value(transferAmnt), chain.Nonce(0))
 
@@ -349,14 +299,7 @@ func MessageTest_ValueTransferAdvance() error {
 		td.AssertNoActor(sender)
 		td.AssertNoActor(receiver)
 
-		postroot := td.GetStateRoot()
-
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
-		td.Vector.Pre.StateTree.RootCID = preroot
-		td.Vector.Post.StateTree.RootCID = postroot
-
-		// encode and output
-		fmt.Fprintln(os.Stdout, string(td.Vector.MustMarshalJSON()))
+		td.MustSerialize(os.Stdout)
 
 		return nil
 	}("fail to transfer from unknown address to unknown address")
