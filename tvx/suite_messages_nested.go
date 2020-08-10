@@ -482,6 +482,7 @@ func MessageTest_NestedSends() error {
 
 	err = func(testname string) error {
 		td := drivers.NewTestDriver()
+		td.Vector.Meta.Desc = testname
 
 		// puppet actor has zero funds
 		puppetBalance := big.Zero()
@@ -491,6 +492,9 @@ func MessageTest_NestedSends() error {
 
 		alice, _ := td.NewAccountActor(drivers.SECP, acctDefaultBalance)
 		bob, _ := td.NewAccountActor(drivers.SECP, big.Zero())
+
+		preroot := td.GetStateRoot()
+		td.Vector.Pre.StateTree.RootCID = preroot
 
 		// alice tells the puppet actor to send funds to bob, the puppet actor has 0 balance so the inner send will fail,
 		// and alice will pay the gas cost.
