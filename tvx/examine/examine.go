@@ -21,10 +21,14 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
+	accountActor "github.com/filecoin-project/specs-actors/actors/builtin/account"
 	initActor "github.com/filecoin-project/specs-actors/actors/builtin/init"
 	rewardActor "github.com/filecoin-project/specs-actors/actors/builtin/reward"
+	cronActor "github.com/filecoin-project/specs-actors/actors/builtin/cron"
 	storagePowerActor "github.com/filecoin-project/specs-actors/actors/builtin/power"
+	marketActor "github.com/filecoin-project/specs-actors/actors/builtin/market"
 	storageMinerActor "github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	verifiedRegistryActor "github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
 	adt "github.com/filecoin-project/specs-actors/actors/util/adt"
 	runtime "github.com/filecoin-project/specs-actors/actors/runtime"
 )
@@ -106,6 +110,22 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 			var storageMinerState storageMinerActor.State
 			cbor.DecodeInto(block.RawData(), &storageMinerState)
 			state = storageMinerState
+		case builtin.CronActorCodeID:
+			var cronState cronActor.State
+			cbor.DecodeInto(block.RawData(), &cronState)
+			state = cronState
+		case builtin.StorageMarketActorCodeID:
+			var marketState marketActor.State
+			cbor.DecodeInto(block.RawData(), &marketState)
+			state = marketState
+		case builtin.VerifiedRegistryActorCodeID:
+			var registryState verifiedRegistryActor.State
+			cbor.DecodeInto(block.RawData(), &registryState)
+			state = registryState
+		case builtin.AccountActorCodeID:
+			var accountState accountActor.State
+			cbor.DecodeInto(block.RawData(), &accountState)
+			state = accountState
 		default:
 			state = block
 		}
@@ -140,6 +160,19 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 	cidMap[".*\\(power\\.State\\)\\.CronEventQueue$"] = reflect.TypeOf("") // TODO: support for 'multimap'
 	cidMap[".*\\(power\\.State\\)\\.Claims$"] = reflect.TypeOf(make(map[string]*storagePowerActor.Claim))
 	cidMap[".*\\(power\\.State\\)\\.ProofValidationBatch$"] = reflect.TypeOf("") // TODO: used?
+
+	// marketActor mappings
+	cidMap[".*\\(market\\.State\\)\\.Proposals$"] = reflect.TypeOf(make([]*marketActor.DealProposal, 0))
+	cidMap[".*\\(market\\.State\\).*PieceCID$"] = reflect.TypeOf("")
+	cidMap[".*\\(market\\.State\\)\\.States$"] = reflect.TypeOf(make([]*marketActor.DealState, 0))
+	cidMap[".*\\(market\\.State\\)\\.PendingProposals$"] = reflect.TypeOf(make(map[string]*marketActor.DealProposal))
+	cidMap[".*\\(market\\.State\\)\\.EscrowTable$"] = reflect.TypeOf(make(map[string]*big.Int)) // adt.BalanceTable
+	cidMap[".*\\(market\\.State\\)\\.LockedTable$"] = reflect.TypeOf(make(map[string]*big.Int)) // adt.BalanceTable
+	cidMap[".*\\(market\\.State\\)\\.DealOpsByEpoch$"] = reflect.TypeOf("") // TODO: support for 'multimap'
+	
+	// verifiedRegistryActor mappings
+	cidMap[".*\\(verifreg\\.State\\)\\.Verifiers$"] = reflect.TypeOf(make(map[string]*verifiedRegistryActor.DataCap))
+	cidMap[".*\\(verifreg\\.State\\)\\.VerifiedClients$"] = reflect.TypeOf(make(map[string]*verifiedRegistryActor.DataCap))
 
 	opts := []cmp.Option{
 		cmp.Comparer(bigIntComparer),
