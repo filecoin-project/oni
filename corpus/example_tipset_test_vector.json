@@ -1,0 +1,47 @@
+{
+  "class": "tipset",
+  "selector": "<some predicate for the driver to determine if this vector applies to the implementation, e.g. to deal with protocol upgrades>",
+  "_meta": {
+    "id": "test_vector_id",
+    "version": "version_id",
+    "description": "some description",
+    "comment": "comment about this tipset test",
+    "gen": {
+      "source": "lotus",
+      "version": "0.4.1+git.27d74337+api0.8.1"
+    }
+  },
+  "car_bytes": "0x890043009920583103b5b1fab6769fcb464146d192af785915d8e1dacff264b2be3bcb7bf4064a77cb3b13e27063ea4825dc48cd0a7df77e211916e748002740f0c493a2824200011a09d9c4dc0758c68219091c58c083e7c59e748e070b382a813f4ffe8ead2a090469aaa37f0664b82c092bc78b43fac300335cd2d6e4a8c71ce138003c0fa8ee1707b41aa87f35c811613d59ac53449aef8263aa51c876f2e67c185118ec9628f73442f58e093909ce952e431e770ac693cdbe99f2f9404ad3ca754196ab443c6c66afa41310e705e453496bdcedf0f271529dc7374021d7b80d343397f996d06bf11e753a49eaed7b3ce80a8e9bbaa48bf83223527bd8a2933f002949fdb8058103336a4a979375d5e963cdd7b1",
+  "preconditions": {
+    "epoch": 100,
+    "state_tree": {
+      "root_cid": {
+        "/": "bafy2bzacebbxsepazfgwepawspvzenb2x64pmqjyan3wgtfpxu5nxez33wzkc"
+      }
+    }
+  },
+  "apply_blocks": [
+    {
+      "epoch": 100, // or is it 101?
+      "bls_messages": [ ... ],
+      "secp_messages": [ ... ],
+      "miner": "...",
+      "ticket_count": 1234
+    },
+    ...
+  ],
+  "postconditions": {
+    "state_tree": {
+      "root_cid": {
+        "/": "bafy2bzacebbxsepazfgwepawspvzenb2x64pmqjyan3wgtfpxu5nxez33wzkc"
+      }
+    },
+    "receipts": [
+      {
+        "exit_code": 10, // do we need this?
+        "gas_used": 1000,
+        "return": "0x"
+      }
+    ]
+  }
+}
