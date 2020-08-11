@@ -11,6 +11,7 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 func MessageTest_Paych() error {
@@ -18,7 +19,7 @@ func MessageTest_Paych() error {
 	var toSend = abi_spec.NewTokenAmount(10_000)
 
 	err := func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		// will create and send on payment channel
@@ -55,7 +56,7 @@ func MessageTest_Paych() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		//const pcTimeLock = abi_spec.ChainEpoch(1)
@@ -119,7 +120,7 @@ func MessageTest_Paych() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		// create the payment channel

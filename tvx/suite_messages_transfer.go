@@ -15,6 +15,7 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 type valueTransferTestCases struct {
@@ -93,7 +94,7 @@ func MessageTest_ValueTransferSimple() error {
 
 	for _, tc := range testCases {
 		err := func(testname string) error {
-			td := drivers.NewTestDriver()
+			td := drivers.NewTestDriver(schema.NewMessageTestVector())
 			td.Vector.Meta.Desc = testname
 
 			// Create the to and from actors with balance in the state tree
@@ -146,7 +147,7 @@ func MessageTest_ValueTransferAdvance() error {
 	var aliceInitialBalance = abi_spec.NewTokenAmount(10_000_000_000)
 
 	err := func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
@@ -169,7 +170,7 @@ func MessageTest_ValueTransferAdvance() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, aliceId := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
@@ -193,7 +194,7 @@ func MessageTest_ValueTransferAdvance() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, aliceId := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
@@ -217,7 +218,7 @@ func MessageTest_ValueTransferAdvance() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, aliceId := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
@@ -241,7 +242,7 @@ func MessageTest_ValueTransferAdvance() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
@@ -265,7 +266,7 @@ func MessageTest_ValueTransferAdvance() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceInitialBalance)
@@ -290,7 +291,7 @@ func MessageTest_ValueTransferAdvance() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		sender := td.Wallet().NewSECP256k1AccountAddress()

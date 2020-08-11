@@ -34,6 +34,7 @@ func main() {
 			execLotusCmd,
 			examineCmd,
 			suiteMessagesCmd,
+			suiteTipsetsCmd,
 		},
 	}
 

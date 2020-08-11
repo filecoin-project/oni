@@ -14,6 +14,7 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 var suiteMessagesCmd = &cli.Command{
@@ -91,7 +92,7 @@ func MessageTest_AccountActorCreation() error {
 	}
 	for _, tc := range testCases {
 		err := func() error {
-			td := drivers.NewTestDriver()
+			td := drivers.NewTestDriver(schema.NewMessageTestVector())
 			td.Vector.Meta.Desc = tc.desc
 
 			existingAccountAddr, _ := td.NewAccountActor(tc.existingActorType, tc.existingActorBal)
@@ -124,7 +125,7 @@ func MessageTest_AccountActorCreation() error {
 }
 
 func MessageTest_InitActorSequentialIDAddressCreate() error {
-	td := drivers.NewTestDriver()
+	td := drivers.NewTestDriver(schema.NewMessageTestVector())
 
 	var initialBal = abi_spec.NewTokenAmount(200_000_000_000)
 	var toSend = abi_spec.NewTokenAmount(10_000)

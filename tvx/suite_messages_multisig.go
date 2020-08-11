@@ -5,14 +5,16 @@ import (
 	"os"
 
 	address "github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/oni/tvx/chain"
-	"github.com/filecoin-project/oni/tvx/drivers"
 	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
 	big_spec "github.com/filecoin-project/specs-actors/actors/abi/big"
 	builtin_spec "github.com/filecoin-project/specs-actors/actors/builtin"
 	multisig_spec "github.com/filecoin-project/specs-actors/actors/builtin/multisig"
 	exitcode_spec "github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 	"github.com/minio/blake2b-simd"
+
+	"github.com/filecoin-project/oni/tvx/chain"
+	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 func MessageTest_MultiSigActor() error {
@@ -22,7 +24,7 @@ func MessageTest_MultiSigActor() error {
 		var valueSend = abi_spec.NewTokenAmount(10)
 		var initialBal = abi_spec.NewTokenAmount(200000000000)
 
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		// creator of the multisig actor
@@ -63,7 +65,7 @@ func MessageTest_MultiSigActor() error {
 		var valueSend = abi_spec.NewTokenAmount(10)
 		var initialBal = abi_spec.NewTokenAmount(200000000000)
 
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, aliceID := td.NewAccountActor(drivers.SECP, initialBal)
@@ -152,7 +154,7 @@ func MessageTest_MultiSigActor() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		var initialBal = abi_spec.NewTokenAmount(200000000000)
@@ -270,7 +272,7 @@ func MessageTest_MultiSigActor() error {
 		var msValue = abi_spec.NewTokenAmount(100000000000)
 		var initialBal = abi_spec.NewTokenAmount(200000000000)
 
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, aliceID := td.NewAccountActor(drivers.SECP, initialBal) // 101

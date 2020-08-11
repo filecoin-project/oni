@@ -23,6 +23,7 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 var PuppetAddress address.Address
@@ -44,7 +45,7 @@ func MessageTest_NestedSends() error {
 	nonce := uint64(1)
 
 	err := func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -65,7 +66,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -89,7 +90,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -119,7 +120,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		_, anotherId := td.NewAccountActor(drivers.SECP, big.Zero())
@@ -148,7 +149,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -187,7 +188,7 @@ func MessageTest_NestedSends() error {
 	//
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -209,7 +210,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -231,7 +232,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -252,7 +253,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -292,7 +293,7 @@ func MessageTest_NestedSends() error {
 	//})
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -315,7 +316,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -344,7 +345,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -371,7 +372,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		stage := prepareStage(td, acctDefaultBalance, multisigBalance)
@@ -402,7 +403,7 @@ func MessageTest_NestedSends() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		// puppet actor has zero funds

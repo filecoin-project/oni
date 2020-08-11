@@ -55,6 +55,9 @@ jobs:
       - run:
           name: "run messages test vector suite"
           command: pushd tvx && ./tvx suite-messages | ./tvx exec-lotus
+      - run:
+          name: "run tipsets test vector suite"
+          command: pushd tvx && ./tvx suite-tipsets | ./tvx exec-lotus
   soup-build-linux:
     executor: linux
     steps:

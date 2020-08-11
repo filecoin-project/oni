@@ -210,7 +210,7 @@ func (m mockStore) Context() context.Context {
 	return m.ctx
 }
 
-func NewTestDriver() *TestDriver {
+func NewTestDriver(vec *schema.TestVector) *TestDriver {
 	syscalls := NewChainValidationSysCalls()
 	stateWrapper := NewStateWrapper()
 	applier := NewApplier(stateWrapper, func(ctx context.Context, cstate *state.StateTree, cst cbor.IpldStore) runtime.Syscalls {
@@ -236,25 +236,6 @@ func NewTestDriver() *TestDriver {
 	checkRet := true
 	config := NewConfig(checkExit, checkRet)
 
-	vector := schema.TestVector{
-		Class:    schema.ClassMessage,
-		Selector: "",
-		Meta: &schema.Metadata{
-			ID:      "TK",
-			Version: "TK",
-			Gen: schema.GenerationData{
-				Source:  "TK",
-				Version: "TK",
-			},
-		},
-		Pre: &schema.Preconditions{
-			StateTree: &schema.StateTree{},
-		},
-		Post: &schema.Postconditions{
-			StateTree: &schema.StateTree{},
-		},
-	}
-
 	return &TestDriver{
 		StateDriver: sd,
 
@@ -264,7 +245,7 @@ func NewTestDriver() *TestDriver {
 		SysCalls:        syscalls,
 
 		applier: applier,
-		Vector:  &vector,
+		Vector:  vec,
 	}
 }
 

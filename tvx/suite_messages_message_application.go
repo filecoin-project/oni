@@ -11,6 +11,7 @@ import (
 
 	"github.com/filecoin-project/oni/tvx/chain"
 	"github.com/filecoin-project/oni/tvx/drivers"
+	"github.com/filecoin-project/oni/tvx/schema"
 )
 
 func MessageTest_MessageApplicationEdgecases() error {
@@ -18,7 +19,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 	var transferAmnt = abi_spec.NewTokenAmount(10)
 
 	err := func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
@@ -40,7 +41,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
@@ -71,7 +72,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
@@ -111,7 +112,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
@@ -142,7 +143,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		const pcTimeLock = abi_spec.ChainEpoch(10)
@@ -203,7 +204,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 
 		alice, _ := td.NewAccountActor(drivers.SECP, aliceBal)
@@ -227,7 +228,7 @@ func MessageTest_MessageApplicationEdgecases() error {
 	}
 
 	err = func(testname string) error {
-		td := drivers.NewTestDriver()
+		td := drivers.NewTestDriver(schema.NewMessageTestVector())
 		td.Vector.Meta.Desc = testname
 		td.Vector.Meta.Comment = "Note that this test is not a valid message, since it is using an unknown actor. However in the event that an invalid message isn't filtered by block validation we need to ensure behaviour is consistent across VM implementations."
 

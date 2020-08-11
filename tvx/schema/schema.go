@@ -132,3 +132,45 @@ func (tv TestVector) MustMarshalJSON() []byte {
 	}
 	return b
 }
+
+func NewMessageTestVector() *TestVector {
+	return &TestVector{
+		Class:    ClassMessage,
+		Selector: "",
+		Meta: &Metadata{
+			ID:      "TK",
+			Version: "TK",
+			Gen: GenerationData{
+				Source:  "TK",
+				Version: "TK",
+			},
+		},
+		Pre: &Preconditions{
+			StateTree: &StateTree{},
+		},
+		Post: &Postconditions{
+			StateTree: &StateTree{},
+		},
+	}
+}
+
+func NewTipsetTestVector() *TestVector {
+	return &TestVector{
+		Class:    ClassTipset,
+		Selector: "",
+		Meta: &Metadata{
+			ID:      "TK",
+			Version: "TK",
+			Gen: GenerationData{
+				Source:  "TK",
+				Version: "TK",
+			},
+		},
+		Pre: &Preconditions{
+			StateTree: &StateTree{},
+		},
+		Post: &Postconditions{
+			StateTree: &StateTree{},
+		},
+	}
+}
