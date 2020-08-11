@@ -1,6 +1,7 @@
 package examine
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/big"
@@ -129,6 +130,11 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 	cidMap[".*\\(miner\\.State\\)\\.Sectors$"] = reflect.TypeOf((*adt.Array)(nil))
 	cidMap[".*\\(miner\\.State\\)\\.Sectors.*SealedCID$"] = reflect.TypeOf("")
 	cidMap[".*\\(miner\\.State\\)\\.Deadlines$"] = reflect.TypeOf((*storageMinerActor.Deadlines)(nil))
+	cidMap[".*\\(miner\\.State\\)\\.Deadlines.*Due([^\\.]*)$"] = reflect.TypeOf((*storageMinerActor.Deadline)(nil))
+	cidMap[".*\\(miner\\.State\\).*Partitions$"] = reflect.TypeOf(make([]*storageMinerActor.Partition, 0))
+	cidMap["miner\\.Deadline\\)\\.ExpirationsEpochs$"] = reflect.TypeOf(make([]*bitfield.BitField, 0))
+	cidMap[".*\\(miner\\.State\\).*Partitions.*ExpirationsEpochs$"] = reflect.TypeOf(make([]*storageMinerActor.ExpirationSet, 0))
+	cidMap[".*\\(miner\\.State\\).*EarlyTerminated$"] = reflect.TypeOf(make([]*bitfield.BitField, 0))
 
 	// storagePowerActor mappings
 	cidMap[".*\\(power\\.State\\)\\.CronEventQueue$"] = reflect.TypeOf("") // TODO: support for 'multimap'
@@ -140,6 +146,7 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 		cmp.AllowUnexported(blocks.BasicBlock{}),
 		cmp.Transformer("types.Actor", actorTransformer),
 		cmp.Transformer("bitfield.Bitfield", bitfieldTransformer),
+		cmp.Transformer("address.Address", addressTransformer),
 		cmp.Transformer("initActor.State", initActorTransformer),
 		cmp.FilterPath(filterIn("initActor"), cmp.Transformer("init.State", initHampTransformer)),
 		cmp.FilterPath(topFilter, cmp.Transformer("state.StateTree", hamtActorExpander)),
@@ -163,7 +170,9 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 	for r, t := range atlas {
 		name := strings.Trim(t.String(), "*")
 		if t.Kind() == reflect.Map {
-			name = "amt." + strings.Trim(t.Elem().String(), "*")
+			name = "amtmap." + strings.Trim(t.Elem().String(), "*")
+		} else if t.Kind() == reflect.Slice {
+			name = "amtarray." +strings.Trim(t.Elem().String(), "*")
 		}
 		boundFunc := (func(name string, t reflect.Type) func(c cid.Cid) interface{} {
 			return func(c cid.Cid) interface{} {
@@ -174,7 +183,7 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 				} else if name == "string" {
 					// special case for not expanding.
 					return c.String()
-				} else if strings.HasPrefix(name, "amt.") {
+				} else if strings.HasPrefix(name, "amtmap.") {
 					adtStore := adt.WrapStore(ctx, cborStore)
 					am, err := adt.AsMap(adtStore, c)
 					if err != nil {
@@ -191,9 +200,41 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 						return nil
 					})
 					return m.Interface()
+				} else if strings.HasPrefix(name, "amtarray.") {
+					// Note: this implementation throws away the idx's of the array.
+					// it lets you see the more compact array represenation, but may lead to
+					// incorrect ordering (and makes it hard to trace the real index)
+					adtStore := adt.WrapStore(ctx, cborStore)
+					arr, err := adt.AsArray(adtStore, c)
+					if err != nil {
+						panic(fmt.Sprintf("loading %s failed: %v",name, err))
+					}
+					val := reflect.New(t.Elem().Elem())
+					asUnmarshaller, ok := val.Interface().(runtime.CBORUnmarshaler)
+					if !ok {
+						panic(fmt.Sprintf("%s must implement CBORUnmarshaler", t.Elem().String()))
+					}
+					arrLen := int(arr.Length())
+					m := reflect.MakeSlice(t, arrLen, arrLen)
+					i := 0
+					arr.ForEach(asUnmarshaller, func(idx int64) error {
+						m.Index(i).Set(val)
+						i+=1
+						return nil
+					})
+					return m.Interface()
 				}
+
+				val := reflect.New(t.Elem())
+				asUnmarshaller, ok := val.Interface().(runtime.CBORUnmarshaler)
 				block, _ := store.Get(c)
-				return block.RawData()
+				if !ok {
+					return block.RawData()
+				}
+				if err := asUnmarshaller.UnmarshalCBOR(bytes.NewBuffer(block.RawData())); err != nil {
+					panic(fmt.Sprintf("Unable to interpret %s as a %v", c, t.Elem().String()))
+				}
+				return val.Interface()
 			}
 		})(name, t)
 		options = append(options, cmp.FilterPath(pathFilter(r), cmp.Transformer(name, boundFunc)))
@@ -237,6 +278,10 @@ type hamtNode struct {
 
 func bigIntComparer(a, b *big.Int) bool {
 	return a.Cmp(b) == 0
+}
+
+func addressTransformer(a addr.Address) string {
+	return a.String()
 }
 
 func topFilter(p cmp.Path) bool {
