@@ -15,8 +15,6 @@ import (
 	"github.com/filecoin-project/oni/tvx/schema"
 )
 
-// TODO -filter
-
 var initialBal = abi.NewTokenAmount(200_000_000_000)
 var toSend = abi.NewTokenAmount(10_000)
 
@@ -27,18 +25,18 @@ func main() {
 }
 
 func happyPathCreate() {
-	metadata := &schema.Metadata{ID: "paych-ctor-ok", Version: "1.00", Desc: "happy path constructor"}
+	metadata := &schema.Metadata{ID: "paych-create-ok", Version: "v1", Desc: "payment channel create"}
 
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
 	// Set up sender and receiver accounts.
 	var sender, receiver AddressHandle
-	v.Actors.Accounts(address.SECP256K1, initialBal, &sender, &receiver)
+	v.Actors.AccountN(address.SECP256K1, initialBal, &sender, &receiver)
 	v.CommitPreconditions()
 
 	// Add the constructor message.
-	createMsg := v.Messages.CreatePaymentChannelActor(sender.Robust, receiver.Robust, Value(toSend))
+	createMsg := v.Messages.Sugar().CreatePaychActor(sender.Robust, receiver.Robust, Value(toSend))
 	v.CommitApplies()
 
 	expectedActorAddr := AddressHandle{
@@ -63,7 +61,7 @@ func happyPathCreate() {
 }
 
 func happyPathUpdate() {
-	metadata := &schema.Metadata{ID: "paych-ctor-ok", Version: "1.00", Desc: "happy path update"}
+	metadata := &schema.Metadata{ID: "paych-update-ok", Version: "v1", Desc: "payment channel update"}
 
 	var (
 		timelock = abi.ChainEpoch(0)
@@ -79,7 +77,7 @@ func happyPathUpdate() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	v.Actors.Accounts(address.SECP256K1, initialBal, &sender, &receiver)
+	v.Actors.AccountN(address.SECP256K1, initialBal, &sender, &receiver)
 	paychAddr = AddressHandle{
 		ID:     MustNewIDAddr(MustIDFromAddress(receiver.ID) + 1),
 		Robust: sender.NextActorAddress(0, 0),
@@ -87,7 +85,7 @@ func happyPathUpdate() {
 	v.CommitPreconditions()
 
 	// Construct the payment channel.
-	createMsg := v.Messages.CreatePaymentChannelActor(sender.Robust, receiver.Robust, Value(toSend))
+	createMsg := v.Messages.Sugar().CreatePaychActor(sender.Robust, receiver.Robust, Value(toSend))
 
 	// Update the payment channel.
 	v.Messages.Typed(sender.Robust, paychAddr.Robust, PaychUpdateChannelState(&paych.UpdateChannelStateParams{
@@ -131,7 +129,7 @@ func happyPathUpdate() {
 }
 
 func happyPathCollect() {
-	metadata := &schema.Metadata{ID: "paych-collect-ok", Version: "1.00", Desc: "happy path collect"}
+	metadata := &schema.Metadata{ID: "paych-collect-ok", Version: "v1", Desc: "payment channel collect"}
 
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
@@ -139,7 +137,7 @@ func happyPathCollect() {
 	// Set up sender and receiver accounts.
 	var sender, receiver AddressHandle
 	var paychAddr AddressHandle
-	v.Actors.Accounts(address.SECP256K1, initialBal, &sender, &receiver)
+	v.Actors.AccountN(address.SECP256K1, initialBal, &sender, &receiver)
 	paychAddr = AddressHandle{
 		ID:     MustNewIDAddr(MustIDFromAddress(receiver.ID) + 1),
 		Robust: sender.NextActorAddress(0, 0),
@@ -148,7 +146,7 @@ func happyPathCollect() {
 	v.CommitPreconditions()
 
 	// Construct the payment channel.
-	v.Messages.CreatePaymentChannelActor(sender.Robust, receiver.Robust, Value(toSend))
+	v.Messages.Sugar().CreatePaychActor(sender.Robust, receiver.Robust, Value(toSend))
 
 	// Update the payment channel.
 	v.Messages.Typed(sender.Robust, paychAddr.Robust, PaychUpdateChannelState(&paych.UpdateChannelStateParams{
