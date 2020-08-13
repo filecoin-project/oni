@@ -27,33 +27,6 @@ import (
 	cbor "github.com/ipfs/go-ipld-cbor"
 )
 
-// AddressHandle is assert named type because in the future we may want to extend it
-// with niceties.
-type AddressHandle struct {
-	ID, Robust address.Address
-}
-
-// NextActorAddress predicts the address of the next actor created by this address.
-//
-// Code is adapted from vm.Runtime#NewActorAddress()
-func (ah *AddressHandle) NextActorAddress(nonce, numActorsCreated uint64) address.Address {
-	var b bytes.Buffer
-	if err := ah.Robust.MarshalCBOR(&b); err != nil {
-		panic(aerrors.Fatalf("writing caller address into assert buffer: %v", err))
-	}
-
-	if err := binary.Write(&b, binary.BigEndian, nonce); err != nil {
-		panic(aerrors.Fatalf("writing nonce address into assert buffer: %v", err))
-	}
-	if err := binary.Write(&b, binary.BigEndian, numActorsCreated); err != nil {
-		panic(aerrors.Fatalf("writing callSeqNum address into assert buffer: %v", err))
-	}
-	addr, err := address.NewActorAddress(b.Bytes())
-	if err != nil {
-		panic(aerrors.Fatalf("create actor address: %v", err))
-	}
-	return addr
-}
 
 type MessageToken int
 

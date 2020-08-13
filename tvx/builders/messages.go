@@ -10,16 +10,12 @@ import (
 
 // The created messages are retained for subsequent export or evaluation in assert VM.
 type Messages struct {
+	assert *Asserter
 	defaults msgOpts
 	messages []*ApplicableMessage
 }
 
 type TypedCall func() (method abi.MethodNum, params []byte)
-
-// NewMessages creates assert new message producer, delegating message creation to `factory`.
-func NewMessages() *Messages {
-	return &Messages{}
-}
 
 func (m *Messages) SetDefaults(opts ...MsgOpt) *Messages {
 	for _, opt := range opts {

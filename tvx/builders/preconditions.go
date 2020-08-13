@@ -13,12 +13,12 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
 )
 
-type Preconditions struct{
+type Preconditions struct {
 	assert *Asserter
 	b      *Builder
 }
 
-func (p *Preconditions) AccountActors(typ address.Protocol, balance abi.TokenAmount, handles... *AddressHandle) {
+func (p *Preconditions) AccountActors(typ address.Protocol, balance abi.TokenAmount, handles ...*AddressHandle) {
 	for _, handle := range handles {
 		h := p.AccountActor(typ, balance)
 		*handle = h

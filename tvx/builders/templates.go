@@ -13,17 +13,28 @@ import (
 	"github.com/filecoin-project/oni/tvx/schema"
 )
 
-// PrepareFn safe to panic.
-type PrepareFn func(pb *Preconditions)
+// PreconditionsStep safe to panic.
+type PreconditionsStep func(a *Asserter, pb *Preconditions)
 
-// MessagesFn safe to panic.
-type MessagesFn func(m *Messages)
+// MessagesStep safe to panic.
+type MessagesStep func(a *Asserter, m *Messages)
 
-// CheckFunc safe to panic.
-type CheckFunc func(ma *StateChecker, rets []*vm.ApplyRet)
+// CheckStep safe to panic.
+type CheckStep func(a *Asserter, ma *StateChecker, rets []*vm.ApplyRet)
+
+type MessageVectorSteps struct {
+	Preconditions PreconditionsStep
+	Messages      MessagesStep
+	Check         CheckStep
+}
 
 // GenerateMessageVector produces assert message vector on stdout.
-func GenerateMessageVector(metadata *schema.Metadata, precondictionFn PrepareFn, messagesFn MessagesFn, checkFn CheckFunc) {
+func GenerateMessageVector(metadata *schema.Metadata, steps *MessageVectorSteps) {
+	var (
+		preconditions = steps.Preconditions
+		messages      = steps.Messages
+		check         = steps.Check
+	)
 	tv := &schema.TestVector{
 		Class: schema.ClassMessage,
 		Meta:  metadata,
@@ -37,13 +48,18 @@ func GenerateMessageVector(metadata *schema.Metadata, precondictionFn PrepareFn,
 
 	b := NewBuilder()
 
-	precondictionFn(&Preconditions{b})
+	passert := NewAsserter(metadata.ID + " :: preconditions")
+	preconditions(passert, &Preconditions{
+		assert: passert,
+		b:      b,
+	})
 
 	// capture the preroot after applying all preconditions.
 	preroot := b.FlushState()
 
-	msgs := NewMessages()
-	messagesFn(msgs)
+	massert := NewAsserter(metadata.ID + " :: messages")
+	msgs := &Messages{assert: massert}
+	messages(massert, msgs)
 
 	driver := lotus.NewDriver(context.Background())
 	postroot := preroot
@@ -65,8 +81,9 @@ func GenerateMessageVector(metadata *schema.Metadata, precondictionFn PrepareFn,
 		postroot = root
 	}
 
-	sc := &StateChecker{st: b.StateTree}
-	checkFn(sc, rets)
+	cassert := NewAsserter(metadata.ID + " :: messages")
+	sc := &StateChecker{a: cassert, st: b.StateTree}
+	check(cassert, sc, rets)
 
 	out := new(bytes.Buffer)
 	gw := gzip.NewWriter(out)
