@@ -18,6 +18,7 @@ import (
 	cbg "github.com/whyrusleeping/cbor-gen"
 )
 
+// Actors is an object that manages actors in the test vector.
 type Actors struct {
 	accounts []AddressHandle
 	miners   []AddressHandle
@@ -25,13 +26,17 @@ type Actors struct {
 	b *Builder
 }
 
-func (a *Actors) Accounts(typ address.Protocol, balance abi.TokenAmount, handles ...*AddressHandle) {
+// AccountN creates many account actors of the specified kind, with the
+// specified balance, and places their addresses in the supplied AddressHandles.
+func (a *Actors) AccountN(typ address.Protocol, balance abi.TokenAmount, handles ...*AddressHandle) {
 	for _, handle := range handles {
 		h := a.Account(typ, balance)
 		*handle = h
 	}
 }
 
+// Account creates a single account actor of the specified kind, with the
+// specified balance, and returns its AddressHandle.
 func (a *Actors) Account(typ address.Protocol, balance abi.TokenAmount) AddressHandle {
 	a.b.Assert.In(typ, address.SECP256K1, address.BLS)
 
@@ -53,12 +58,14 @@ func (a *Actors) Account(typ address.Protocol, balance abi.TokenAmount) AddressH
 type MinerActorCfg struct {
 	SealProofType  abi.RegisteredSealProof
 	PeriodBoundary abi.ChainEpoch
+	OwnerBalance abi.TokenAmount
 }
 
-// create miner without sending assert message. modify the init and power actor manually
-func (a *Actors) Miner(cfg MinerActorCfg) AddressHandle {
-	owner := a.Account(address.SECP256K1, big.NewInt(1_000_000_000))
-	worker := a.Account(address.BLS, big.Zero())
+// Miner creates an owner account, a worker account, and a miner actor managed
+// by those accounts.
+func (a *Actors) Miner(cfg MinerActorCfg) (minerActor, owner, worker AddressHandle) {
+	owner = a.Account(address.SECP256K1, cfg.OwnerBalance)
+	worker = a.Account(address.BLS, big.Zero())
 	// expectedMinerActorIDAddress := chain.MustNewIDAddr(chain.MustIDFromAddress(minerWorkerID) + 1)
 	// minerActorAddrs := computeInitActorExecReturn(minerWorkerPk, 0, 1, expectedMinerActorIDAddress)
 
@@ -135,10 +142,12 @@ func (a *Actors) Miner(cfg MinerActorCfg) AddressHandle {
 	}
 
 	a.miners = append(a.miners, handle)
-	return handle
+	return handle, owner, worker
 }
 
-func (a *Actors) CreateActor(code cid.Cid, addr address.Address, balance abi.TokenAmount, actorState runtime.CBORMarshaler) AddressHandle {
+// CreateActor creates an actor in the state tree, of the specified kind, with
+// the specified address and balance, and sets its state to the supplied state.
+func (a *Actors) CreateActor(code cid.Cid, addr address.Address, balance abi.TokenAmount, state runtime.CBORMarshaler) AddressHandle {
 	var id address.Address
 	if addr.Protocol() != address.ID {
 		var err error
@@ -148,11 +157,13 @@ func (a *Actors) CreateActor(code cid.Cid, addr address.Address, balance abi.Tok
 		}
 	}
 
-	// store the new state.
-	head, err := a.b.StateTree.Store.Put(context.Background(), actorState)
+	// Store the new state.
+	head, err := a.b.StateTree.Store.Put(context.Background(), state)
 	if err != nil {
 		panic(err)
 	}
+
+	// Set the actor's head to point to that state.
 	actr := &types.Actor{
 		Code:    code,
 		Head:    head,
@@ -164,6 +175,8 @@ func (a *Actors) CreateActor(code cid.Cid, addr address.Address, balance abi.Tok
 	return AddressHandle{id, addr}
 }
 
+// ActorState retrieves the state of the supplied actor, and sets it in the
+// provided object. It also returns the actor's header from the state tree.
 func (a *Actors) ActorState(addr address.Address, out cbg.CBORUnmarshaler) *types.Actor {
 	actor, err := a.b.StateTree.GetActor(addr)
 	a.b.Assert.NoError(err, "failed to fetch actor %s from state", addr)

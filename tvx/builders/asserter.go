@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Asserter offers useful assertions to verify outcomes at various stages of
+// the test vector creation.
 type Asserter struct {
 	*require.Assertions
 
@@ -30,22 +32,27 @@ func (a *Asserter) In(v interface{}, set ...interface{}) {
 	a.Contains(set, v, "set %v does not contain element %v", set, v)
 }
 
+// BalanceEq verifies that the balance of the address equals the expected one.
 func (a *Asserter) BalanceEq(addr address.Address, expected abi.TokenAmount) {
 	actor, err := a.b.StateTree.GetActor(addr)
 	a.NoError(err, "failed to fetch actor %s from state", addr)
 	a.Equal(expected, actor.Balance, "balances mismatch for address %s", addr)
 }
 
+// ActorExists verifies that the actor exists in the state tree.
 func (a *Asserter) ActorExists(addr address.Address) {
 	_, err := a.b.StateTree.GetActor(addr)
 	a.NoError(err, "expected no error while looking up actor %s", addr)
 }
 
+// ActorExists verifies that the actor is absent from the state tree.
 func (a *Asserter) ActorMissing(addr address.Address) {
 	_, err := a.b.StateTree.GetActor(addr)
 	a.Error(err, "expected error while looking up actor %s", addr)
 }
 
+// EveryMessageResultSatisfies verifies that every message result satisfies the
+// provided predicate.
 func (a *Asserter) EveryMessageResultSatisfies(predicate ApplyRetPredicate, except ...*ApplicableMessage) {
 	exceptm := make(map[*ApplicableMessage]struct{}, len(except))
 	for _, am := range except {

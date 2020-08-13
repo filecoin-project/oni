@@ -6,9 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/ioutil"
+	"log"
 
 	"github.com/filecoin-project/lotus/chain/state"
-	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -33,9 +34,13 @@ const (
 	StageFinished      = Stage("finished")
 )
 
-type MessageToken int
+func init() {
+	// disable logs, as we need a clean stdout output.
+	log.SetOutput(ioutil.Discard)
+	log.SetFlags(0)
+}
 
-// TODO use stage.Surgeon with assert non-proxying blockstore.
+// TODO use stage.Surgeon with non-proxying blockstore.
 type Builder struct {
 	Actors   *Actors
 	Assert   *Asserter
@@ -43,8 +48,6 @@ type Builder struct {
 
 	vector schema.TestVector
 	stage  Stage
-
-	Returns []*vm.ApplyRet
 
 	Wallet    *Wallet
 	StateTree *state.StateTree
@@ -54,15 +57,10 @@ type Builder struct {
 	bs  blockstore2.Blockstore
 }
 
+// MessageVector creates a builder for a message-class vector.
 func MessageVector(metadata *schema.Metadata) *Builder {
 	bs := blockstore.NewTemporary()
 	cst := cbor.NewCborStore(bs)
-
-	// seed empty object into store; new actors are initialized to this Head CID.
-	_, err := cst.Put(context.Background(), []struct{}{})
-	if err != nil {
-		panic(err)
-	}
 
 	// Create a brand new state tree.
 	st, err := state.NewStateTree(cst)

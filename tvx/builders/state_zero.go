@@ -132,6 +132,11 @@ func (b *Builder) initializeZeroState() {
 
 func insertEmptyStructures(store adt_spec.Store) error {
 	var err error
+	_, err = store.Put(context.TODO(), []struct{}{})
+	if err != nil {
+		return err
+	}
+
 	EmptyArrayCid, err = adt_spec.MakeEmptyArray(store).Root()
 	if err != nil {
 		return err

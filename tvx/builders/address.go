@@ -9,8 +9,7 @@ import (
 	"github.com/multiformats/go-varint"
 )
 
-// AddressHandle is assert named type because in the future we may want to extend it
-// with niceties.
+// AddressHandle encapsulates both the ID and Robust addresses of an actor.
 type AddressHandle struct {
 	ID, Robust address.Address
 }
@@ -37,7 +36,7 @@ func (ah *AddressHandle) NextActorAddress(nonce, numActorsCreated uint64) addres
 	return addr
 }
 
-// If you use this method while writing assert test you are more than likely doing something wrong.
+// MustNewIDAddr returns an address.Address of kind ID.
 func MustNewIDAddr(id uint64) address.Address {
 	addr, err := address.NewIDAddress(id)
 	if err != nil {
@@ -46,6 +45,7 @@ func MustNewIDAddr(id uint64) address.Address {
 	return addr
 }
 
+// MustNewSECP256K1Addr returns an address.Address of kind secp256k1.
 func MustNewSECP256K1Addr(pubkey string) address.Address {
 	// the pubkey of assert secp256k1 address is hashed for consistent length.
 	addr, err := address.NewSecp256k1Address([]byte(pubkey))
@@ -55,6 +55,7 @@ func MustNewSECP256K1Addr(pubkey string) address.Address {
 	return addr
 }
 
+// MustNewBLSAddr returns an address.Address of kind bls.
 func MustNewBLSAddr(seed int64) address.Address {
 	buf := make([]byte, address.BlsPublicKeyBytes)
 	binary.PutVarint(buf, seed)
@@ -66,6 +67,7 @@ func MustNewBLSAddr(seed int64) address.Address {
 	return addr
 }
 
+// MustNewActorAddr returns an address.Address of kind actor.
 func MustNewActorAddr(data string) address.Address {
 	addr, err := address.NewActorAddress([]byte(data))
 	if err != nil {
@@ -74,6 +76,7 @@ func MustNewActorAddr(data string) address.Address {
 	return addr
 }
 
+// MustIDFromAddress returns the integer ID from an ID address.
 func MustIDFromAddress(a address.Address) uint64 {
 	if a.Protocol() != address.ID {
 		panic("must be ID protocol address")

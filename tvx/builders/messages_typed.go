@@ -18,6 +18,12 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/reward"
 )
 
+func Transfer() TypedCall {
+	return func() (method abi.MethodNum, params []byte) {
+		return builtin.MethodSend, []byte{}
+	}
+}
+
 // ----------------------------------------------------------------------------
 // | ACCOUNT
 // ----------------------------------------------------------------------------
