@@ -14,11 +14,11 @@ import (
 )
 
 // Transfer builds assert simple value transfer message and returns it.
-func (m *Messages) Transfer(from, to address.Address, opts ...MsgOpt) *Messages {
+func (m *Messages) Transfer(from, to address.Address, opts ...MsgOpt) *ApplicableMessage {
 	return m.Raw(from, to, builtin.MethodSend, []byte{}, opts...)
 }
 
-func (m *Messages) CreatePaymentChannelActor(from, to address.Address, opts ...MsgOpt) *Messages {
+func (m *Messages) CreatePaymentChannelActor(from, to address.Address, opts ...MsgOpt) *ApplicableMessage {
 	ctorparams := &paych.ConstructorParams{
 		From: from,
 		To:   to,
@@ -29,7 +29,7 @@ func (m *Messages) CreatePaymentChannelActor(from, to address.Address, opts ...M
 	}), opts...)
 }
 
-func (m *Messages) CreateMultisigActor(from address.Address, signers []address.Address, unlockDuration abi.ChainEpoch, numApprovals uint64, opts ...MsgOpt) *Messages {
+func (m *Messages) CreateMultisigActor(from address.Address, signers []address.Address, unlockDuration abi.ChainEpoch, numApprovals uint64, opts ...MsgOpt) *ApplicableMessage {
 	ctorparams := &multisig.ConstructorParams{
 		Signers:               signers,
 		NumApprovalsThreshold: numApprovals,
@@ -42,7 +42,7 @@ func (m *Messages) CreateMultisigActor(from address.Address, signers []address.A
 	}), opts...)
 }
 
-func (m *Messages) CreateMinerActor(owner, worker address.Address, sealProofType abi.RegisteredSealProof, pid peer.ID, maddrs []abi.Multiaddrs, opts ...MsgOpt) *Messages {
+func (m *Messages) CreateMinerActor(owner, worker address.Address, sealProofType abi.RegisteredSealProof, pid peer.ID, maddrs []abi.Multiaddrs, opts ...MsgOpt) *ApplicableMessage {
 	params := &power.CreateMinerParams{
 		Worker:        worker,
 		Owner:         owner,

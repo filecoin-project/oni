@@ -2,44 +2,51 @@ package builders
 
 import (
 	"context"
+	"log"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/filecoin-project/specs-actors/actors/builtin/account"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/actors/runtime"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
+	"github.com/ipfs/go-cid"
+	cbg "github.com/whyrusleeping/cbor-gen"
 )
 
-type Preconditions struct {
-	assert *Asserter
-	b      *Builder
+type Actors struct {
+	accounts []AddressHandle
+	miners   []AddressHandle
+
+	b *Builder
 }
 
-func (p *Preconditions) AccountActors(typ address.Protocol, balance abi.TokenAmount, handles ...*AddressHandle) {
+func (a *Actors) Accounts(typ address.Protocol, balance abi.TokenAmount, handles ...*AddressHandle) {
 	for _, handle := range handles {
-		h := p.AccountActor(typ, balance)
+		h := a.Account(typ, balance)
 		*handle = h
 	}
 }
 
-func (p *Preconditions) AccountActor(typ address.Protocol, balance abi.TokenAmount) AddressHandle {
-	p.assert.In(typ, address.SECP256K1, address.BLS)
+func (a *Actors) Account(typ address.Protocol, balance abi.TokenAmount) AddressHandle {
+	a.b.Assert.In(typ, address.SECP256K1, address.BLS)
 
 	var addr address.Address
 	switch typ {
 	case address.SECP256K1:
-		addr = p.b.Wallet.NewSECP256k1Account()
+		addr = a.b.Wallet.NewSECP256k1Account()
 	case address.BLS:
-		addr = p.b.Wallet.NewBLSAccount()
+		addr = a.b.Wallet.NewBLSAccount()
 	}
 
 	actorState := &account.State{Address: addr}
-	handle := p.b.CreateActor(builtin.AccountActorCodeID, addr, balance, actorState)
+	handle := a.CreateActor(builtin.AccountActorCodeID, addr, balance, actorState)
 
-	p.b.AccountActors = append(p.b.AccountActors, handle)
+	a.accounts = append(a.accounts, handle)
 	return handle
 }
 
@@ -49,17 +56,17 @@ type MinerActorCfg struct {
 }
 
 // create miner without sending assert message. modify the init and power actor manually
-func (p *Preconditions) MinerActor(cfg MinerActorCfg) AddressHandle {
-	owner := p.AccountActor(address.SECP256K1, big.NewInt(1_000_000_000))
-	worker := p.AccountActor(address.BLS, big.Zero())
+func (a *Actors) Miner(cfg MinerActorCfg) AddressHandle {
+	owner := a.Account(address.SECP256K1, big.NewInt(1_000_000_000))
+	worker := a.Account(address.BLS, big.Zero())
 	// expectedMinerActorIDAddress := chain.MustNewIDAddr(chain.MustIDFromAddress(minerWorkerID) + 1)
 	// minerActorAddrs := computeInitActorExecReturn(minerWorkerPk, 0, 1, expectedMinerActorIDAddress)
 
 	ss, err := cfg.SealProofType.SectorSize()
-	p.assert.NoError(err, "seal proof sector size")
+	a.b.Assert.NoError(err, "seal proof sector size")
 
 	ps, err := cfg.SealProofType.WindowPoStPartitionSectors()
-	p.assert.NoError(err, "seal proof window PoSt partition sectors")
+	a.b.Assert.NoError(err, "seal proof window PoSt partition sectors")
 
 	mi := &miner.MinerInfo{
 		Owner:                      owner.ID,
@@ -71,7 +78,7 @@ func (p *Preconditions) MinerActor(cfg MinerActorCfg) AddressHandle {
 		SectorSize:                 ss,
 		WindowPoStPartitionSectors: ps,
 	}
-	infoCid, err := p.b.cst.Put(context.Background(), mi)
+	infoCid, err := a.b.cst.Put(context.Background(), mi)
 	if err != nil {
 		panic(err)
 	}
@@ -89,16 +96,16 @@ func (p *Preconditions) MinerActor(cfg MinerActorCfg) AddressHandle {
 	}
 
 	minerActorAddr := worker.NextActorAddress(0, 0)
-	handle := p.b.CreateActor(builtin.StorageMinerActorCodeID, minerActorAddr, big.Zero(), minerState)
+	handle := a.CreateActor(builtin.StorageMinerActorCodeID, minerActorAddr, big.Zero(), minerState)
 
 	// assert miner actor has been created, exists in the state tree, and has an entry in the init actor.
 	// next update the storage power actor to track the miner
 
 	var spa power.State
-	p.b.GetActorState(builtin.StoragePowerActorAddr, &spa)
+	a.ActorState(builtin.StoragePowerActorAddr, &spa)
 
 	// set the miners claim
-	hm, err := adt.AsMap(adt.WrapStore(context.Background(), p.b.cst), spa.Claims)
+	hm, err := adt.AsMap(adt.WrapStore(context.Background(), a.b.cst), spa.Claims)
 	if err != nil {
 		panic(err)
 	}
@@ -122,11 +129,47 @@ func (p *Preconditions) MinerActor(cfg MinerActorCfg) AddressHandle {
 	spa.MinerCount += 1
 
 	// update storage power actor's state in the tree
-	_, err = p.b.cst.Put(context.Background(), &spa)
+	_, err = a.b.cst.Put(context.Background(), &spa)
 	if err != nil {
 		panic(err)
 	}
 
-	p.b.Miners = append(p.b.Miners, handle)
+	a.miners = append(a.miners, handle)
 	return handle
 }
+
+func (a *Actors) CreateActor(code cid.Cid, addr address.Address, balance abi.TokenAmount, actorState runtime.CBORMarshaler) AddressHandle {
+	var id address.Address
+	if addr.Protocol() != address.ID {
+		var err error
+		id, err = a.b.StateTree.RegisterNewAddress(addr)
+		if err != nil {
+			log.Panicf("register new address for actor: %v", err)
+		}
+	}
+
+	// store the new state.
+	head, err := a.b.StateTree.Store.Put(context.Background(), actorState)
+	if err != nil {
+		panic(err)
+	}
+	actr := &types.Actor{
+		Code:    code,
+		Head:    head,
+		Balance: balance,
+	}
+	if err := a.b.StateTree.SetActor(addr, actr); err != nil {
+		log.Panicf("setting new actor for actor: %v", err)
+	}
+	return AddressHandle{id, addr}
+}
+
+func (a *Actors) ActorState(addr address.Address, out cbg.CBORUnmarshaler) *types.Actor {
+	actor, err := a.b.StateTree.GetActor(addr)
+	a.b.Assert.NoError(err, "failed to fetch actor %s from state", addr)
+
+	err = a.b.StateTree.Store.Get(context.Background(), actor.Head, out)
+	a.b.Assert.NoError(err, "failed to load state for actorr %s; head=%s", addr, actor.Head)
+	return actor
+}
+

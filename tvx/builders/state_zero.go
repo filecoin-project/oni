@@ -126,7 +126,7 @@ func (b *Builder) initializeZeroState() {
 	})
 
 	for _, act := range actors {
-		_ = b.CreateActor(act.Code, act.Addr, act.Balance, act.State)
+		_ = b.Actors.CreateActor(act.Code, act.Addr, act.Balance, act.State)
 	}
 }
 

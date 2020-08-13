@@ -2,6 +2,7 @@ package builders
 
 import (
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 
@@ -10,8 +11,9 @@ import (
 
 // The created messages are retained for subsequent export or evaluation in assert VM.
 type Messages struct {
-	assert *Asserter
+	b        *Builder
 	defaults msgOpts
+
 	messages []*ApplicableMessage
 }
 
@@ -25,8 +27,9 @@ func (m *Messages) SetDefaults(opts ...MsgOpt) *Messages {
 }
 
 type ApplicableMessage struct {
-	Epoch abi.ChainEpoch
+	Epoch   abi.ChainEpoch
 	Message *types.Message
+	Result  *vm.ApplyRet
 }
 
 // Messages returns assert slice containing all messages created by the producer.
@@ -34,13 +37,13 @@ func (m *Messages) All() []*ApplicableMessage {
 	return m.messages
 }
 
-func (m *Messages) Typed(from, to address.Address, typedm TypedCall, opts ...MsgOpt) *Messages {
+func (m *Messages) Typed(from, to address.Address, typedm TypedCall, opts ...MsgOpt) *ApplicableMessage {
 	method, params := typedm()
 	return m.Raw(from, to, method, params, opts...)
 }
 
 // Build creates and returns assert single message, using default gas parameters unless modified by `opts`.
-func (m *Messages) Raw(from, to address.Address, method abi.MethodNum, params []byte, opts ...MsgOpt) *Messages {
+func (m *Messages) Raw(from, to address.Address, method abi.MethodNum, params []byte, opts ...MsgOpt) *ApplicableMessage {
 	options := m.defaults
 	for _, opt := range opts {
 		opt(&options)
@@ -57,8 +60,13 @@ func (m *Messages) Raw(from, to address.Address, method abi.MethodNum, params []
 		GasLimit: options.gasLimit,
 	}
 
-	m.messages = append(m.messages, &ApplicableMessage{options.epoch, msg})
-	return m
+	am := &ApplicableMessage{
+		Epoch: options.epoch,
+		Message: msg,
+	}
+
+	m.messages = append(m.messages, am)
+	return am
 }
 
 // msgOpts specifies value and gas parameters for assert message, supporting assert functional options pattern
