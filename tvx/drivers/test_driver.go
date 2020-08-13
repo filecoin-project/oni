@@ -47,168 +47,10 @@ import (
 	"github.com/filecoin-project/oni/tvx/schema"
 )
 
-var (
-
-	// initialized by calling initializeStoreWithAdtRoots
-	EmptyArrayCid     cid.Cid
-	EmptyDeadlinesCid cid.Cid
-	EmptyMapCid       cid.Cid
-	EmptyMultiMapCid  cid.Cid
-	EmptyBitfieldCid  cid.Cid
-)
-
-var (
-	DefaultInitActorState          ActorState
-	DefaultRewardActorState        ActorState
-	DefaultBurntFundsActorState    ActorState
-	DefaultStoragePowerActorState  ActorState
-	DefaultStorageMarketActorState ActorState
-	DefaultSystemActorState        ActorState
-	DefaultCronActorState          ActorState
-	DefaultBuiltinActorsState      []ActorState
-)
 
 const (
 	TestSealProofType = abi_spec.RegisteredSealProof_StackedDrg2KiBV1
 )
-
-func init() {
-	ms := newMockStore()
-	if err := initializeStoreWithAdtRoots(ms); err != nil {
-		panic(err)
-	}
-
-	DefaultInitActorState = ActorState{
-		Addr:    builtin_spec.InitActorAddr,
-		Balance: big_spec.Zero(),
-		Code:    builtin_spec.InitActorCodeID,
-		State:   init_spec.ConstructState(EmptyMapCid, "chain-validation"),
-	}
-
-	firstRewardState := reward_spec.ConstructState(big_spec.Zero())
-	firstRewardState.ThisEpochReward = big_spec.NewInt(1e17)
-
-	DefaultRewardActorState = ActorState{
-		Addr:    builtin_spec.RewardActorAddr,
-		Balance: TotalNetworkBalance,
-		Code:    builtin_spec.RewardActorCodeID,
-		State:   firstRewardState,
-	}
-
-	DefaultBurntFundsActorState = ActorState{
-		Addr:    builtin_spec.BurntFundsActorAddr,
-		Balance: big_spec.Zero(),
-		Code:    builtin_spec.AccountActorCodeID,
-		State:   &account_spec.State{Address: builtin_spec.BurntFundsActorAddr},
-	}
-
-	DefaultStoragePowerActorState = ActorState{
-		Addr:    builtin_spec.StoragePowerActorAddr,
-		Balance: big_spec.Zero(),
-		Code:    builtin_spec.StoragePowerActorCodeID,
-		State:   power_spec.ConstructState(EmptyMapCid, EmptyMultiMapCid),
-	}
-
-	DefaultStorageMarketActorState = ActorState{
-		Addr:    builtin_spec.StorageMarketActorAddr,
-		Balance: big_spec.Zero(),
-		Code:    builtin_spec.StorageMarketActorCodeID,
-		State: &market_spec.State{
-			Proposals:        EmptyArrayCid,
-			States:           EmptyArrayCid,
-			PendingProposals: EmptyMapCid,
-			EscrowTable:      EmptyMapCid,
-			LockedTable:      EmptyMapCid,
-			NextID:           abi_spec.DealID(0),
-			DealOpsByEpoch:   EmptyMultiMapCid,
-			LastCron:         0,
-		},
-	}
-
-	DefaultSystemActorState = ActorState{
-		Addr:    builtin_spec.SystemActorAddr,
-		Balance: big_spec.Zero(),
-		Code:    builtin_spec.SystemActorCodeID,
-		State:   &system.State{},
-	}
-
-	DefaultCronActorState = ActorState{
-		Addr:    builtin_spec.CronActorAddr,
-		Balance: big_spec.Zero(),
-		Code:    builtin_spec.CronActorCodeID,
-		State: &cron_spec.State{Entries: []cron_spec.Entry{
-			{
-				Receiver:  builtin_spec.StoragePowerActorAddr,
-				MethodNum: builtin_spec.MethodsPower.OnEpochTickEnd,
-			},
-		}},
-	}
-
-	DefaultBuiltinActorsState = []ActorState{
-		DefaultInitActorState,
-		DefaultRewardActorState,
-		DefaultBurntFundsActorState,
-		DefaultStoragePowerActorState,
-		DefaultStorageMarketActorState,
-		DefaultSystemActorState,
-		DefaultCronActorState,
-	}
-}
-
-func initializeStoreWithAdtRoots(store adt_spec.Store) error {
-	var err error
-	EmptyArrayCid, err = adt_spec.MakeEmptyArray(store).Root()
-	if err != nil {
-		return err
-	}
-
-	EmptyMapCid, err = adt_spec.MakeEmptyMap(store).Root()
-	if err != nil {
-		return err
-	}
-
-	EmptyMultiMapCid, err = adt_spec.MakeEmptyMultimap(store).Root()
-	if err != nil {
-		return err
-	}
-
-	EmptyDeadlinesCid, err = store.Put(context.TODO(), &miner.Deadline{
-		Partitions:        EmptyArrayCid,
-		ExpirationsEpochs: EmptyArrayCid,
-		PostSubmissions:   abi_spec.NewBitField(),
-		EarlyTerminations: abi_spec.NewBitField(),
-		LiveSectors:       0,
-	})
-	if err != nil {
-		return err
-	}
-
-	emptyBitfield := bitfield.NewFromSet(nil)
-	EmptyBitfieldCid, err = store.Put(context.TODO(), emptyBitfield)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type mockStore struct {
-	ctx context.Context
-	cbor.IpldStore
-}
-
-func newMockStore() *mockStore {
-	bs := blockstore.NewBlockstore(datastore.NewMapDatastore())
-	cst := cbor.NewCborStore(bs)
-	return &mockStore{
-		ctx:       context.Background(),
-		IpldStore: cst,
-	}
-}
-
-func (m mockStore) Context() context.Context {
-	return m.ctx
-}
 
 func NewTestDriver() *TestDriver {
 	syscalls := NewChainValidationSysCalls()
@@ -219,53 +61,8 @@ func NewTestDriver() *TestDriver {
 
 	sd := NewStateDriver(stateWrapper, newKeyManager())
 
-	err := initializeStoreWithAdtRoots(AsStore(sd.st))
-	require.NoError(T, err)
-
-	for _, acts := range DefaultBuiltinActorsState {
-		_, _, err := sd.State().CreateActor(acts.Code, acts.Addr, acts.Balance, acts.State)
-		require.NoError(T, err)
-	}
-
 	minerActorIDAddr := sd.newMinerAccountActor(TestSealProofType, abi_spec.ChainEpoch(0))
 
-	exeCtx := vtypes.NewExecutionContext(1, minerActorIDAddr)
-	producer := chain.NewMessageProducer(1000000000, big_spec.NewInt(1)) // gas limit ; gas price
-
-	checkExit := true
-	checkRet := true
-	config := NewConfig(checkExit, checkRet)
-
-	vector := schema.TestVector{
-		Class:    schema.ClassMessage,
-		Selector: "",
-		Meta: &schema.Metadata{
-			ID:      "TK",
-			Version: "TK",
-			Gen: schema.GenerationData{
-				Source:  "TK",
-				Version: "TK",
-			},
-		},
-		Pre: &schema.Preconditions{
-			StateTree: &schema.StateTree{},
-		},
-		Post: &schema.Postconditions{
-			StateTree: &schema.StateTree{},
-		},
-	}
-
-	return &TestDriver{
-		StateDriver: sd,
-
-		MessageProducer: producer,
-		ExeCtx:          exeCtx,
-		Config:          config,
-		SysCalls:        syscalls,
-
-		applier: applier,
-		Vector:  &vector,
-	}
 }
 
 type ActorState struct {
@@ -552,18 +349,6 @@ func (td *TestDriver) GetRewardSummary() *RewardSummary {
 		NextPerEpochReward: rst.ThisEpochReward,
 		NextPerBlockReward: big_spec.Div(rst.ThisEpochReward, big_spec.NewInt(builtin_spec.ExpectedLeadersPerEpoch)),
 	}
-}
-
-func (td *TestDriver) GetStateRoot() cid.Cid {
-	return td.st.stateRoot
-}
-
-func (td *TestDriver) UpdatePreStateRoot() {
-	td.Vector.Pre.StateTree.RootCID = td.st.stateRoot
-}
-
-func (td *TestDriver) UpdatePostStateRoot() {
-	td.Vector.Post.StateTree.RootCID = td.st.stateRoot
 }
 
 func (td *TestDriver) MustSerialize(w io.Writer) {

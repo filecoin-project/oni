@@ -1,4 +1,4 @@
-package drivers
+package builders
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 )
 
-type KeyManager struct {
+type Wallet struct {
 	// Private keys by address
 	keys map[address.Address]*wallet.Key
 
@@ -25,27 +25,27 @@ type KeyManager struct {
 	blsSeed int64 // nolint: structcheck
 }
 
-func newKeyManager() *KeyManager {
-	return &KeyManager{
+func newWallet() *Wallet {
+	return &Wallet{
 		keys:     make(map[address.Address]*wallet.Key),
 		secpSeed: 0,
 	}
 }
 
-func (k *KeyManager) NewSECP256k1AccountAddress() address.Address {
-	secpKey := k.newSecp256k1Key()
-	k.keys[secpKey.Address] = secpKey
+func (w *Wallet) NewSECP256k1Account() address.Address {
+	secpKey := w.newSecp256k1Key()
+	w.keys[secpKey.Address] = secpKey
 	return secpKey.Address
 }
 
-func (k *KeyManager) NewBLSAccountAddress() address.Address {
-	blsKey := k.newBLSKey()
-	k.keys[blsKey.Address] = blsKey
+func (w *Wallet) NewBLSAccount() address.Address {
+	blsKey := w.newBLSKey()
+	w.keys[blsKey.Address] = blsKey
 	return blsKey.Address
 }
 
-func (k *KeyManager) Sign(addr address.Address, data []byte) (acrypto.Signature, error) {
-	ki, ok := k.keys[addr]
+func (w *Wallet) Sign(addr address.Address, data []byte) (acrypto.Signature, error) {
+	ki, ok := w.keys[addr]
 	if !ok {
 		return acrypto.Signature{}, fmt.Errorf("unknown address %v", addr)
 	}
@@ -70,13 +70,13 @@ func (k *KeyManager) Sign(addr address.Address, data []byte) (acrypto.Signature,
 
 }
 
-func (k *KeyManager) newSecp256k1Key() *wallet.Key {
-	randSrc := rand.New(rand.NewSource(k.secpSeed))
+func (w *Wallet) newSecp256k1Key() *wallet.Key {
+	randSrc := rand.New(rand.NewSource(w.secpSeed))
 	prv, err := crypto.GenerateKeyFromSeed(randSrc)
 	if err != nil {
 		panic(err)
 	}
-	k.secpSeed++
+	w.secpSeed++
 	key, err := wallet.NewKey(types.KeyInfo{
 		Type:       wallet.KTSecp256k1,
 		PrivateKey: prv,
@@ -87,13 +87,13 @@ func (k *KeyManager) newSecp256k1Key() *wallet.Key {
 	return key
 }
 
-func (k *KeyManager) newBLSKey() *wallet.Key {
+func (w *Wallet) newBLSKey() *wallet.Key {
 	// FIXME: bls needs deterministic key generation
 	//sk := ffi.PrivateKeyGenerate(s.blsSeed)
 	// s.blsSeed++
 	sk := [32]byte{}
-	sk[0] = uint8(k.blsSeed) // hack to keep gas values determinist
-	k.blsSeed++
+	sk[0] = uint8(w.blsSeed) // hack to keep gas values determinist
+	w.blsSeed++
 	key, err := wallet.NewKey(types.KeyInfo{
 		Type:       wallet.KTBLS,
 		PrivateKey: sk[:],
