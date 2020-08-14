@@ -45,7 +45,7 @@ const (
 )
 
 func (b *Builder) initializeZeroState() {
-	if err := insertEmptyStructures(b.stores.ADTStore); err != nil {
+	if err := insertEmptyStructures(b.Stores.ADTStore); err != nil {
 		panic(err)
 	}
 

@@ -36,17 +36,17 @@ func init() {
 
 // TODO use stage.Surgeon with non-proxying blockstore.
 type Builder struct {
-	Actors   *Actors
-	Assert   *Asserter
-	Messages *Messages
+	Actors    *Actors
+	Assert    *Asserter
+	Messages  *Messages
+	Driver    *lotus.Driver
+	Root      cid.Cid
+	Wallet    *Wallet
+	StateTree *state.StateTree
+	Stores    *ostate.Stores
 
 	vector schema.TestVector
 	stage  Stage
-
-	Wallet    *Wallet
-	StateTree *state.StateTree
-
-	stores *ostate.Stores
 }
 
 // MessageVector creates a builder for a message-class vector.
@@ -61,8 +61,9 @@ func MessageVector(metadata *schema.Metadata) *Builder {
 
 	b := &Builder{
 		stage:     StagePreconditions,
-		stores:    stores,
+		Stores:    stores,
 		StateTree: st,
+		Driver:    lotus.NewDriver(context.Background()),
 	}
 
 	b.Wallet = newWallet()
@@ -72,6 +73,8 @@ func MessageVector(metadata *schema.Metadata) *Builder {
 
 	b.vector.Class = schema.ClassMessage
 	b.vector.Meta = metadata
+	b.vector.Pre = &schema.Preconditions{}
+	b.vector.Post = &schema.Postconditions{}
 
 	b.initializeZeroState()
 
@@ -86,11 +89,10 @@ func (b *Builder) CommitPreconditions() {
 	// capture the preroot after applying all preconditions.
 	preroot := b.FlushState()
 
-	b.vector.Pre = &schema.Preconditions{
-		Epoch:     0,
-		StateTree: &schema.StateTree{RootCID: preroot},
-	}
+	b.vector.Pre.Epoch = 0
+	b.vector.Pre.StateTree = &schema.StateTree{RootCID: preroot}
 
+	b.Root = preroot
 	b.stage = StageApplies
 	b.Assert = newAsserter(b, StageApplies)
 }
@@ -100,34 +102,40 @@ func (b *Builder) CommitApplies() {
 		panic("called CommitApplies at the wrong time")
 	}
 
-	driver := lotus.NewDriver(context.Background())
-	postroot := b.vector.Pre.StateTree.RootCID
-
 	b.vector.Post = &schema.Postconditions{}
 	for _, am := range b.Messages.All() {
-		var err error
-		am.Result, postroot, err = driver.ExecuteMessage(am.Message, postroot, b.stores.Blockstore, am.Epoch)
-		b.Assert.NoError(err)
-
-		// TODO do not replace the tree. Fix this.
-		b.StateTree, err = state.LoadStateTree(b.stores.CBORStore, postroot)
-		b.Assert.NoError(err)
-
-		b.vector.ApplyMessages = append(b.vector.ApplyMessages, schema.Message{
-			Bytes: MustSerialize(am.Message),
-			Epoch: &am.Epoch,
-		})
-		b.vector.Post.Receipts = append(b.vector.Post.Receipts, &schema.Receipt{
-			ExitCode:    am.Result.ExitCode,
-			ReturnValue: am.Result.Return,
-			GasUsed:     am.Result.GasUsed,
-		})
+		// apply all messages that are pending application.
+		if am.Result == nil {
+			b.applyMessage(am)
+		}
 	}
 
-	b.vector.Post.StateTree = &schema.StateTree{RootCID: postroot}
-
+	b.vector.Post.StateTree = &schema.StateTree{RootCID: b.Root}
 	b.stage = StageChecks
 	b.Assert = newAsserter(b, StageChecks)
+}
+
+// applyMessage executes the provided message via the driver, records the new
+// root, refreshes the state tree, and updates the underlying vector with the
+// message and its receipt.
+func (b *Builder) applyMessage(am *ApplicableMessage) {
+	var err error
+	am.Result, b.Root, err = b.Driver.ExecuteMessage(am.Message, b.Root, b.Stores.Blockstore, am.Epoch)
+	b.Assert.NoError(err)
+
+	// replace the state tree.
+	b.StateTree, err = state.LoadStateTree(b.Stores.CBORStore, b.Root)
+	b.Assert.NoError(err)
+
+	b.vector.ApplyMessages = append(b.vector.ApplyMessages, schema.Message{
+		Bytes: MustSerialize(am.Message),
+		Epoch: &am.Epoch,
+	})
+	b.vector.Post.Receipts = append(b.vector.Post.Receipts, &schema.Receipt{
+		ExitCode:    am.Result.ExitCode,
+		ReturnValue: am.Result.Return,
+		GasUsed:     am.Result.GasUsed,
+	})
 }
 
 func (b *Builder) Finish(w io.Writer) {
@@ -173,7 +181,7 @@ func (b *Builder) WriteCAR(w io.Writer, roots ...cid.Cid) error {
 		return out, nil
 	}
 
-	return car.WriteCarWithWalker(context.Background(), b.stores.DAGService, roots, w, carWalkFn)
+	return car.WriteCarWithWalker(context.Background(), b.Stores.DAGService, roots, w, carWalkFn)
 }
 
 func (b *Builder) FlushState() cid.Cid {

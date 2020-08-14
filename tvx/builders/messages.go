@@ -2,11 +2,10 @@ package builders
 
 import (
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
-
-	"github.com/filecoin-project/lotus/chain/types"
 )
 
 // TypedCall represents a call to a known built-in actor kind.
@@ -76,6 +75,34 @@ func (m *Messages) Raw(from, to address.Address, method abi.MethodNum, params []
 
 	m.messages = append(m.messages, am)
 	return am
+}
+
+// ApplyOne applies the provided message. The following constraints are checked:
+//  - all previous messages have been applied.
+//  - we know about this message (i.e. it has been added through Typed, Raw or Sugar).
+func (m *Messages) ApplyOne(am *ApplicableMessage) {
+	var found bool
+	for _, other := range m.messages {
+		if am == other {
+			// we have scanned all preceding messages, and verified they had been applied.
+			// we are ready to perform the application.
+			found = true
+			break
+		}
+		// verify that preceding messages have been applied.
+		// this will abort if unsatisfied.
+		m.b.Assert.Nil(other.Result, "preceding messages must have been applied when calling Apply*; first unapplied: %v", other)
+	}
+	m.b.Assert.True(found, "ApplicableMessage not found")
+	m.b.applyMessage(am)
+}
+
+// ApplyN calls ApplyOne for the supplied messages, in the order they are passed.
+// The constraints described in ApplyOne apply.
+func (m *Messages) ApplyN(ams ...*ApplicableMessage) {
+	for _, am := range ams {
+		m.ApplyOne(am)
+	}
 }
 
 type msgOpts struct {
