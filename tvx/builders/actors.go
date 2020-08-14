@@ -179,22 +179,35 @@ func (a *Actors) CreateActor(code cid.Cid, addr address.Address, balance abi.Tok
 // ActorState retrieves the state of the supplied actor, and sets it in the
 // provided object. It also returns the actor's header from the state tree.
 func (a *Actors) ActorState(addr address.Address, out cbg.CBORUnmarshaler) *types.Actor {
-	actor, err := a.b.StateTree.GetActor(addr)
-	a.b.Assert.NoError(err, "failed to fetch actor %s from state", addr)
-
-	err = a.b.StateTree.Store.Get(context.Background(), actor.Head, out)
+	actor := a.Header(addr)
+	err := a.b.StateTree.Store.Get(context.Background(), actor.Head, out)
 	a.b.Assert.NoError(err, "failed to load state for actorr %s; head=%s", addr, actor.Head)
 	return actor
 }
 
-func (a *Actors) Balance(addr address.Address) abi_spec.TokenAmount {
-	actr, err := a.b.StateTree.GetActor(addr)
+// Header returns the actor's header from the state tree.
+func (a *Actors) Header(addr address.Address) *types.Actor {
+	actor, err := a.b.StateTree.GetActor(addr)
 	a.b.Assert.NoError(err, "failed to fetch actor %s from state", addr)
-	return actr.Balance
+	return actor
 }
 
+// Balance is a shortcut for Header(addr).Balance.
+func (a *Actors) Balance(addr address.Address) abi_spec.TokenAmount {
+	return a.Header(addr).Balance
+}
+
+// Head is a shortcut for Header(addr).Head.
 func (a *Actors) Head(addr address.Address) cid.Cid {
-	actr, err := a.b.StateTree.GetActor(addr)
-	a.b.Assert.NoError(err, "failed to fetch actor %s from state", addr)
-	return actr.Head
+	return a.Header(addr).Head
+}
+
+// Nonce is a shortcut for Header(addr).Nonce.
+func (a *Actors) Nonce(addr address.Address) uint64 {
+	return a.Header(addr).Nonce
+}
+
+// Code is a shortcut for Header(addr).Code.
+func (a *Actors) Code(addr address.Address) cid.Cid {
+	return a.Header(addr).Code
 }

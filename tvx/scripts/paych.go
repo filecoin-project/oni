@@ -93,13 +93,10 @@ func happyPathUpdate() {
 			ChannelAddr:     paychAddr.Robust,
 			TimeLockMin:     timelock,
 			TimeLockMax:     0, // TimeLockMax set to 0 means no timeout
-			SecretPreimage:  nil,
-			Extra:           nil,
 			Lane:            lane,
 			Nonce:           nonce,
 			Amount:          amount,
 			MinSettleHeight: 0,
-			Merges:          nil,
 			Signature: &crypto.Signature{
 				Type: crypto.SigTypeBLS,
 				Data: []byte("signature goes here"), // TODO may need to generate an actual signature
@@ -154,13 +151,10 @@ func happyPathCollect() {
 			ChannelAddr:     paychAddr.Robust,
 			TimeLockMin:     0,
 			TimeLockMax:     0, // TimeLockMax set to 0 means no timeout
-			SecretPreimage:  nil,
-			Extra:           nil,
 			Lane:            1,
 			Nonce:           1,
 			Amount:          toSend,
 			MinSettleHeight: 0,
-			Merges:          nil,
 			Signature: &crypto.Signature{
 				Type: crypto.SigTypeBLS,
 				Data: []byte("signature goes here"), // TODO may need to generate an actual signature
