@@ -10,9 +10,7 @@ import (
 	"log"
 
 	"github.com/filecoin-project/lotus/chain/state"
-	"github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipfs/go-cid"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 
@@ -53,22 +51,21 @@ type Builder struct {
 
 // MessageVector creates a builder for a message-class vector.
 func MessageVector(metadata *schema.Metadata) *Builder {
-	bs := blockstore.NewTemporary()
-	cst := cbor.NewCborStore(bs)
+	stores := ostate.NewLocalStores(context.Background())
 
 	// Create a brand new state tree.
-	st, err := state.NewStateTree(cst)
+	st, err := state.NewStateTree(stores.CBORStore)
 	if err != nil {
 		panic(err)
 	}
 
 	b := &Builder{
-		stage: StagePreconditions,
-		stores: ostate.NewLocalStores(context.Background()),
+		stage:     StagePreconditions,
+		stores:    stores,
+		StateTree: st,
 	}
 
 	b.Wallet = newWallet()
-	b.StateTree = st
 	b.Assert = newAsserter(b, StagePreconditions)
 	b.Actors = &Actors{b: b}
 	b.Messages = &Messages{b: b}

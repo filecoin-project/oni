@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	unknown = MustNewIDAddr(10000000)
+	unknown      = MustNewIDAddr(10000000)
 	aliceBal     = abi.NewTokenAmount(1_000_000_000_000)
 	transferAmnt = abi.NewTokenAmount(10)
 )

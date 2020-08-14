@@ -58,7 +58,7 @@ func (a *Actors) Account(typ address.Protocol, balance abi.TokenAmount) AddressH
 type MinerActorCfg struct {
 	SealProofType  abi.RegisteredSealProof
 	PeriodBoundary abi.ChainEpoch
-	OwnerBalance abi.TokenAmount
+	OwnerBalance   abi.TokenAmount
 }
 
 // Miner creates an owner account, a worker account, and a miner actor managed
@@ -185,4 +185,3 @@ func (a *Actors) ActorState(addr address.Address, out cbg.CBORUnmarshaler) *type
 	a.b.Assert.NoError(err, "failed to load state for actorr %s; head=%s", addr, actor.Head)
 	return actor
 }
-
