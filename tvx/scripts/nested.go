@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	//"fmt"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/vm"
@@ -92,7 +93,6 @@ func main() {
 	nestedSends_FailInnerAbort()
 	nestedSends_FailAbortedExec()
 	nestedSends_FailInsufficientFundsForTransferInInnerSend()
-
 }
 
 func nestedSends_OkBasic() {
@@ -388,7 +388,6 @@ func nestedSends_FailInsufficientFundsForTransferInInnerSend() {
 
 	// puppet actor has zero funds
 	puppetBalance := big.Zero()
-
 	_ = v.Actors.CreateActor(puppet.PuppetActorCodeID, PuppetAddress, puppetBalance, &puppet.State{})
 
 	alice := v.Actors.Account(address.SECP256K1, acctDefaultBalance)
@@ -404,9 +403,11 @@ func nestedSends_FailInsufficientFundsForTransferInInnerSend() {
 		Value:  amtSent,
 		Method: builtin.MethodSend,
 		Params: nil,
-	}), Nonce(1), Value(big.Zero()))
+	}), Nonce(0), Value(big.Zero()))
 
 	v.Messages.ApplyOne(msg)
+
+	v.CommitApplies()
 
 	// the outer message should be applied successfully
 	v.Assert.Equal(exitcode.Ok, msg.Result.ExitCode)
