@@ -8,19 +8,13 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var apiFlag = cli.StringFlag{
-	Name:    "api",
-	Usage:   "api endpoint, formatted as token:multiaddr",
-	Value:   "",
-	EnvVars: []string{"FULLNODE_API_INFO"},
-}
-
 func main() {
 	app := &cli.App{
 		Name:        "fc-examine",
 		Description: "State Inspector 🕵️‍♂️",
 		Commands: []*cli.Command{
 			vectorCmd,
+			diffCmd,
 		},
 	}
 

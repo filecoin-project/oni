@@ -146,6 +146,7 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 	cidMap[".*\\(miner\\.State\\)\\.VestingFunds$"] = reflect.TypeOf("") // TODO: use VestingFund after next spec-actors release.
 	cidMap[".*\\(miner\\.State\\)\\.PreCommittedSectors$"] = reflect.TypeOf(make(map[string]*storageMinerActor.SectorPreCommitOnChainInfo))
 	cidMap[".*\\(miner\\.State\\)\\.PreCommittedSectors.*SealedCID$"] = reflect.TypeOf("")
+	cidMap[".*\\(miner\\.State\\)\\.PreCommittedSectorsExpiry$"] = reflect.TypeOf("")
 	cidMap[".*\\(miner\\.State\\)\\.AllocatedSectors$"] = reflect.TypeOf((*bitfield.BitField)(nil))
 	cidMap[".*\\(miner\\.State\\)\\.Sectors$"] = reflect.TypeOf((*adt.Array)(nil))
 	cidMap[".*\\(miner\\.State\\)\\.Sectors.*SealedCID$"] = reflect.TypeOf("")
@@ -179,6 +180,7 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 		cmp.AllowUnexported(blocks.BasicBlock{}),
 		cmp.Transformer("types.Actor", actorTransformer),
 		cmp.Transformer("bitfield.Bitfield", bitfieldTransformer),
+		cmp.Transformer("bitfield.InlineBitfield", directBitfieldTransformer),
 		cmp.Transformer("address.Address", addressTransformer),
 		cmp.Transformer("initActor.State", initActorTransformer),
 		cmp.FilterPath(filterIn("initActor"), cmp.Transformer("init.State", initHampTransformer)),
@@ -228,7 +230,12 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 					val := reflect.New(t.Elem().Elem())
 					asUnmarshaller, ok := val.Interface().(runtime.CBORUnmarshaler)
 					if !ok {
-						panic(fmt.Sprintf("%s must implement CBORUnmarshaler", t.Elem().String()))
+						if t.Elem().String() == "*big.Int" {
+							var um cbg.CborInt
+							asUnmarshaller = &um
+						} else {
+							panic(fmt.Sprintf("%s must implement CBORUnmarshaler", t.Elem().String()))
+						}
 					}
 					m := reflect.MakeMap(t)
 					am.ForEach(asUnmarshaller, func(k string) error {
@@ -339,6 +346,11 @@ func filterIn(substr string) func(cmp.Path) bool {
 }
 
 func bitfieldTransformer(b *bitfield.BitField) string {
+	data, _ := b.MarshalJSON()
+	return string(data)
+}
+
+func directBitfieldTransformer(b bitfield.BitField) string {
 	data, _ := b.MarshalJSON()
 	return string(data)
 }
