@@ -7,6 +7,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/specs-actors/actors/abi"
+	abi_spec "github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/filecoin-project/specs-actors/actors/builtin/account"
@@ -184,4 +185,16 @@ func (a *Actors) ActorState(addr address.Address, out cbg.CBORUnmarshaler) *type
 	err = a.b.StateTree.Store.Get(context.Background(), actor.Head, out)
 	a.b.Assert.NoError(err, "failed to load state for actorr %s; head=%s", addr, actor.Head)
 	return actor
+}
+
+func (a *Actors) Balance(addr address.Address) abi_spec.TokenAmount {
+	actr, err := a.b.StateTree.GetActor(addr)
+	a.b.Assert.NoError(err, "failed to fetch actor %s from state", addr)
+	return actr.Balance
+}
+
+func (a *Actors) Head(addr address.Address) cid.Cid {
+	actr, err := a.b.StateTree.GetActor(addr)
+	a.b.Assert.NoError(err, "failed to fetch actor %s from state", addr)
+	return actr.Head
 }
