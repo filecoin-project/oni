@@ -2,16 +2,16 @@ package state
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 
 	"github.com/filecoin-project/lotus/chain/state"
 	bs "github.com/filecoin-project/lotus/lib/blockstore"
+	"github.com/google/brotli/go/cbrotli"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-hamt-ipld"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
 )
 
@@ -19,13 +19,10 @@ import (
 func RecoverStateTree(ctx context.Context, raw []byte, root cid.Cid) (*state.StateTree, error) {
 	buf := bytes.NewBuffer(raw)
 	store := bs.NewTemporary()
-	gr, err := gzip.NewReader(buf)
-	if err != nil {
-		return nil, err
-	}
-	defer gr.Close()
+	br := cbrotli.NewReader(buf)
+	defer br.Close()
 
-	ch, err := car.LoadCar(store, gr)
+	ch, err := car.LoadCar(store, br)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ require (
 	github.com/filecoin-project/lotus v0.4.3-0.20200803225238-cd8537e76fc0
 	github.com/filecoin-project/sector-storage v0.0.0-20200803184904-3cab915fd225
 	github.com/filecoin-project/specs-actors v0.8.6
+	github.com/google/brotli v1.0.7
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834

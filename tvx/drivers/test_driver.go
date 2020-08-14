@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -45,6 +44,7 @@ import (
 	"github.com/filecoin-project/oni/tvx/chain"
 	vtypes "github.com/filecoin-project/oni/tvx/chain/types"
 	"github.com/filecoin-project/oni/tvx/schema"
+	"github.com/google/brotli/go/cbrotli"
 )
 
 var (
@@ -569,21 +569,21 @@ func (td *TestDriver) UpdatePostStateRoot() {
 func (td *TestDriver) MustSerialize(w io.Writer) {
 	td.Vector.Post.StateTree.RootCID = td.st.stateRoot
 
-	td.Vector.CAR = td.MustMarshalGzippedCAR(td.Vector.Pre.StateTree.RootCID, td.Vector.Post.StateTree.RootCID)
+	td.Vector.CAR = td.MustMarshalBrotliCAR(td.Vector.Pre.StateTree.RootCID, td.Vector.Post.StateTree.RootCID)
 
 	fmt.Fprintln(w, string(td.Vector.MustMarshalJSON()))
 }
 
-func (td *TestDriver) MustMarshalGzippedCAR(roots ...cid.Cid) []byte {
+func (td *TestDriver) MustMarshalBrotliCAR(roots ...cid.Cid) []byte {
 	var b bytes.Buffer
-	gw := gzip.NewWriter(&b)
+	bw := cbrotli.NewWriter(&b, cbrotli.WriterOptions{Quality: 11})
+	defer bw.Close()
 
-	err := td.MarshalCAR(gw, roots...)
+	err := td.MarshalCAR(bw, roots...)
 	if err != nil {
 		panic(err)
 	}
 
-	gw.Close()
 	return b.Bytes()
 }
 

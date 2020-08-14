@@ -44,7 +44,7 @@ func MessageTest_MultiSigActor() error {
 
 		postroot := td.GetStateRoot()
 
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
+		td.Vector.CAR = td.MustMarshalBrotliCAR(preroot, postroot)
 		td.Vector.Pre.StateTree.RootCID = preroot
 		td.Vector.Post.StateTree.RootCID = postroot
 
@@ -138,7 +138,7 @@ func MessageTest_MultiSigActor() error {
 
 		postroot := td.GetStateRoot()
 
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
+		td.Vector.CAR = td.MustMarshalBrotliCAR(preroot, postroot)
 		td.Vector.Pre.StateTree.RootCID = preroot
 		td.Vector.Post.StateTree.RootCID = postroot
 
@@ -252,7 +252,7 @@ func MessageTest_MultiSigActor() error {
 
 		postroot := td.GetStateRoot()
 
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
+		td.Vector.CAR = td.MustMarshalBrotliCAR(preroot, postroot)
 		td.Vector.Pre.StateTree.RootCID = preroot
 		td.Vector.Post.StateTree.RootCID = postroot
 
@@ -337,7 +337,7 @@ func MessageTest_MultiSigActor() error {
 
 		postroot := td.GetStateRoot()
 
-		td.Vector.CAR = td.MustMarshalGzippedCAR(preroot, postroot)
+		td.Vector.CAR = td.MustMarshalBrotliCAR(preroot, postroot)
 		td.Vector.Pre.StateTree.RootCID = preroot
 		td.Vector.Post.StateTree.RootCID = postroot
 

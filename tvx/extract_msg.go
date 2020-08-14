@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"os"
 
 	"github.com/filecoin-project/specs-actors/actors/builtin"
+	"github.com/google/brotli/go/cbrotli"
 	"github.com/ipfs/go-cid"
 	"github.com/urfave/cli/v2"
 
@@ -162,14 +162,15 @@ func runExtractMsg(c *cli.Context) error {
 	}
 
 	out := new(bytes.Buffer)
-	gw := gzip.NewWriter(out)
-	if err := g.WriteCAR(gw, preroot, postroot); err != nil {
+
+	bw := cbrotli.NewWriter(out, cbrotli.WriterOptions{Quality: 11})
+	if err := g.WriteCAR(bw, preroot, postroot); err != nil {
 		return err
 	}
-	if err = gw.Flush(); err != nil {
+	if err = bw.Flush(); err != nil {
 		return err
 	}
-	if err = gw.Close(); err != nil {
+	if err = bw.Close(); err != nil {
 		return err
 	}
 

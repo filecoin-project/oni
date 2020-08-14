@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/lib/blockstore"
+	"github.com/google/brotli/go/cbrotli"
 	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
 
@@ -87,13 +87,10 @@ func executeTestVector(tv schema.TestVector) error {
 		bs := blockstore.NewTemporary()
 
 		buf := bytes.NewReader(tv.CAR)
-		gr, err := gzip.NewReader(buf)
-		if err != nil {
-			return err
-		}
-		defer gr.Close()
+		br := cbrotli.NewReader(buf)
+		defer br.Close()
 
-		header, err := car.LoadCar(bs, gr)
+		header, err := car.LoadCar(bs, br)
 		if err != nil {
 			return fmt.Errorf("failed to load state tree car from test vector: %w", err)
 		}
