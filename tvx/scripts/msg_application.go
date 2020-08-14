@@ -16,7 +16,7 @@ import (
 
 var (
 	unknown      = MustNewIDAddr(10000000)
-	initialBal   = abi.NewTokenAmount(1_000_000_000_000)
+	balance1T    = abi.NewTokenAmount(1_000_000_000_000)
 	transferAmnt = abi.NewTokenAmount(10)
 )
 
@@ -41,7 +41,7 @@ func failCoverReceiptGasCost() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, initialBal)
+	alice := v.Actors.Account(address.SECP256K1, balance1T)
 	v.CommitPreconditions()
 
 	v.Messages.Sugar().Transfer(alice.ID, alice.ID, Value(transferAmnt), Nonce(0), GasLimit(8))
@@ -61,7 +61,7 @@ func failCoverOnChainSizeGasCost() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(10))
 
-	alice := v.Actors.Account(address.SECP256K1, initialBal)
+	alice := v.Actors.Account(address.SECP256K1, balance1T)
 	v.CommitPreconditions()
 
 	v.Messages.Sugar().Transfer(alice.ID, alice.ID, Value(transferAmnt), Nonce(0), GasLimit(1))
@@ -81,7 +81,7 @@ func failUnknownSender() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, initialBal)
+	alice := v.Actors.Account(address.SECP256K1, balance1T)
 	v.CommitPreconditions()
 
 	v.Messages.Sugar().Transfer(unknown, alice.ID, Value(transferAmnt), Nonce(0))
@@ -101,7 +101,7 @@ func failInvalidActorNonce() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, initialBal)
+	alice := v.Actors.Account(address.SECP256K1, balance1T)
 	v.CommitPreconditions()
 
 	// invalid nonce from known account.
@@ -127,7 +127,7 @@ func failInvalidReceiverMethod() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, initialBal)
+	alice := v.Actors.Account(address.SECP256K1, balance1T)
 	v.CommitPreconditions()
 
 	v.Messages.Typed(alice.ID, alice.ID, MarketComputeDataCommitment(nil), Nonce(0), Value(big.Zero()))
@@ -151,7 +151,7 @@ block validation we need to ensure behaviour is consistent across VM implementat
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, initialBal)
+	alice := v.Actors.Account(address.SECP256K1, balance1T)
 	v.CommitPreconditions()
 
 	// Sending a message to non-existent ID address must produce an error.
@@ -177,7 +177,7 @@ func failCoverTransferAccountCreationGasStepwise() {
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
 	var alice, bob, charlie AddressHandle
-	alice = v.Actors.Account(address.SECP256K1, initialBal)
+	alice = v.Actors.Account(address.SECP256K1, balance1T)
 	bob.Robust, charlie.Robust = MustNewSECP256K1Addr("1"), MustNewSECP256K1Addr("2")
 	v.CommitPreconditions()
 
@@ -214,7 +214,7 @@ func failActorExecutionAborted() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	v.Actors.AccountN(address.SECP256K1, initialBal, &sender, &receiver)
+	v.Actors.AccountN(address.SECP256K1, balance1T, &sender, &receiver)
 	paychAddr = AddressHandle{
 		ID:     MustNewIDAddr(MustIDFromAddress(receiver.ID) + 1),
 		Robust: sender.NextActorAddress(0, 0),
