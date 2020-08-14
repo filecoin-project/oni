@@ -6,6 +6,8 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
+	"github.com/filecoin-project/specs-actors/actors/builtin/paych"
+	"github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
 
 	. "github.com/filecoin-project/oni/tvx/builders"
@@ -14,7 +16,7 @@ import (
 
 var (
 	unknown      = MustNewIDAddr(10000000)
-	aliceBal     = abi.NewTokenAmount(1_000_000_000_000)
+	initialBal   = abi.NewTokenAmount(1_000_000_000_000)
 	transferAmnt = abi.NewTokenAmount(10)
 )
 
@@ -26,6 +28,7 @@ func main() {
 	failInvalidReceiverMethod()
 	failInexistentReceiver()
 	failCoverTransferAccountCreationGasStepwise()
+	failActorExecutionAborted()
 }
 
 func failCoverReceiptGasCost() {
@@ -38,7 +41,7 @@ func failCoverReceiptGasCost() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	alice := v.Actors.Account(address.SECP256K1, initialBal)
 	v.CommitPreconditions()
 
 	v.Messages.Sugar().Transfer(alice.ID, alice.ID, Value(transferAmnt), Nonce(0), GasLimit(8))
@@ -58,7 +61,7 @@ func failCoverOnChainSizeGasCost() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(10))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	alice := v.Actors.Account(address.SECP256K1, initialBal)
 	v.CommitPreconditions()
 
 	v.Messages.Sugar().Transfer(alice.ID, alice.ID, Value(transferAmnt), Nonce(0), GasLimit(1))
@@ -78,7 +81,7 @@ func failUnknownSender() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	alice := v.Actors.Account(address.SECP256K1, initialBal)
 	v.CommitPreconditions()
 
 	v.Messages.Sugar().Transfer(unknown, alice.ID, Value(transferAmnt), Nonce(0))
@@ -98,7 +101,7 @@ func failInvalidActorNonce() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	alice := v.Actors.Account(address.SECP256K1, initialBal)
 	v.CommitPreconditions()
 
 	// invalid nonce from known account.
@@ -124,7 +127,7 @@ func failInvalidReceiverMethod() {
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	alice := v.Actors.Account(address.SECP256K1, initialBal)
 	v.CommitPreconditions()
 
 	v.Messages.Typed(alice.ID, alice.ID, MarketComputeDataCommitment(nil), Nonce(0), Value(big.Zero()))
@@ -148,7 +151,7 @@ block validation we need to ensure behaviour is consistent across VM implementat
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	alice := v.Actors.Account(address.SECP256K1, initialBal)
 	v.CommitPreconditions()
 
 	// Sending a message to non-existent ID address must produce an error.
@@ -174,7 +177,7 @@ func failCoverTransferAccountCreationGasStepwise() {
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
 	var alice, bob, charlie AddressHandle
-	alice = v.Actors.Account(address.SECP256K1, aliceBal)
+	alice = v.Actors.Account(address.SECP256K1, initialBal)
 	bob.Robust, charlie.Robust = MustNewSECP256K1Addr("1"), MustNewSECP256K1Addr("2")
 	v.CommitPreconditions()
 
@@ -194,5 +197,51 @@ func failCoverTransferAccountCreationGasStepwise() {
 	v.CommitApplies()
 
 	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.SysErrOutOfGas), ref)
+	v.Finish(os.Stdout)
+}
+
+func failActorExecutionAborted() {
+	metadata := &schema.Metadata{
+		ID:      "msg-apply-fail-actor-execution-illegal-arg",
+		Version: "v1",
+		Desc:    "abort during actor execution due to illegal argument",
+	}
+
+	// Set up sender and receiver accounts.
+	var sender, receiver AddressHandle
+	var paychAddr AddressHandle
+
+	v := MessageVector(metadata)
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+
+	v.Actors.AccountN(address.SECP256K1, initialBal, &sender, &receiver)
+	paychAddr = AddressHandle{
+		ID:     MustNewIDAddr(MustIDFromAddress(receiver.ID) + 1),
+		Robust: sender.NextActorAddress(0, 0),
+	}
+	v.CommitPreconditions()
+
+	// Construct the payment channel.
+	createMsg := v.Messages.Sugar().CreatePaychActor(sender.Robust, receiver.Robust, Value(abi.NewTokenAmount(10_000)))
+
+	// Update the payment channel.
+	updateMsg := v.Messages.Typed(sender.Robust, paychAddr.Robust, PaychUpdateChannelState(&paych.UpdateChannelStateParams{
+		Sv: paych.SignedVoucher{
+			ChannelAddr: paychAddr.Robust,
+			TimeLockMin: abi.ChainEpoch(10),
+			Lane:        123,
+			Nonce:       1,
+			Amount:      big.NewInt(10),
+			Signature: &crypto.Signature{
+				Type: crypto.SigTypeBLS,
+				Data: []byte("Grrr im an invalid signature, I cause panics in the payment channel actor"),
+			},
+		}}), Nonce(1), Value(big.Zero()))
+
+	v.CommitApplies()
+
+	v.Assert.Equal(exitcode.Ok, createMsg.Result.ExitCode)
+	v.Assert.Equal(exitcode.ErrIllegalArgument, updateMsg.Result.ExitCode)
+
 	v.Finish(os.Stdout)
 }
