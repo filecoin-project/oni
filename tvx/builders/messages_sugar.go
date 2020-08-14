@@ -39,7 +39,7 @@ func (s *sugarMsg) CreateMultisigActor(from address.Address, signers []address.A
 	}
 
 	return s.m.Typed(from, builtin.InitActorAddr, InitExec(&init_.ExecParams{
-		CodeCID:           builtin.PaymentChannelActorCodeID,
+		CodeCID:           builtin.MultisigActorCodeID,
 		ConstructorParams: MustSerialize(ctorparams),
 	}), opts...)
 }
