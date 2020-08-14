@@ -577,12 +577,13 @@ func (td *TestDriver) MustSerialize(w io.Writer) {
 func (td *TestDriver) MustMarshalBrotliCAR(roots ...cid.Cid) []byte {
 	var b bytes.Buffer
 	bw := cbrotli.NewWriter(&b, cbrotli.WriterOptions{Quality: 11})
-	defer bw.Close()
 
 	err := td.MarshalCAR(bw, roots...)
 	if err != nil {
 		panic(err)
 	}
+
+	bw.Close()
 
 	return b.Bytes()
 }
