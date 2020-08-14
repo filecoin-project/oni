@@ -32,7 +32,7 @@ import (
 //
 // Scripts can bundle test vectors into "groups". The generator will execute
 // each group in parallel, and will write each vector in a file:
-// <output_dir>/<group>-<sequential>.json
+// <output_dir>/<group>--<vector_id>.json
 type Generator struct {
 	OutputPath string
 	Filter     *regexp.Regexp
@@ -56,26 +56,21 @@ func NewGenerator() *Generator {
 
 	ret := new(Generator)
 
-	// Output directory is compulsory.
-	if *outputDir == "" {
-		fmt.Printf("output directory not specified\n")
-		os.Exit(1)
+	// If output directory is provided, we ensure it exists, or create it.
+	// Else, we'll output to stdout.
+	if dir := *outputDir; dir != "" {
+		err := ensureDirectory(dir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ret.OutputPath = dir
 	}
-
-	err := ensureDirectory(*outputDir)
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
-
-	ret.OutputPath = *outputDir
 
 	// If a filter has been provided, compile it into a regex.
 	if *filter != "" {
 		exp, err := regexp.Compile(*filter)
 		if err != nil {
-			fmt.Printf("supplied regex %s is invalid: %s\n", *filter, err)
-			os.Exit(1)
+			log.Fatalf("supplied regex %s is invalid: %s", *filter, err)
 		}
 		ret.Filter = exp
 	}
@@ -87,37 +82,44 @@ func (g *Generator) Wait() {
 	g.wg.Wait()
 }
 
-func (g *Generator) MessageVectorGroup(group string, vectors ...MessageVectorGenItem) {
+func (g *Generator) MessageVectorGroup(group string, vectors ...*MessageVectorGenItem) {
 	g.wg.Add(1)
 	go func() {
 		defer g.wg.Done()
 
 		var wg sync.WaitGroup
-		for i, item := range vectors {
+		for _, item := range vectors {
 			if id := item.Metadata.ID; g.Filter != nil && !g.Filter.MatchString(id) {
-				fmt.Printf("skipping %s\n", id)
+				log.Printf("skipping %s", id)
 				continue
 			}
 
-			file := filepath.Join(g.OutputPath, fmt.Sprintf("%s-%d.json", group, i))
-			out, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0644)
-			if err != nil {
-				fmt.Printf("failed to write to file %s: %s\n", file, err)
-				return
+			var w io.Writer
+			if g.OutputPath == "" {
+				w = os.Stdout
+			} else {
+				file := filepath.Join(g.OutputPath, fmt.Sprintf("%s--%s.json", group, item.Metadata.ID))
+				out, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0644)
+				if err != nil {
+					log.Printf("failed to write to file %s: %s", file, err)
+					return
+				}
+				w = out
 			}
+
 			wg.Add(1)
 			go func(item *MessageVectorGenItem) {
-				g.generateOne(out, item)
+				g.generateOne(w, item, w != os.Stdout)
 				wg.Done()
-			}(&item)
+			}(item)
 		}
 
 		wg.Wait()
 	}()
 }
 
-func (g *Generator) generateOne(w io.Writer, b *MessageVectorGenItem) {
-	fmt.Printf("generating test vector: %s\n", b.Metadata.ID)
+func (g *Generator) generateOne(w io.Writer, b *MessageVectorGenItem, indent bool) {
+	log.Printf("generating test vector: %s", b.Metadata.ID)
 
 	vector := MessageVector(b.Metadata)
 
@@ -130,16 +132,22 @@ func (g *Generator) generateOne(w io.Writer, b *MessageVectorGenItem) {
 	buf := new(bytes.Buffer)
 	vector.Finish(buf)
 
-	// reparse and reindent.
-	indented := new(bytes.Buffer)
-	if err := json.Indent(indented, buf.Bytes(), "", "\t"); err != nil {
-		fmt.Printf("failed to indent json: %s\n", err)
+	final := buf
+	if indent {
+		// reparse and reindent.
+		final = new(bytes.Buffer)
+		if err := json.Indent(final, buf.Bytes(), "", "\t"); err != nil {
+			log.Printf("failed to indent json: %s", err)
+		}
 	}
 
-	if _, err := w.Write(indented.Bytes()); err != nil {
-		fmt.Printf("failed to write to output: %s\n", err)
+	n, err := w.Write(final.Bytes())
+	if err != nil {
+		log.Printf("failed to write to output: %s", err)
 		return
 	}
+
+	log.Printf("generated test vector: %s (size: %d bytes)", b.Metadata.ID, n)
 }
 
 // ensureDirectory checks if the provided path is a directory. If yes, it
@@ -150,10 +158,10 @@ func ensureDirectory(path string) error {
 	switch stat, err := os.Stat(path); {
 	case os.IsNotExist(err):
 		// create directory.
-		fmt.Printf("creating directory %s\n", path)
+		log.Printf("creating directory %s", path)
 		err := os.MkdirAll(path, 0700)
 		if err != nil {
-			return fmt.Errorf("failed to create directory %s: %s\n", path, err)
+			return fmt.Errorf("failed to create directory %s: %s", path, err)
 		}
 
 	case err == nil && !stat.IsDir():

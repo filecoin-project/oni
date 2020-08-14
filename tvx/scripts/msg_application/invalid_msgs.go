@@ -36,4 +36,3 @@ func failInvalidReceiverMethod(v *Builder) {
 
 	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.SysErrInvalidMethod))
 }
-

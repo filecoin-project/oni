@@ -6,8 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/ipfs/go-cid"
@@ -30,8 +30,8 @@ const (
 
 func init() {
 	// disable logs, as we need a clean stdout output.
-	log.SetOutput(ioutil.Discard)
-	log.SetFlags(0)
+	log.SetOutput(os.Stderr)
+	log.SetPrefix(">>> ")
 }
 
 // TODO use stage.Surgeon with non-proxying blockstore.

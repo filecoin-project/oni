@@ -17,7 +17,7 @@ func main() {
 	g := NewGenerator()
 
 	g.MessageVectorGroup("gas_cost",
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-receipt-gas",
 				Version: "v1",
@@ -25,7 +25,7 @@ func main() {
 			},
 			Func: failCoverReceiptGasCost,
 		},
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-onchainsize-gas",
 				Version: "v1",
@@ -33,7 +33,7 @@ func main() {
 			},
 			Func: failCoverOnChainSizeGasCost,
 		},
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-transfer-accountcreation-gas",
 				Version: "v1",
@@ -43,7 +43,7 @@ func main() {
 		})
 
 	g.MessageVectorGroup("invalid_msgs",
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-invalid-nonce",
 				Version: "v1",
@@ -51,7 +51,7 @@ func main() {
 			},
 			Func: failInvalidActorNonce,
 		},
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-invalid-receiver-method",
 				Version: "v1",
@@ -62,7 +62,7 @@ func main() {
 	)
 
 	g.MessageVectorGroup("unknown_actors",
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-unknown-sender",
 				Version: "v1",
@@ -70,7 +70,7 @@ func main() {
 			},
 			Func: failUnknownSender,
 		},
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-unknown-receiver",
 				Version: "v1",
@@ -84,7 +84,7 @@ block validation we need to ensure behaviour is consistent across VM implementat
 	)
 
 	g.MessageVectorGroup("actor_exec",
-		MessageVectorGenItem{
+		&MessageVectorGenItem{
 			Metadata: &schema.Metadata{
 				ID:      "msg-apply-fail-actor-execution-illegal-arg",
 				Version: "v1",
