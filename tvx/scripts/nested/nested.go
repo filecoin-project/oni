@@ -38,7 +38,7 @@ func init() {
 }
 
 func nestedSends_OkBasic(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	balanceBefore := v.Actors.Balance(stage.creator)
@@ -53,7 +53,7 @@ func nestedSends_OkBasic(v *Builder) {
 }
 
 func nestedSends_OkToNewActor(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	balanceBefore := v.Actors.Balance(stage.creator)
@@ -69,7 +69,7 @@ func nestedSends_OkToNewActor(v *Builder) {
 }
 
 func nestedSends_OkToNewActorWithInvoke(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	balanceBefore := v.Actors.Balance(stage.creator)
@@ -91,7 +91,7 @@ func nestedSends_OkToNewActorWithInvoke(v *Builder) {
 }
 
 func nestedSends_OkRecursive(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	another := v.Actors.Account(address.SECP256K1, big.Zero())
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
@@ -113,7 +113,7 @@ func nestedSends_OkRecursive(v *Builder) {
 }
 
 func nestedSends_OKNonCBORParamsWithTransfer(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 
@@ -128,7 +128,7 @@ func nestedSends_OKNonCBORParamsWithTransfer(v *Builder) {
 }
 
 func nestedSends_FailNonexistentIDAddress(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 
@@ -141,7 +141,7 @@ func nestedSends_FailNonexistentIDAddress(v *Builder) {
 }
 
 func nestedSends_FailNonexistentActorAddress(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 
@@ -154,7 +154,7 @@ func nestedSends_FailNonexistentActorAddress(v *Builder) {
 }
 
 func nestedSends_FailInvalidMethodNumNewActor(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 
@@ -167,7 +167,7 @@ func nestedSends_FailInvalidMethodNumNewActor(v *Builder) {
 }
 
 func nestedSends_FailInvalidMethodNumForActor(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	balanceBefore := v.Actors.Balance(stage.creator)
@@ -180,7 +180,7 @@ func nestedSends_FailInvalidMethodNumForActor(v *Builder) {
 }
 
 func nestedSends_FailMissingParams(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	balanceBefore := v.Actors.Balance(stage.creator)
@@ -195,7 +195,7 @@ func nestedSends_FailMissingParams(v *Builder) {
 }
 
 func nestedSends_FailMismatchParams(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	balanceBefore := v.Actors.Balance(stage.creator)
@@ -216,7 +216,7 @@ func nestedSends_FailMismatchParams(v *Builder) {
 }
 
 func nestedSends_FailInnerAbort(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	prevHead := v.Actors.Head(builtin.RewardActorAddr)
@@ -235,7 +235,7 @@ func nestedSends_FailInnerAbort(v *Builder) {
 }
 
 func nestedSends_FailAbortedExec(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
 	prevHead := v.Actors.Head(builtin.InitActorAddr)
@@ -258,7 +258,7 @@ func nestedSends_FailAbortedExec(v *Builder) {
 }
 
 func nestedSends_FailInsufficientFundsForTransferInInnerSend(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	// puppet actor has zero funds
 	puppetBalance := big.Zero()

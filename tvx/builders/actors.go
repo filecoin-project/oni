@@ -98,6 +98,7 @@ func (a *Actors) Miner(cfg MinerActorCfg) (minerActor, owner, worker AddressHand
 		EmptyArrayCid,
 		EmptyMapCid,
 		EmptyDeadlinesCid,
+		EmptyVestingFundsCid,
 	)
 	if err != nil {
 		panic(err)

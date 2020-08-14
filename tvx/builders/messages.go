@@ -58,14 +58,15 @@ func (m *Messages) Raw(from, to address.Address, method abi.MethodNum, params []
 	}
 
 	msg := &types.Message{
-		To:       to,
-		From:     from,
-		Nonce:    options.nonce,
-		Value:    options.value,
-		Method:   method,
-		Params:   params,
-		GasPrice: options.gasPrice,
-		GasLimit: options.gasLimit,
+		To:         to,
+		From:       from,
+		Nonce:      options.nonce,
+		Value:      options.value,
+		Method:     method,
+		Params:     params,
+		GasLimit:   options.gasLimit,
+		GasFeeCap:  options.gasFeeCap,
+		GasPremium: options.gasPremium,
 	}
 
 	am := &ApplicableMessage{
@@ -106,11 +107,12 @@ func (m *Messages) ApplyN(ams ...*ApplicableMessage) {
 }
 
 type msgOpts struct {
-	nonce    uint64
-	value    big.Int
-	gasPrice big.Int
-	gasLimit int64
-	epoch    abi.ChainEpoch
+	nonce      uint64
+	value      big.Int
+	gasLimit   int64
+	gasFeeCap  abi.TokenAmount
+	gasPremium abi.TokenAmount
+	epoch      abi.ChainEpoch
 }
 
 // MsgOpt is an option configuring message value, gas parameters, execution
@@ -138,10 +140,17 @@ func GasLimit(limit int64) MsgOpt {
 	}
 }
 
-// GasPrice sets the gas price of a message.
-func GasPrice(price int64) MsgOpt {
+// GasFeeCap sets the gas fee cap of a message.
+func GasFeeCap(feeCap int64) MsgOpt {
 	return func(opts *msgOpts) {
-		opts.gasPrice = big.NewInt(price)
+		opts.gasFeeCap = big.NewInt(feeCap)
+	}
+}
+
+// GasPremium sets the gas premium of a message.
+func GasPremium(preium int64) MsgOpt {
+	return func(opts *msgOpts) {
+		opts.gasPremium = big.NewInt(preium)
 	}
 }
 

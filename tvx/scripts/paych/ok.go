@@ -8,12 +8,13 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/filecoin-project/specs-actors/actors/runtime/exitcode"
+	"github.com/filecoin-project/specs-actors/actors/util/adt"
 
 	. "github.com/filecoin-project/oni/tvx/builders"
 )
 
 func happyPathCreate(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	// Set up sender and receiver accounts.
 	var sender, receiver AddressHandle
@@ -44,7 +45,7 @@ func happyPathCreate(v *Builder) {
 }
 
 func happyPathUpdate(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	var (
 		timelock = abi.ChainEpoch(0)
@@ -95,16 +96,22 @@ func happyPathUpdate(v *Builder) {
 	// Verify the paych state.
 	var state paych.State
 	v.Actors.ActorState(ret.RobustAddress, &state)
-	v.Assert.Len(state.LaneStates, 1)
 
-	ls := state.LaneStates[0]
+	arr, err := adt.AsArray(v.Stores.ADTStore, state.LaneStates)
+	v.Assert.NoError(err)
+	v.Assert.Equal(1, arr.Length())
+
+	var ls paych.LaneState
+	found, err := arr.Get(lane, &ls)
+	v.Assert.NoError(err)
+	v.Assert.True(found)
+
 	v.Assert.Equal(amount, ls.Redeemed)
 	v.Assert.Equal(nonce, ls.Nonce)
-	v.Assert.Equal(lane, ls.ID)
 }
 
 func happyPathCollect(v *Builder) {
-	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPremium(1), GasFeeCap(200))
 
 	// Set up sender and receiver accounts.
 	var sender, receiver AddressHandle

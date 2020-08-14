@@ -39,7 +39,16 @@ func (d *Driver) ExecuteMessage(msg *types.Message, preroot cid.Cid, bs blocksto
 	}
 
 	log.Println("creating vm")
-	lvm, err := vm.NewVM(preroot, epoch, &vmRand{}, bs, mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)), nil)
+	vmOpts := &vm.VMOpts{
+		StateBase:      preroot,
+		Epoch:          epoch,
+		Rand:           &vmRand{},
+		Bstore:         bs,
+		Syscalls:       mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)),
+		CircSupplyCalc: nil,
+		BaseFee:        abi.NewTokenAmount(100), // TODO make parametrisable through vector.
+	}
+	lvm, err := vm.NewVM(vmOpts)
 	if err != nil {
 		return nil, cid.Undef, err
 	}
