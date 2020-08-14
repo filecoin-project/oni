@@ -25,6 +25,7 @@ func main() {
 	failInvalidActorNonce()
 	failInvalidReceiverMethod()
 	failInexistentReceiver()
+	failCoverAccountCreationGasStepwise()
 }
 
 func failCoverReceiptGasCost() {
@@ -165,17 +166,32 @@ func failCoverAccountCreationGasStepwise() {
 	metadata := &schema.Metadata{
 		ID:      "msg-apply-fail-accountcreation-gas",
 		Version: "v1",
-		Desc:    "insufficent gas to ",
-		Comment: `Note that this test is not a valid message, since it is using
-an unknown actor. However in the event that an invalid message isn't filtered by
-block validation we need to ensure behaviour is consistent across VM implementations.`,
+		Desc:    "fail not enough gas to cover account actor creation",
 	}
 
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	var alice, bob, charlie AddressHandle
+	v.Actors.AccountN(address.SECP256K1, aliceBal, &alice)
+	v.Actors.AccountN(address.SECP256K1, big.Zero(), &bob, &charlie)
 	v.CommitPreconditions()
 
-	// TODO single message apply
+	var nonce uint64
+	ref := v.Messages.Sugar().Transfer(alice.Robust, bob.Robust, Value(transferAmnt), Nonce(nonce))
+	nonce++
+	v.Messages.ApplyOne(ref)
+	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.Ok))
+
+	// decrease the gas cost by `gasStep` for each apply and ensure `SysErrOutOfGas` is always returned.
+	trueGas := ref.Result.GasUsed
+	gasStep := trueGas / 100
+	for tryGas := trueGas - gasStep; tryGas > 0; tryGas -= gasStep {
+		v.Messages.Sugar().Transfer(alice.Robust, charlie.Robust, Value(transferAmnt), Nonce(nonce), GasPrice(1), GasLimit(tryGas))
+		nonce++
+	}
+	v.CommitApplies()
+
+	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.SysErrOutOfGas), ref)
+	v.Finish(os.Stdout)
 }
