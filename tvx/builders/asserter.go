@@ -39,6 +39,13 @@ func (a *Asserter) BalanceEq(addr address.Address, expected abi.TokenAmount) {
 	a.Equal(expected, actor.Balance, "balances mismatch for address %s", addr)
 }
 
+// Nonce verifies that the nonce of the actor equals the expected one.
+func (a *Asserter) NonceEq(addr address.Address, expected uint64) {
+	actor, err := a.b.StateTree.GetActor(addr)
+	a.NoError(err, "failed to fetch actor %s from state", addr)
+	a.Equal(expected, actor.Nonce, "expected actor %s nonce: %d, got: %d", addr, expected, actor.Nonce)
+}
+
 // ActorExists verifies that the actor exists in the state tree.
 func (a *Asserter) ActorExists(addr address.Address) {
 	_, err := a.b.StateTree.GetActor(addr)
