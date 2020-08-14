@@ -1,16 +1,17 @@
 package main
 
 import (
-	"os"
 	"bytes"
+	"os"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
-	init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
 	builtin "github.com/filecoin-project/specs-actors/actors/builtin"
+	init_ "github.com/filecoin-project/specs-actors/actors/builtin/init"
 	"github.com/filecoin-project/specs-actors/actors/runtime"
+	typegen "github.com/whyrusleeping/cbor-gen"
 	//"github.com/filecoin-project/specs-actors/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/actors/builtin/multisig"
 	//"github.com/filecoin-project/specs-actors/actors/crypto"
@@ -21,15 +22,21 @@ import (
 	//"github.com/davecgh/go-spew/spew"
 )
 
+var (
+	acctDefaultBalance = abi.NewTokenAmount(1_000_000_000_000)
+	multisigBalance    = abi.NewTokenAmount(1_000_000_000)
+	nonce              = uint64(1)
+)
+
 func main() {
 	nestedSends_OkBasic()
+	nestedSends_OkToNewActor()
+	nestedSends_OkToNewActorWithInvoke()
+	nestedSends_OkRecursive()
+	nestedSends_OKNonCBORParamsWithTransfer()
 }
 
 func nestedSends_OkBasic() {
-	var acctDefaultBalance = abi.NewTokenAmount(1_000_000_000_000)
-	var multisigBalance = abi.NewTokenAmount(1_000_000_000)
-	nonce := uint64(1)
-
 	metadata := &schema.Metadata{ID: "nested-sends-ok-basic", Version: "v1", Desc: ""}
 
 	v := MessageVector(metadata)
@@ -49,9 +56,103 @@ func nestedSends_OkBasic() {
 	v.Finish(os.Stdout)
 }
 
+func nestedSends_OkToNewActor() {
+	metadata := &schema.Metadata{ID: "nested-sends-ok-to-new-actor", Version: "v1", Desc: ""}
+
+	v := MessageVector(metadata)
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+
+	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
+	balanceBefore := v.Actors.Balance(stage.creator)
+
+	// Multisig sends to new address.
+	newAddr := v.Wallet.NewSECP256k1Account()
+	amtSent := abi.NewTokenAmount(1)
+	result := stage.sendOk(newAddr, amtSent, builtin.MethodSend, nil, nonce)
+
+	v.Assert.BalanceEq(stage.msAddr, big.Sub(multisigBalance, amtSent))
+	v.Assert.BalanceEq(stage.creator, big.Sub(balanceBefore, big.NewInt(result.MessageReceipt.GasUsed)))
+	v.Assert.BalanceEq(newAddr, amtSent)
+
+	v.Finish(os.Stdout)
+}
+
+func nestedSends_OkToNewActorWithInvoke() {
+	metadata := &schema.Metadata{ID: "nested-sends-ok-to-new-actor-with-invoke", Version: "v1", Desc: ""}
+
+	v := MessageVector(metadata)
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+
+	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
+	balanceBefore := v.Actors.Balance(stage.creator)
+
+	// Multisig sends to new address and invokes pubkey method at the same time.
+	newAddr := v.Wallet.NewSECP256k1Account()
+	amtSent := abi.NewTokenAmount(1)
+	result := stage.sendOk(newAddr, amtSent, builtin.MethodsAccount.PubkeyAddress, nil, nonce)
+	// TODO: use an explicit Approve() and check the return value is the correct pubkey address
+	// when the multisig Approve() method plumbs through the inner exit code and value.
+	// https://github.com/filecoin-project/specs-actors/issues/113
+	//expected := bytes.Buffer{}
+	//require.NoError(t, newAddr.MarshalCBOR(&expected))
+	//assert.Equal(t, expected.Bytes(), result.Receipt.ReturnValue)
+
+	v.Assert.BalanceEq(stage.msAddr, big.Sub(multisigBalance, amtSent))
+	v.Assert.BalanceEq(stage.creator, big.Sub(balanceBefore, big.NewInt(result.MessageReceipt.GasUsed)))
+	v.Assert.BalanceEq(newAddr, amtSent)
+
+	v.Finish(os.Stdout)
+}
+
+func nestedSends_OkRecursive() {
+	metadata := &schema.Metadata{ID: "nested-sends-ok-recursive", Version: "v1", Desc: ""}
+
+	v := MessageVector(metadata)
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+
+	another := v.Actors.Account(address.SECP256K1, big.Zero())
+	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
+	balanceBefore := v.Actors.Balance(stage.creator)
+
+	// Multisig sends to itself.
+	params := multisig.AddSignerParams{
+		Signer:   another.ID,
+		Increase: false,
+	}
+	result := stage.sendOk(stage.msAddr, big.Zero(), builtin.MethodsMultisig.AddSigner, &params, nonce)
+
+	v.Assert.BalanceEq(stage.msAddr, multisigBalance)
+	v.Assert.Equal(big.Sub(balanceBefore, big.NewInt(result.MessageReceipt.GasUsed)), v.Actors.Balance(stage.creator))
+
+	var st multisig.State
+	v.Actors.ActorState(stage.msAddr, &st)
+	v.Assert.Equal([]address.Address{stage.creator, another.ID}, st.Signers)
+
+	v.Finish(os.Stdout)
+}
+
+func nestedSends_OKNonCBORParamsWithTransfer() {
+	metadata := &schema.Metadata{ID: "nested-sends-ok-non-cbor-params-with-transfer", Version: "v1", Desc: ""}
+
+	v := MessageVector(metadata)
+	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
+
+	stage := prepareStage(v, acctDefaultBalance, multisigBalance)
+
+	newAddr := v.Wallet.NewSECP256k1Account()
+	amtSent := abi.NewTokenAmount(1)
+	// So long as the parameters are not actually used by the method, a message can carry arbitrary bytes.
+	params := typegen.Deferred{Raw: []byte{1, 2, 3, 4}}
+	stage.sendOk(newAddr, amtSent, builtin.MethodSend, &params, nonce)
+
+	v.Assert.BalanceEq(stage.msAddr, big.Sub(multisigBalance, amtSent))
+	v.Assert.BalanceEq(newAddr, amtSent)
+
+	v.Finish(os.Stdout)
+}
 
 type msStage struct {
-	v  *Builder
+	v       *Builder
 	creator address.Address // Address of the creator and sole signer of the multisig.
 	msAddr  address.Address // Address of the multisig actor from which nested messages are sent.
 }
@@ -71,15 +172,13 @@ func prepareStage(v *Builder, creatorBalance, msBalance abi.TokenAmount) *msStag
 	var ret init_.ExecReturn
 	MustDeserialize(msg.Result.Return, &ret)
 
-
 	return &msStage{
-		v:  v,
+		v:       v,
 		creator: creator.ID,
 		msAddr:  ret.IDAddress,
 	}
 }
 
-//func (s *msStage) sendOk(to address.Address, value abi.TokenAmount, method abi.MethodNum, params runtime.CBORMarshaler, approverNonce uint64) vtypes.ApplyMessageResult {
 func (s *msStage) sendOk(to address.Address, value abi.TokenAmount, method abi.MethodNum, params runtime.CBORMarshaler, approverNonce uint64) *vm.ApplyRet {
 	buf := bytes.Buffer{}
 	if params != nil {
@@ -87,7 +186,6 @@ func (s *msStage) sendOk(to address.Address, value abi.TokenAmount, method abi.M
 		if err != nil {
 			panic(err)
 		}
-		//require.NoError(drivers.T, err)
 	}
 	pparams := multisig.ProposeParams{
 		To:     to,
@@ -96,18 +194,10 @@ func (s *msStage) sendOk(to address.Address, value abi.TokenAmount, method abi.M
 		Params: buf.Bytes(),
 	}
 	msg := s.v.Messages.Typed(s.creator, s.msAddr, MultisigPropose(&pparams), Nonce(approverNonce), Value(big.NewInt(0)))
-	//result := s.driver.ApplyMessage(msg)
 	s.v.CommitApplies()
-	//s.v.Assert.Equal(exitcode_spec.Ok, result.Receipt.ExitCode)
 
 	// all messages succeeded.
 	s.v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.Ok))
 
 	return msg.Result
 }
-
-//func (s *msStage) state() *multisig.State {
-	//var msState multisig.State
-	//s.driver.GetActorState(s.msAddr, &msState)
-	//return &msState
-//}
