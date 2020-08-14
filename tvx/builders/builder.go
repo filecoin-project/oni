@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -102,7 +103,6 @@ func (b *Builder) CommitApplies() {
 		panic("called CommitApplies at the wrong time")
 	}
 
-	b.vector.Post = &schema.Postconditions{}
 	for _, am := range b.Messages.All() {
 		// apply all messages that are pending application.
 		if am.Result == nil {
@@ -131,6 +131,7 @@ func (b *Builder) applyMessage(am *ApplicableMessage) {
 		Bytes: MustSerialize(am.Message),
 		Epoch: &am.Epoch,
 	})
+	fmt.Println(am.Result.ExitCode)
 	b.vector.Post.Receipts = append(b.vector.Post.Receipts, &schema.Receipt{
 		ExitCode:    am.Result.ExitCode,
 		ReturnValue: am.Result.Return,

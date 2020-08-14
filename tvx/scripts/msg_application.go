@@ -25,6 +25,7 @@ func main() {
 	failInvalidActorNonce()
 	failInvalidReceiverMethod()
 	failInexistentReceiver()
+	failCoverTransferAccountCreationGasStepwise()
 }
 
 func failCoverReceiptGasCost() {
@@ -159,23 +160,39 @@ block validation we need to ensure behaviour is consistent across VM implementat
 	v.CommitApplies()
 
 	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.SysErrInvalidReceiver))
+	v.Finish(os.Stdout)
 }
 
-func failCoverAccountCreationGasStepwise() {
+func failCoverTransferAccountCreationGasStepwise() {
 	metadata := &schema.Metadata{
-		ID:      "msg-apply-fail-accountcreation-gas",
+		ID:      "msg-apply-fail-transfer-accountcreation-gas",
 		Version: "v1",
-		Desc:    "insufficent gas to ",
-		Comment: `Note that this test is not a valid message, since it is using
-an unknown actor. However in the event that an invalid message isn't filtered by
-block validation we need to ensure behaviour is consistent across VM implementations.`,
+		Desc:    "fail not enough gas to cover account actor creation on transfer",
 	}
 
 	v := MessageVector(metadata)
 	v.Messages.SetDefaults(GasLimit(1_000_000_000), GasPrice(1))
 
-	alice := v.Actors.Account(address.SECP256K1, aliceBal)
+	var alice, bob, charlie AddressHandle
+	alice = v.Actors.Account(address.SECP256K1, aliceBal)
+	bob.Robust, charlie.Robust = MustNewSECP256K1Addr("1"), MustNewSECP256K1Addr("2")
 	v.CommitPreconditions()
 
-	// TODO single message apply
+	var nonce uint64
+	ref := v.Messages.Sugar().Transfer(alice.Robust, bob.Robust, Value(transferAmnt), Nonce(nonce))
+	nonce++
+	v.Messages.ApplyOne(ref)
+	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.Ok))
+
+	// decrease the gas cost by `gasStep` for each apply and ensure `SysErrOutOfGas` is always returned.
+	trueGas := ref.Result.GasUsed
+	gasStep := trueGas / 100
+	for tryGas := trueGas - gasStep; tryGas > 0; tryGas -= gasStep {
+		v.Messages.Sugar().Transfer(alice.Robust, charlie.Robust, Value(transferAmnt), Nonce(nonce), GasPrice(1), GasLimit(tryGas))
+		nonce++
+	}
+	v.CommitApplies()
+
+	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.SysErrOutOfGas), ref)
+	v.Finish(os.Stdout)
 }
