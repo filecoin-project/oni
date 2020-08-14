@@ -24,7 +24,8 @@ import (
 // Generator supports the following CLI flags:
 //
 //  -o <directory>
-//		directory where test vector JSON files will be saved.
+//		directory where test vector JSON files will be saved; if omitted,
+//		vectors will be written to stdout.
 //
 //  -f <regex>
 //		regex filter to select a subset of vectors to execute; matched against
@@ -48,8 +49,8 @@ type MessageVectorGenItem struct {
 func NewGenerator() *Generator {
 	// Consume CLI parameters.
 	var (
-		outputDir = flag.String("o", "", "output directory")
-		filter    = flag.String("f", "", "filter regex for test vectors to generate")
+		outputDir = flag.String("o", "", "directory where test vector JSON files will be saved; if omitted, vectors will be written to stdout")
+		filter    = flag.String("f", "", "regex filter to select a subset of vectors to execute; matched against the vector's ID")
 	)
 
 	flag.Parse()
