@@ -11,18 +11,14 @@ import (
 
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/lib/blockstore"
-	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-datastore"
-	blockstore2 "github.com/ipfs/go-ipfs-blockstore"
-	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
 	"github.com/ipld/go-car"
 
 	"github.com/filecoin-project/oni/tvx/lotus"
 	"github.com/filecoin-project/oni/tvx/schema"
+	ostate "github.com/filecoin-project/oni/tvx/state"
 )
 
 type Stage string
@@ -52,9 +48,7 @@ type Builder struct {
 	Wallet    *Wallet
 	StateTree *state.StateTree
 
-	ds  *datastore.MapDatastore
-	cst *cbor.BasicIpldStore
-	bs  blockstore2.Blockstore
+	stores *ostate.Stores
 }
 
 // MessageVector creates a builder for a message-class vector.
@@ -70,9 +64,7 @@ func MessageVector(metadata *schema.Metadata) *Builder {
 
 	b := &Builder{
 		stage: StagePreconditions,
-		bs:    bs,
-		ds:    datastore.NewMapDatastore(),
-		cst:   cst,
+		stores: ostate.NewLocalStores(context.Background()),
 	}
 
 	b.Wallet = newWallet()
@@ -117,11 +109,11 @@ func (b *Builder) CommitApplies() {
 	b.vector.Post = &schema.Postconditions{}
 	for _, am := range b.Messages.All() {
 		var err error
-		am.Result, postroot, err = driver.ExecuteMessage(am.Message, postroot, b.bs, am.Epoch)
+		am.Result, postroot, err = driver.ExecuteMessage(am.Message, postroot, b.stores.Blockstore, am.Epoch)
 		b.Assert.NoError(err)
 
 		// TODO do not replace the tree. Fix this.
-		b.StateTree, err = state.LoadStateTree(b.cst, postroot)
+		b.StateTree, err = state.LoadStateTree(b.stores.CBORStore, postroot)
 		b.Assert.NoError(err)
 
 		b.vector.ApplyMessages = append(b.vector.ApplyMessages, schema.Message{
@@ -184,13 +176,7 @@ func (b *Builder) WriteCAR(w io.Writer, roots ...cid.Cid) error {
 		return out, nil
 	}
 
-	var (
-		offl    = offline.Exchange(b.bs)
-		blkserv = blockservice.New(b.bs, offl)
-		dserv   = merkledag.NewDAGService(blkserv)
-	)
-
-	return car.WriteCarWithWalker(context.Background(), dserv, roots, w, carWalkFn)
+	return car.WriteCarWithWalker(context.Background(), b.stores.DAGService, roots, w, carWalkFn)
 }
 
 func (b *Builder) FlushState() cid.Cid {

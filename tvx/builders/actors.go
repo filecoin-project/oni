@@ -85,7 +85,7 @@ func (a *Actors) Miner(cfg MinerActorCfg) (minerActor, owner, worker AddressHand
 		SectorSize:                 ss,
 		WindowPoStPartitionSectors: ps,
 	}
-	infoCid, err := a.b.cst.Put(context.Background(), mi)
+	infoCid, err := a.b.stores.CBORStore.Put(context.Background(), mi)
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +112,7 @@ func (a *Actors) Miner(cfg MinerActorCfg) (minerActor, owner, worker AddressHand
 	a.ActorState(builtin.StoragePowerActorAddr, &spa)
 
 	// set the miners claim
-	hm, err := adt.AsMap(adt.WrapStore(context.Background(), a.b.cst), spa.Claims)
+	hm, err := adt.AsMap(adt.WrapStore(context.Background(), a.b.stores.CBORStore), spa.Claims)
 	if err != nil {
 		panic(err)
 	}
@@ -136,7 +136,7 @@ func (a *Actors) Miner(cfg MinerActorCfg) (minerActor, owner, worker AddressHand
 	spa.MinerCount += 1
 
 	// update storage power actor's state in the tree
-	_, err = a.b.cst.Put(context.Background(), &spa)
+	_, err = a.b.stores.CBORStore.Put(context.Background(), &spa)
 	if err != nil {
 		panic(err)
 	}

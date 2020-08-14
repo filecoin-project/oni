@@ -45,8 +45,7 @@ const (
 )
 
 func (b *Builder) initializeZeroState() {
-	st := adt_spec.WrapStore(context.Background(), b.cst)
-	if err := insertEmptyStructures(st); err != nil {
+	if err := insertEmptyStructures(b.stores.ADTStore); err != nil {
 		panic(err)
 	}
 
