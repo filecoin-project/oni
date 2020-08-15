@@ -41,7 +41,9 @@ func (m *Messages) Sugar() *sugarMsg {
 // All returns all ApplicableMessages that have been accumulated, in the same
 // order they were added.
 func (m *Messages) All() []*ApplicableMessage {
-	return m.messages
+	cpy := make([]*ApplicableMessage, len(m.messages))
+	copy(cpy, m.messages)
+	return cpy
 }
 
 // Typed adds a typed call to this message accumulator.
@@ -148,9 +150,9 @@ func GasFeeCap(feeCap int64) MsgOpt {
 }
 
 // GasPremium sets the gas premium of a message.
-func GasPremium(preium int64) MsgOpt {
+func GasPremium(premium int64) MsgOpt {
 	return func(opts *msgOpts) {
-		opts.gasPremium = big.NewInt(preium)
+		opts.gasPremium = big.NewInt(premium)
 	}
 }
 

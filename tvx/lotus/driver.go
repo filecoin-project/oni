@@ -15,6 +15,10 @@ import (
 	cbor "github.com/ipfs/go-ipld-cbor"
 )
 
+var (
+	BaseFee = abi.NewTokenAmount(100) // TODO make parametrisable through vector.
+)
+
 type Driver struct {
 	ctx context.Context
 }
@@ -46,7 +50,7 @@ func (d *Driver) ExecuteMessage(msg *types.Message, preroot cid.Cid, bs blocksto
 		Bstore:         bs,
 		Syscalls:       mkFakedSigSyscalls(vm.Syscalls(ffiwrapper.ProofVerifier)),
 		CircSupplyCalc: nil,
-		BaseFee:        abi.NewTokenAmount(100), // TODO make parametrisable through vector.
+		BaseFee:        BaseFee,
 	}
 	lvm, err := vm.NewVM(vmOpts)
 	if err != nil {

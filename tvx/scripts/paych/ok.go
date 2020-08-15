@@ -42,6 +42,8 @@ func happyPathCreate(v *Builder) {
 	v.Assert.Equal(sender.ID, state.From)
 	v.Assert.Equal(receiver.ID, state.To)
 	v.Assert.Equal(toSend, actor.Balance)
+
+	v.Assert.EveryMessageSenderActorSatisfies(NonceUpdated())
 }
 
 func happyPathUpdate(v *Builder) {
@@ -99,7 +101,7 @@ func happyPathUpdate(v *Builder) {
 
 	arr, err := adt.AsArray(v.Stores.ADTStore, state.LaneStates)
 	v.Assert.NoError(err)
-	v.Assert.Equal(1, arr.Length())
+	v.Assert.EqualValues(1, arr.Length())
 
 	var ls paych.LaneState
 	found, err := arr.Get(lane, &ls)
@@ -108,6 +110,8 @@ func happyPathUpdate(v *Builder) {
 
 	v.Assert.Equal(amount, ls.Redeemed)
 	v.Assert.Equal(nonce, ls.Nonce)
+
+	v.Assert.EveryMessageSenderActorSatisfies(NonceUpdated())
 }
 
 func happyPathCollect(v *Builder) {
@@ -125,10 +129,10 @@ func happyPathCollect(v *Builder) {
 	v.CommitPreconditions()
 
 	// Construct the payment channel.
-	v.Messages.Sugar().CreatePaychActor(sender.Robust, receiver.Robust, Value(toSend))
+	createMsg := v.Messages.Sugar().CreatePaychActor(sender.Robust, receiver.Robust, Value(toSend))
 
 	// Update the payment channel.
-	v.Messages.Typed(sender.Robust, paychAddr.Robust, PaychUpdateChannelState(&paych.UpdateChannelStateParams{
+	updateMsg := v.Messages.Typed(sender.Robust, paychAddr.Robust, PaychUpdateChannelState(&paych.UpdateChannelStateParams{
 		Sv: paych.SignedVoucher{
 			ChannelAddr:     paychAddr.Robust,
 			TimeLockMin:     0,
@@ -153,9 +157,9 @@ func happyPathCollect(v *Builder) {
 	// all messages succeeded.
 	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.Ok))
 
-	// receiver_balance = initial_balance + paych_send - settle_paych_msg_gas - collect_paych_msg_gas
-	gasUsed := big.Add(big.NewInt(settleMsg.Result.MessageReceipt.GasUsed), big.NewInt(collectMsg.Result.MessageReceipt.GasUsed))
-	v.Assert.BalanceEq(receiver.Robust, big.Sub(big.Add(toSend, initialBal), gasUsed))
+	v.Assert.MessageSenderActorsSatisfy(BalanceUpdated(big.Zero()), createMsg, updateMsg)
+	v.Assert.MessageSenderActorsSatisfy(BalanceUpdated(toSend), settleMsg, collectMsg)
+	v.Assert.EveryMessageSenderActorSatisfies(NonceUpdated())
 
 	// the paych actor should have been deleted after the collect
 	v.Assert.ActorMissing(paychAddr.Robust)
