@@ -83,14 +83,14 @@ func (a *Asserter) EveryMessageResultSatisfies(predicate ApplyRetPredicate, exce
 	}
 }
 
-// EveryMessageSenderActorSatisfies verifies that the sender actors of the supplied
+// EveryMessageSenderSatisfies verifies that the sender actors of the supplied
 // messages match a condition.
 //
 // This function groups ApplicableMessages by sender actor, and calls the
 // predicate for each unique sender, passing in the initial state (when
 // preconditions were committed), the final state (could be nil), and the
 // ApplicableMessages themselves.
-func (a *Asserter) MessageSenderActorsSatisfy(predicate SenderActorPredicate, ams ...*ApplicableMessage) {
+func (a *Asserter) MessageSendersSatisfy(predicate ActorPredicate, ams ...*ApplicableMessage) {
 	bysender := make(map[AddressHandle][]*ApplicableMessage, len(ams))
 	for _, am := range ams {
 		h := a.b.Actors.HandleFor(am.Message.From)
@@ -113,9 +113,9 @@ func (a *Asserter) MessageSenderActorsSatisfy(predicate SenderActorPredicate, am
 	}
 }
 
-// EveryMessageSenderActorSatisfies is sugar for MessageSenderActorsSatisfy(predicate, Messages.All()),
+// EveryMessageSenderSatisfies is sugar for MessageSendersSatisfy(predicate, Messages.All()),
 // but supports an exclusion set to restrict the messages that will actually be asserted.
-func (a *Asserter) EveryMessageSenderActorSatisfies(predicate SenderActorPredicate, except ...*ApplicableMessage) {
+func (a *Asserter) EveryMessageSenderSatisfies(predicate ActorPredicate, except ...*ApplicableMessage) {
 	ams := a.b.Messages.All()
 	if len(except) > 0 {
 		filtered := ams[:0]
@@ -129,7 +129,7 @@ func (a *Asserter) EveryMessageSenderActorSatisfies(predicate SenderActorPredica
 		}
 		ams = filtered
 	}
-	a.MessageSenderActorsSatisfy(predicate, ams...)
+	a.MessageSendersSatisfy(predicate, ams...)
 }
 
 func (a *Asserter) FailNow() {

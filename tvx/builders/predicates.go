@@ -17,11 +17,10 @@ type ApplyRetPredicate func(ret *vm.ApplyRet) error
 // OptionalActor is a marker type to warn that the value can be nil.
 type OptionalActor = types.Actor
 
-// SenderActorPredicate evaluates whether the actor, acting as a sender of the
-// provided messages, whose state is supplied (can be nil if the actor has been
-// deleted) satisfies a given condition. The initial state just after
-// committing preconditions is also supplied.
-type SenderActorPredicate func(handle AddressHandle, initial *types.Actor, final *OptionalActor, amss []*ApplicableMessage) error
+// ActorPredicate evaluates whether the actor that participates in the provided
+// messages satisfies a given condition. The initial state (after preconditions)
+// and final state (after applies) are supplied.
+type ActorPredicate func(handle AddressHandle, initial *OptionalActor, final *OptionalActor, amss []*ApplicableMessage) error
 
 // ExitCode returns an ApplyRetPredicate that passes if the exit code of the
 // message execution matches the argument.
@@ -34,14 +33,10 @@ func ExitCode(expect exitcode.ExitCode) ApplyRetPredicate {
 	}
 }
 
-func ExpectedGas() {
-
-}
-
-// BalanceUpdated returns a SenderActorPredicate that checks whether the balance
+// BalanceUpdated returns a ActorPredicate that checks whether the balance
 // of the actor has been deducted the gas cost and the outgoing value transfers,
 // and has been increased by the offset (or decreased, if the argument is negative).
-func BalanceUpdated(offset abi.TokenAmount) SenderActorPredicate {
+func BalanceUpdated(offset abi.TokenAmount) ActorPredicate {
 	return func(handle AddressHandle, initial *types.Actor, final *OptionalActor, amss []*ApplicableMessage) error {
 		if initial == nil || final == nil {
 			return fmt.Errorf("BalanceUpdated predicate expected non-nil state")
@@ -63,9 +58,9 @@ func BalanceUpdated(offset abi.TokenAmount) SenderActorPredicate {
 	}
 }
 
-// NonceUpdated returns a SenderActorPredicate that checks whether the nonce
+// NonceUpdated returns a ActorPredicate that checks whether the nonce
 // of the actor has been updated to the nonce of the last message + 1.
-func NonceUpdated() SenderActorPredicate {
+func NonceUpdated() ActorPredicate {
 	return func(handle AddressHandle, initial *types.Actor, final *OptionalActor, amss []*ApplicableMessage) error {
 		if initial == nil || final == nil {
 			return fmt.Errorf("BalanceUpdated predicate expected non-nil state")

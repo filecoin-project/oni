@@ -43,7 +43,7 @@ func happyPathCreate(v *Builder) {
 	v.Assert.Equal(receiver.ID, state.To)
 	v.Assert.Equal(toSend, actor.Balance)
 
-	v.Assert.EveryMessageSenderActorSatisfies(NonceUpdated())
+	v.Assert.EveryMessageSenderSatisfies(NonceUpdated())
 }
 
 func happyPathUpdate(v *Builder) {
@@ -111,7 +111,7 @@ func happyPathUpdate(v *Builder) {
 	v.Assert.Equal(amount, ls.Redeemed)
 	v.Assert.Equal(nonce, ls.Nonce)
 
-	v.Assert.EveryMessageSenderActorSatisfies(NonceUpdated())
+	v.Assert.EveryMessageSenderSatisfies(NonceUpdated())
 }
 
 func happyPathCollect(v *Builder) {
@@ -157,9 +157,9 @@ func happyPathCollect(v *Builder) {
 	// all messages succeeded.
 	v.Assert.EveryMessageResultSatisfies(ExitCode(exitcode.Ok))
 
-	v.Assert.MessageSenderActorsSatisfy(BalanceUpdated(big.Zero()), createMsg, updateMsg)
-	v.Assert.MessageSenderActorsSatisfy(BalanceUpdated(toSend), settleMsg, collectMsg)
-	v.Assert.EveryMessageSenderActorSatisfies(NonceUpdated())
+	v.Assert.MessageSendersSatisfy(BalanceUpdated(big.Zero()), createMsg, updateMsg)
+	v.Assert.MessageSendersSatisfy(BalanceUpdated(toSend), settleMsg, collectMsg)
+	v.Assert.EveryMessageSenderSatisfies(NonceUpdated())
 
 	// the paych actor should have been deleted after the collect
 	v.Assert.ActorMissing(paychAddr.Robust)
