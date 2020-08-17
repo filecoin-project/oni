@@ -26,6 +26,7 @@ var vectorCmd = &cli.Command{
 			Usage:       "compare the pre and post states of a test vector",
 			Destination: &vectorFlags.file,
 		},
+		&expandActorsFlag,
 	},
 }
 
@@ -58,8 +59,8 @@ func runVectorCmd(c *cli.Context) error {
 		c.Context,
 		store,
 		tv.Pre.StateTree.RootCID,
-		tv.Pre.StateTree.RootCID,
-		tv.Post.StateTree.RootCID)
+		tv.Post.StateTree.RootCID,
+		lib.ExpandActors)
 
 	return nil
 }

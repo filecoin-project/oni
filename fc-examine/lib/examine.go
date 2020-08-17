@@ -33,7 +33,65 @@ import (
 	runtime "github.com/filecoin-project/specs-actors/actors/runtime"
 )
 
-func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) {
+type config struct {
+	ExpandActors bool
+	ActorCidFilter []cid.Cid
+}
+
+type Option func(c *config)
+
+func ExpandActors(c *config) {
+	c.ExpandActors = true
+}
+
+func ExpandActorByCid(cids []cid.Cid) Option {
+	return func(c *config) {
+		c.ExpandActors = true
+		c.ActorCidFilter = cids
+	}
+}
+
+// Parse a user entered fuzzy definition for actor expansion.
+func WithActorExpansionFromUser(arg string) (Option, error) {
+	parts := strings.Split(arg, ",")
+
+	cids := make([]cid.Cid, 0, len(parts))
+	for _, part := range parts {
+		c, err := cid.Parse(part)
+		if err != nil {
+			for k, v := range builtinCodeClasses {
+				if part == k {
+					cids = append(cids, v)
+					break
+				}
+			}
+			return nil, fmt.Errorf("Could not parse %s: %w", part, err)
+		} else {
+			cids = append(cids, c)
+		}
+	}
+	return ExpandActorByCid(cids), nil
+}
+
+var builtinCodeClasses = map[string]cid.Cid {
+	"init": builtin.InitActorCodeID,
+	"cron": builtin.CronActorCodeID,
+	"account": builtin.AccountActorCodeID,
+	"storagePower": builtin.StoragePowerActorCodeID,
+	"storageMiner": builtin.StorageMinerActorCodeID,
+	"storageMarket": builtin.StorageMarketActorCodeID,
+	"paymentChannel": builtin.PaymentChannelActorCodeID,
+	"multisig": builtin.MultisigActorCodeID,
+	"reward": builtin.RewardActorCodeID,
+	"verifiedRegistry": builtin.VerifiedRegistryActorCodeID,
+}
+
+func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts ...Option) {
+	conf := config{}
+	for _, o := range opts {
+		o(&conf)
+	}
+
 	cborStore := cbor.NewCborStore(store)
 	adtStore := adt.WrapStore(ctx, cborStore)
 
@@ -54,7 +112,7 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 		}
 	}
 
-	stateTreeNamer := getInitFor(ctx, cborStore, root, initActorTransformer)
+	stateTreeNamer := getInitFor(ctx, cborStore, a, initActorTransformer)
 
 	hamtActorExpander := func (n *hamtNode) map[string]*types.Actor {
 		m := make(map[string]*types.Actor)
@@ -93,6 +151,20 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 		var state interface{}
 		block, _ := store.Get(act.Head)
 
+		state = block
+
+		found := true
+		if len(conf.ActorCidFilter) > 0 {
+			found = false
+			for _, cid := range conf.ActorCidFilter {
+				if cid.Equals(act.Code) {
+					found = true
+					break
+				}
+			}
+		}
+
+		if found {
 		switch act.Code {
 		case builtin.InitActorCodeID:
 			var initState initActor.State
@@ -128,6 +200,7 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 			state = accountState
 		default:
 			state = block
+		}
 		}
 		return &statefulActor{
 			Type: builtin.ActorNameByCode(act.Code),
@@ -175,10 +248,9 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 	cidMap[".*\\(verifreg\\.State\\)\\.Verifiers$"] = reflect.TypeOf(make(map[string]*verifiedRegistryActor.DataCap))
 	cidMap[".*\\(verifreg\\.State\\)\\.VerifiedClients$"] = reflect.TypeOf(make(map[string]*verifiedRegistryActor.DataCap))
 
-	opts := []cmp.Option{
+	cmpOpts := []cmp.Option{
 		cmp.Comparer(bigIntComparer),
 		cmp.AllowUnexported(blocks.BasicBlock{}),
-		cmp.Transformer("types.Actor", actorTransformer),
 		cmp.Transformer("bitfield.Bitfield", bitfieldTransformer),
 		cmp.Transformer("bitfield.InlineBitfield", directBitfieldTransformer),
 		cmp.Transformer("address.Address", addressTransformer),
@@ -186,8 +258,14 @@ func Diff(ctx context.Context, store blockstore.Blockstore, root, a, b cid.Cid) 
 		cmp.FilterPath(filterIn("initActor"), cmp.Transformer("init.State", initHampTransformer)),
 		cmp.FilterPath(topFilter, cmp.Transformer("state.StateTree", hamtActorExpander)),
 	}
-	opts = append(opts, cidTransformer(ctx, store, cborStore, cidMap)...)
-	if d := cmp.Diff(a, b, opts...);
+	if conf.ExpandActors {
+		cmpOpts = append(cmpOpts, 		cmp.Transformer("types.Actor", actorTransformer))
+	} else {
+		cidMap[".*\\.Code$"] = reflect.TypeOf("")
+		cidMap[".*\\.Head$"] = reflect.TypeOf("")
+	}
+	cmpOpts = append(cmpOpts, cidTransformer(ctx, store, cborStore, cidMap)...)
+	if d := cmp.Diff(a, b, cmpOpts...);
 		d != "" {
 		fmt.Printf("Diff: %v\n", d)
 	}

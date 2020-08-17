@@ -11,6 +11,7 @@ import (
 
 	"github.com/filecoin-project/oni/fc-examine/lib"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/specs-actors/actors/abi"
 )
 
 var diffFlags struct {
@@ -23,35 +24,59 @@ var diffCmd = &cli.Command{
 	Action:      runDiffCmd,
 	Flags: []cli.Flag{
 		&apiFlag,
+		&expandActorsFlag,
 	},
 }
 
-func objToStateTree(api api.FullNode, obj string, after bool) cid.Cid {
+func objToStateTree(ctx context.Context, api api.FullNode, obj string, after bool) (cid.Cid, error) {
+	var height abi.ChainEpoch
+	var baseKey types.TipSetKey
+	toCompute := []*types.Message{}
+
 	objCid, err := cid.Parse(obj)
 	if err != nil {
-		// todo: log
-		return cid.Undef
+		return cid.Undef, err
 	}
-	// see if obj is message
-	if msg, err := api.StateSearchMsg(context.TODO(), objCid); err == nil {
-		toCompute := []*types.Message{}
-		if after {
-			msgData, _ := api.ChainGetMessage(context.TODO(), objCid)
-			toCompute = append(toCompute, msgData)
-		}
-		compute, err := api.StateCompute(context.TODO(), msg.Height, toCompute, msg.TipSet)
-		if err != nil {
-			// todo: log
-			return cid.Undef
-		}
-		return compute.Root
-	}
-	// see if obj is block
-	//ChainGetBlock(context.Context, cid.Cid) (*types.BlockHeader, error)
-	// see if obj is tipset
-	//ChainGetTipSet(context.Context, types.TipSetKey) (*types.TipSet, error)
 
-	return cid.Undef
+	if msg, err := api.StateSearchMsg(ctx, objCid); err == nil {
+		ts, err := api.ChainGetTipSet(ctx, msg.TipSet)
+		if err != nil {
+			return cid.Undef, err
+		}
+
+		if !after {
+			return ts.ParentState(), nil
+		}
+
+		msgData, err := api.ChainGetMessage(ctx, objCid)
+		if err != nil {
+			return cid.Undef, err
+		}
+		height = ts.Height()
+		baseKey = ts.Parents()
+		toCompute = append(toCompute, msgData)
+	} else if block, err := api.ChainGetBlock(ctx, objCid); err == nil {
+		if !after {
+			return block.ParentStateRoot, nil
+		}
+
+		msgs, err := api.ChainGetBlockMessages(ctx, objCid)
+		if err != nil {
+			return cid.Undef, err
+		}
+		toCompute = append(toCompute, msgs.BlsMessages...)
+		height = block.Height
+		baseKey = types.NewTipSetKey(block.Parents...)
+	} else {
+		return cid.Undef, fmt.Errorf("Could not parse '%s'", obj)
+	}
+
+	compute, err := api.StateCompute(ctx, height, toCompute, baseKey)
+	if err != nil {
+		return cid.Undef, err
+	}
+	fmt.Printf("after: %s\n", compute.Root)
+	return compute.Root, nil
 }
 
 func runDiffCmd(c *cli.Context) error {
@@ -72,22 +97,48 @@ func runDiffCmd(c *cli.Context) error {
 	parts := strings.Split(obj, "..")
 
 	if len(parts) == 1 {
-		preCid = objToStateTree(client, parts[0], false)
-		preCid = objToStateTree(client, parts[0], true)
+		preCid, err = objToStateTree(c.Context, client, parts[0], false)
+		if err != nil {
+			return err
+		}
+		postCid, err = objToStateTree(c.Context, client, parts[0], true)
 	} else if len(parts) == 2{
-		preCid = objToStateTree(client, parts[0], false)
-		postCid = objToStateTree(client, parts[1], true)
+		preCid, err = objToStateTree(c.Context, client, parts[0], false)
+		if err != nil {
+			return err
+		}
+		postCid, err = objToStateTree(c.Context, client, parts[1], true)
 	} else {
 		return fmt.Errorf("invalid descriptor: %s", obj)
 	}
-	
+	if err != nil {
+		return err
+	}
 
-	lib.Diff(
-		c.Context,
-		store,
-		preCid,
-		preCid,
-		postCid)
+	fmt.Printf("comparing state trees at %s-%s\n", preCid, postCid)	
+
+	if c.IsSet(expandActorsFlag.Name) {
+		interestCids := c.String(expandActorsFlag.Name)
+		opt := lib.ExpandActors
+		if len(interestCids) > 0 { 
+			opt, err = lib.WithActorExpansionFromUser(interestCids)
+			if err != nil {
+				return err
+			}
+		}
+		lib.Diff(
+			c.Context,
+			store,
+			preCid,
+			postCid,
+			opt)	
+	} else {
+		lib.Diff(
+			c.Context,
+			store,
+			preCid,
+			postCid)
+	}
 
 	return nil
 }
