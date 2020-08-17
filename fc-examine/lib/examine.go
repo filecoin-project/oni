@@ -53,6 +53,9 @@ func ExpandActorByCid(cids []cid.Cid) Option {
 
 // Parse a user entered fuzzy definition for actor expansion.
 func WithActorExpansionFromUser(arg string) (Option, error) {
+	if arg == "all" {
+		return ExpandActors, nil
+	}
 	parts := strings.Split(arg, ",")
 
 	cids := make([]cid.Cid, 0, len(parts))
