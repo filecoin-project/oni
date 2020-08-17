@@ -160,7 +160,7 @@ func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts .
 		if len(conf.ActorCidFilter) > 0 {
 			found = false
 			for _, cid := range conf.ActorCidFilter {
-				if cid.Equals(act.Code) {
+				if cid.Equals(act.Code) || cid.Equals(act.Head) {
 					found = true
 					break
 				}
