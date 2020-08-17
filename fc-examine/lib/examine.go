@@ -5,36 +5,36 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"regexp"
 	"reflect"
+	"regexp"
 	"strings"
 
-	"github.com/filecoin-project/lotus/lib/blockstore"
-	"github.com/filecoin-project/lotus/chain/types"
+	addr "github.com/filecoin-project/go-address"
 	bitfield "github.com/filecoin-project/go-bitfield"
 	chainState "github.com/filecoin-project/lotus/chain/state"
-	"github.com/willscott/go-cmp/cmp"
+	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/lotus/lib/blockstore"
+	"github.com/filecoin-project/specs-actors/actors/builtin"
+	accountActor "github.com/filecoin-project/specs-actors/actors/builtin/account"
+	cronActor "github.com/filecoin-project/specs-actors/actors/builtin/cron"
+	initActor "github.com/filecoin-project/specs-actors/actors/builtin/init"
+	marketActor "github.com/filecoin-project/specs-actors/actors/builtin/market"
+	storageMinerActor "github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	storagePowerActor "github.com/filecoin-project/specs-actors/actors/builtin/power"
+	rewardActor "github.com/filecoin-project/specs-actors/actors/builtin/reward"
+	verifiedRegistryActor "github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
+	runtime "github.com/filecoin-project/specs-actors/actors/runtime"
+	adt "github.com/filecoin-project/specs-actors/actors/util/adt"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	hamt "github.com/ipfs/go-hamt-ipld"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	cbg "github.com/whyrusleeping/cbor-gen"
-	blocks "github.com/ipfs/go-block-format"
-	addr "github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/specs-actors/actors/builtin"
-	accountActor "github.com/filecoin-project/specs-actors/actors/builtin/account"
-	initActor "github.com/filecoin-project/specs-actors/actors/builtin/init"
-	rewardActor "github.com/filecoin-project/specs-actors/actors/builtin/reward"
-	cronActor "github.com/filecoin-project/specs-actors/actors/builtin/cron"
-	storagePowerActor "github.com/filecoin-project/specs-actors/actors/builtin/power"
-	marketActor "github.com/filecoin-project/specs-actors/actors/builtin/market"
-	storageMinerActor "github.com/filecoin-project/specs-actors/actors/builtin/miner"
-	verifiedRegistryActor "github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
-	adt "github.com/filecoin-project/specs-actors/actors/util/adt"
-	runtime "github.com/filecoin-project/specs-actors/actors/runtime"
+	"github.com/willscott/go-cmp/cmp"
 )
 
 type config struct {
-	ExpandActors bool
+	ExpandActors   bool
 	ActorCidFilter []cid.Cid
 }
 
@@ -73,16 +73,16 @@ func WithActorExpansionFromUser(arg string) (Option, error) {
 	return ExpandActorByCid(cids), nil
 }
 
-var builtinCodeClasses = map[string]cid.Cid {
-	"init": builtin.InitActorCodeID,
-	"cron": builtin.CronActorCodeID,
-	"account": builtin.AccountActorCodeID,
-	"storagePower": builtin.StoragePowerActorCodeID,
-	"storageMiner": builtin.StorageMinerActorCodeID,
-	"storageMarket": builtin.StorageMarketActorCodeID,
-	"paymentChannel": builtin.PaymentChannelActorCodeID,
-	"multisig": builtin.MultisigActorCodeID,
-	"reward": builtin.RewardActorCodeID,
+var builtinCodeClasses = map[string]cid.Cid{
+	"init":             builtin.InitActorCodeID,
+	"cron":             builtin.CronActorCodeID,
+	"account":          builtin.AccountActorCodeID,
+	"storagePower":     builtin.StoragePowerActorCodeID,
+	"storageMiner":     builtin.StorageMinerActorCodeID,
+	"storageMarket":    builtin.StorageMarketActorCodeID,
+	"paymentChannel":   builtin.PaymentChannelActorCodeID,
+	"multisig":         builtin.MultisigActorCodeID,
+	"reward":           builtin.RewardActorCodeID,
 	"verifiedRegistry": builtin.VerifiedRegistryActorCodeID,
 }
 
@@ -105,16 +105,16 @@ func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts .
 			return nil
 		})
 		return &initActorState{
-			NextID: act.NextID.String(),
+			NextID:      act.NextID.String(),
 			NetworkName: act.NetworkName,
-			ADTRoot: act.AddressMap.String(),
-			ADT: m,
+			ADTRoot:     act.AddressMap.String(),
+			ADT:         m,
 		}
 	}
 
 	stateTreeNamer := getInitFor(ctx, cborStore, a, initActorTransformer)
 
-	hamtActorExpander := func (n *hamtNode) map[string]*types.Actor {
+	hamtActorExpander := func(n *hamtNode) map[string]*types.Actor {
 		m := make(map[string]*types.Actor)
 		kv := hamt.KV{}
 		n.Node.ForEach(ctx, func(k string, val interface{}) error {
@@ -124,15 +124,15 @@ func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts .
 			} else {
 				kv.Value = v
 			}
-	
+
 			var template types.Actor
 			cbor.DecodeInto(kv.Value.Raw, &template)
-	
+
 			if nk, ok := stateTreeNamer[k]; ok {
 				k = nk
 			}
 			m[k] = &template
-	
+
 			return nil
 		})
 		return m
@@ -147,7 +147,7 @@ func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts .
 		return m
 	}
 
-	actorTransformer := func (act *types.Actor) *statefulActor {
+	actorTransformer := func(act *types.Actor) *statefulActor {
 		var state interface{}
 		block, _ := store.Get(act.Head)
 
@@ -165,53 +165,53 @@ func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts .
 		}
 
 		if found {
-		switch act.Code {
-		case builtin.InitActorCodeID:
-			var initState initActor.State
-			cbor.DecodeInto(block.RawData(), &initState)
-			state = initState
-		case builtin.RewardActorCodeID:
-			var rewardState rewardActor.State
-			cbor.DecodeInto(block.RawData(), &rewardState)
-			state = rewardState
-		case builtin.StoragePowerActorCodeID:
-			var storagePowerState storagePowerActor.State
-			cbor.DecodeInto(block.RawData(), &storagePowerState)
-			state = storagePowerState
-		case builtin.StorageMinerActorCodeID:
-			var storageMinerState storageMinerActor.State
-			cbor.DecodeInto(block.RawData(), &storageMinerState)
-			state = storageMinerState
-		case builtin.CronActorCodeID:
-			var cronState cronActor.State
-			cbor.DecodeInto(block.RawData(), &cronState)
-			state = cronState
-		case builtin.StorageMarketActorCodeID:
-			var marketState marketActor.State
-			cbor.DecodeInto(block.RawData(), &marketState)
-			state = marketState
-		case builtin.VerifiedRegistryActorCodeID:
-			var registryState verifiedRegistryActor.State
-			cbor.DecodeInto(block.RawData(), &registryState)
-			state = registryState
-		case builtin.AccountActorCodeID:
-			var accountState accountActor.State
-			cbor.DecodeInto(block.RawData(), &accountState)
-			state = accountState
-		default:
-			state = block
-		}
+			switch act.Code {
+			case builtin.InitActorCodeID:
+				var initState initActor.State
+				cbor.DecodeInto(block.RawData(), &initState)
+				state = initState
+			case builtin.RewardActorCodeID:
+				var rewardState rewardActor.State
+				cbor.DecodeInto(block.RawData(), &rewardState)
+				state = rewardState
+			case builtin.StoragePowerActorCodeID:
+				var storagePowerState storagePowerActor.State
+				cbor.DecodeInto(block.RawData(), &storagePowerState)
+				state = storagePowerState
+			case builtin.StorageMinerActorCodeID:
+				var storageMinerState storageMinerActor.State
+				cbor.DecodeInto(block.RawData(), &storageMinerState)
+				state = storageMinerState
+			case builtin.CronActorCodeID:
+				var cronState cronActor.State
+				cbor.DecodeInto(block.RawData(), &cronState)
+				state = cronState
+			case builtin.StorageMarketActorCodeID:
+				var marketState marketActor.State
+				cbor.DecodeInto(block.RawData(), &marketState)
+				state = marketState
+			case builtin.VerifiedRegistryActorCodeID:
+				var registryState verifiedRegistryActor.State
+				cbor.DecodeInto(block.RawData(), &registryState)
+				state = registryState
+			case builtin.AccountActorCodeID:
+				var accountState accountActor.State
+				cbor.DecodeInto(block.RawData(), &accountState)
+				state = accountState
+			default:
+				state = block
+			}
 		}
 		return &statefulActor{
-			Type: builtin.ActorNameByCode(act.Code),
-			State: state,
-			Nonce: act.Nonce,
+			Type:    builtin.ActorNameByCode(act.Code),
+			State:   state,
+			Nonce:   act.Nonce,
 			Balance: act.Balance.String(),
 		}
 	}
 
 	cidMap := make(map[string]reflect.Type)
-	cidMap[".*BasicBlock\\)\\.cid"] = reflect.TypeOf("") // don't recurse on uninterpreted data.
+	cidMap[".*BasicBlock\\)\\.cid"] = reflect.TypeOf("")      // don't recurse on uninterpreted data.
 	cidMap["^{cid.Cid}$"] = reflect.TypeOf((*hamt.Node)(nil)) // handle state root expansion as a top-level hamt
 
 	// storageMinerActor mappings
@@ -242,8 +242,8 @@ func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts .
 	cidMap[".*\\(market\\.State\\)\\.PendingProposals$"] = reflect.TypeOf(make(map[string]*marketActor.DealProposal))
 	cidMap[".*\\(market\\.State\\)\\.EscrowTable$"] = reflect.TypeOf(make(map[string]*big.Int)) // adt.BalanceTable
 	cidMap[".*\\(market\\.State\\)\\.LockedTable$"] = reflect.TypeOf(make(map[string]*big.Int)) // adt.BalanceTable
-	cidMap[".*\\(market\\.State\\)\\.DealOpsByEpoch$"] = reflect.TypeOf("") // TODO: support for 'multimap'
-	
+	cidMap[".*\\(market\\.State\\)\\.DealOpsByEpoch$"] = reflect.TypeOf("")                     // TODO: support for 'multimap'
+
 	// verifiedRegistryActor mappings
 	cidMap[".*\\(verifreg\\.State\\)\\.Verifiers$"] = reflect.TypeOf(make(map[string]*verifiedRegistryActor.DataCap))
 	cidMap[".*\\(verifreg\\.State\\)\\.VerifiedClients$"] = reflect.TypeOf(make(map[string]*verifiedRegistryActor.DataCap))
@@ -259,14 +259,13 @@ func Diff(ctx context.Context, store blockstore.Blockstore, a, b cid.Cid, opts .
 		cmp.FilterPath(topFilter, cmp.Transformer("state.StateTree", hamtActorExpander)),
 	}
 	if conf.ExpandActors {
-		cmpOpts = append(cmpOpts, 		cmp.Transformer("types.Actor", actorTransformer))
+		cmpOpts = append(cmpOpts, cmp.Transformer("types.Actor", actorTransformer))
 	} else {
 		cidMap[".*\\.Code$"] = reflect.TypeOf("")
 		cidMap[".*\\.Head$"] = reflect.TypeOf("")
 	}
 	cmpOpts = append(cmpOpts, cidTransformer(ctx, store, cborStore, cidMap)...)
-	if d := cmp.Diff(a, b, cmpOpts...);
-		d != "" {
+	if d := cmp.Diff(a, b, cmpOpts...); d != "" {
 		fmt.Printf("Diff: %v\n", d)
 	}
 }
@@ -285,7 +284,7 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 		if t.Kind() == reflect.Map {
 			name = "amtmap." + strings.Trim(t.Elem().String(), "*")
 		} else if t.Kind() == reflect.Slice {
-			name = "amtarray." +strings.Trim(t.Elem().String(), "*")
+			name = "amtarray." + strings.Trim(t.Elem().String(), "*")
 		}
 		boundFunc := (func(name string, t reflect.Type) func(c cid.Cid) interface{} {
 			return func(c cid.Cid) interface{} {
@@ -303,7 +302,7 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 					adtStore := adt.WrapStore(ctx, cborStore)
 					am, err := adt.AsMap(adtStore, c)
 					if err != nil {
-						panic(fmt.Sprintf("loading %s failed: %v",name, err))
+						panic(fmt.Sprintf("loading %s failed: %v", name, err))
 					}
 					val := reflect.New(t.Elem().Elem())
 					asUnmarshaller, ok := val.Interface().(runtime.CBORUnmarshaler)
@@ -328,7 +327,7 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 					adtStore := adt.WrapStore(ctx, cborStore)
 					arr, err := adt.AsArray(adtStore, c)
 					if err != nil {
-						panic(fmt.Sprintf("loading %s failed: %v",name, err))
+						panic(fmt.Sprintf("loading %s failed: %v", name, err))
 					}
 					val := reflect.New(t.Elem().Elem())
 					asUnmarshaller, ok := val.Interface().(runtime.CBORUnmarshaler)
@@ -340,7 +339,7 @@ func cidTransformer(ctx context.Context, store blockstore.Blockstore, cborStore 
 					i := 0
 					arr.ForEach(asUnmarshaller, func(idx int64) error {
 						m.Index(i).Set(val)
-						i+=1
+						i += 1
 						return nil
 					})
 					return m.Interface()
@@ -432,17 +431,17 @@ func directBitfieldTransformer(b bitfield.BitField) string {
 	data, _ := b.MarshalJSON()
 	return string(data)
 }
- 
+
 type statefulActor struct {
-	Type string
-	State interface{}
-	Nonce uint64
+	Type    string
+	State   interface{}
+	Nonce   uint64
 	Balance string
 }
 
 type initActorState struct {
-	ADT map[string]uint64
-	ADTRoot string
-	NextID string
+	ADT         map[string]uint64
+	ADTRoot     string
+	NextID      string
 	NetworkName string
 }

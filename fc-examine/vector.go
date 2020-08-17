@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"os"
 	bs "github.com/filecoin-project/lotus/lib/blockstore"
 	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
+	"os"
 
 	"github.com/filecoin-project/oni/fc-examine/lib"
 )
@@ -53,7 +53,6 @@ func runVectorCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 
 	lib.Diff(
 		c.Context,

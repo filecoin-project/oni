@@ -3,11 +3,11 @@ package lib
 import (
 	"context"
 
-	ds "github.com/ipfs/go-datastore"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/lib/blockstore"
-	"github.com/ipfs/go-cid"
 	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
 )
 
 type proxyingBlockstore struct {

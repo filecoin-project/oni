@@ -9,8 +9,8 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/urfave/cli/v2"
 
-	"github.com/filecoin-project/oni/fc-examine/lib"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/filecoin-project/oni/fc-examine/lib"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 )
 
@@ -102,7 +102,7 @@ func runDiffCmd(c *cli.Context) error {
 			return err
 		}
 		postCid, err = objToStateTree(c.Context, client, parts[0], true)
-	} else if len(parts) == 2{
+	} else if len(parts) == 2 {
 		preCid, err = objToStateTree(c.Context, client, parts[0], false)
 		if err != nil {
 			return err
@@ -115,12 +115,12 @@ func runDiffCmd(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Printf("comparing state trees at %s-%s\n", preCid, postCid)	
+	fmt.Printf("comparing state trees at %s-%s\n", preCid, postCid)
 
 	if c.IsSet(expandActorsFlag.Name) {
 		interestCids := c.String(expandActorsFlag.Name)
 		opt := lib.ExpandActors
-		if len(interestCids) > 0 { 
+		if len(interestCids) > 0 {
 			opt, err = lib.WithActorExpansionFromUser(interestCids)
 			if err != nil {
 				return err
@@ -131,7 +131,7 @@ func runDiffCmd(c *cli.Context) error {
 			store,
 			preCid,
 			postCid,
-			opt)	
+			opt)
 	} else {
 		lib.Diff(
 			c.Context,

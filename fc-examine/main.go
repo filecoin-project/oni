@@ -9,9 +9,9 @@ import (
 )
 
 var expandActorsFlag = cli.StringFlag{
-	Name:    "expand-actors",
-	Usage:   "Control which actors state is expanded. pass with no argument or 'all' to expand all states, provide a class, like 'InitActor', or specific state root cid(s) separate by commas",
-	Value:   "",
+	Name:  "expand-actors",
+	Usage: "Control which actors state is expanded. pass with no argument or 'all' to expand all states, provide a class, like 'InitActor', or specific state root cid(s) separate by commas",
+	Value: "",
 }
 
 func main() {
