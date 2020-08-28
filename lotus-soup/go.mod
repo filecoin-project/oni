@@ -12,9 +12,7 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.1.2-0.20200822201400-474f4fdccc52
 	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
 	github.com/filecoin-project/lotus v0.5.4
-	github.com/filecoin-project/sector-storage v0.0.0-20200810171746-eac70842d8e0
 	github.com/filecoin-project/specs-actors v0.9.3
-	github.com/filecoin-project/storage-fsm v0.0.0-20200730122205-d423ae90d8d4
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/hashicorp/go-multierror v1.1.0
