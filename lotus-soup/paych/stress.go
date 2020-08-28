@@ -87,7 +87,11 @@ func Stress(t *testkit.TestEnvironment) error {
 		}
 	}
 
+	// Signal that the client is done
 	t.SyncClient.MustSignalEntry(ctx, testkit.StateDone)
+
+	// Signal to the miners to stop mining
+	t.SyncClient.MustSignalEntry(ctx, testkit.StateStopMining)
 
 	return nil
 }
