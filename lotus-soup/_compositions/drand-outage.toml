@@ -5,9 +5,9 @@
 [global]
   plan = "lotus-soup"
   case = "drand-outage"
-  total_instances = 6
+  total_instances = 7
   builder = "docker:go"
-  runner = "local:docker"
+  runner = "cluster:k8s"
 
 [global.build]
   selectors = ["testground"]
@@ -33,7 +33,7 @@
 [[groups]]
   id = "bootstrapper"
   [groups.resources]
-    memory = "120Mi"
+    memory = "1024Mi"
     cpu = "10m"
   [groups.instances]
     count = 1
@@ -45,7 +45,7 @@
 [[groups]]
   id = "miners"
   [groups.resources]
-    memory = "120Mi"
+    memory = "1024Mi"
     cpu = "10m"
   [groups.instances]
     count = 3
@@ -56,6 +56,9 @@
 
 [[groups]]
   id = "drand"
+  [groups.resources]
+    memory = "1024Mi"
+    cpu = "10m"
   [groups.instances]
     count = 3
     percentage = 0.0

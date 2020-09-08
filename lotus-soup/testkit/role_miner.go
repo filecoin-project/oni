@@ -579,6 +579,8 @@ func (m *LotusMiner) RunDefault() error {
 		close(done)
 	}
 
+	time.Sleep(3600 * time.Second)
+
 	// wait for a signal from all clients to stop mining
 	err = <-t.SyncClient.MustBarrier(ctx, StateStopMining, clients).C
 	if err != nil {
