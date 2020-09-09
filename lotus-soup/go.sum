@@ -108,6 +108,7 @@ github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kB
 github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40/go.mod h1:8rLXio+WjiTceGBHIoTvn60HIbs7Hm7bcHjyrSqYB9c=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
+github.com/briandowns/spinner v1.11.1 h1:OixPqDEcX3juo5AjQZAnFPbeUA0jvkp2qzB5gOZJ/L0=
 github.com/briandowns/spinner v1.11.1/go.mod h1:QOuQk7x+EaDASo80FEXwlwiA+j/PPIcX3FScO+3/ZPQ=
 github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32/go.mod h1:DrZx5ec/dmnfpw9KyYoQyYo7d0KEvTkk/5M/vbZjAr8=
 github.com/btcsuite/btcd v0.0.0-20190523000118-16327141da8c/go.mod h1:3J08xEfcugPacsc34/LKRU2yO7YmuT8yt28J8k2+rrI=
@@ -205,10 +206,14 @@ github.com/drand/bls12-381 v0.3.2 h1:RImU8Wckmx8XQx1tp1q04OV73J9Tj6mmpQLYDP7V1XE
 github.com/drand/bls12-381 v0.3.2/go.mod h1:dtcLgPtYT38L3NO6mPDYH0nbpc5tjPassDqiniuAt4Y=
 github.com/drand/drand v1.0.3-0.20200714175734-29705eaf09d4 h1:+Rov3bfUriGWFR/lUVXnpimx+HMr9BXRC4by0BxuQ8k=
 github.com/drand/drand v1.0.3-0.20200714175734-29705eaf09d4/go.mod h1:SnqWL9jksIMK63UKkfmWI6f9PDN8ROoCgg+Z4zWk7hg=
+github.com/drand/drand v1.1.1 h1:Nq0/nyelzUH+ucK79jOkTJLvlsaWakYvQFjQPZYhsdA=
+github.com/drand/drand v1.1.1/go.mod h1:KFcGL4SJFSOMLWoLLOL77+yLoL2d7nIXYOvUOdMlNBM=
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.2/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
 github.com/drand/kyber v1.1.1 h1:mwCY2XGRB+Qc1MPfrnRuVuXELkPhcq/r9yMoJIcDhHI=
 github.com/drand/kyber v1.1.1/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
+github.com/drand/kyber v1.1.2 h1:faemqlaFyLrbBSjZGRzzu5SG/do+uTYpHlnrJIHbAhQ=
+github.com/drand/kyber v1.1.2/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
 github.com/drand/kyber-bls12381 v0.1.0 h1:/P4C65VnyEwxzR5ZYYVMNzY1If+aYBrdUU5ukwh7LQw=
 github.com/drand/kyber-bls12381 v0.1.0/go.mod h1:N1emiHpm+jj7kMlxEbu3MUyOiooTgNySln564cgD9mk=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
@@ -275,7 +280,6 @@ github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b 
 github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b/go.mod h1:Q0GQOBtKf1oE10eSXSlhN45kDBdGvEcVOqMiffqX+N8=
 github.com/filecoin-project/lotus v0.6.2-0.20200909153249-a60f594b06dc h1:jR5W5fk+q1J8/jtVsLAi+GTQPp08EYANX6YesCofyNs=
 github.com/filecoin-project/lotus v0.6.2-0.20200909153249-a60f594b06dc/go.mod h1:mqzdpubLGcs2YzozE3WvNytSpPDD7jI+rGHeRXS7FV0=
-github.com/filecoin-project/oni v0.0.0-20200828123620-6be293e84865 h1:3mLX1kmES+pOID5Za/cWlg214iAGQ+C5kaVbdTVjt8c=
 github.com/filecoin-project/specs-actors v0.9.4/go.mod h1:BStZQzx5x7TmCkLv0Bpa07U6cPKol6fd3w9KjMPZ6Z4=
 github.com/filecoin-project/specs-actors v0.9.7 h1:7PAZ8kdqwBdmgf/23FCkQZLCXcVu02XJrkpkhBikiA8=
 github.com/filecoin-project/specs-actors v0.9.7/go.mod h1:wM2z+kwqYgXn5Z7scV1YHLyd1Q1cy0R8HfTIWQ0BFGU=

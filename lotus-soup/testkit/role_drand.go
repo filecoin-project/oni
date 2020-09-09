@@ -108,11 +108,12 @@ func (dr *DrandInstance) ctrl() *dnet.ControlClient {
 func (dr *DrandInstance) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
 	cl := dr.ctrl()
 	p := dr.t.DurationParam("drand_period")
+	catchupPeriod := dr.t.DurationParam("drand_catchup_period")
 	t, _ := time.ParseDuration(timeout)
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitDKGLeader(nodes, thr, p, t, nil, secretDKG, beaconOffset)
+		grp, err = cl.InitDKGLeader(nodes, thr, p, catchupPeriod, t, nil, secretDKG, beaconOffset)
 	} else {
 		leader := dnet.CreatePeer(leaderAddr, false)
 		grp, err = cl.InitDKG(leader, nil, secretDKG)
@@ -304,7 +305,7 @@ func PrepareDrandInstance(t *TestEnvironment) (*DrandInstance, error) {
 			Client:       dr.httpClient,
 		}
 		t.RecordMessage("starting drand gossip relay")
-		dr.gossipRelay, err = lp2p.NewGossipRelayNode(log.NewLogger(getLogLevel(t)), &relayCfg)
+		dr.gossipRelay, err = lp2p.NewGossipRelayNode(log.NewLogger(nil, getLogLevel(t)), &relayCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to construct drand gossip relay: %w", err)
 		}
