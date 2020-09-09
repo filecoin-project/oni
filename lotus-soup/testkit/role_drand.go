@@ -136,7 +136,7 @@ func (dr *DrandInstance) Resume() {
 	// block until we can fetch the round corresponding to the current time
 	startTime := time.Now()
 	round := dr.httpClient.RoundAt(startTime)
-	timeout := 30 * time.Second
+	timeout := 120 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
