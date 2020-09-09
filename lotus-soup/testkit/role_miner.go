@@ -298,6 +298,10 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 		go collectStats(t, ctx, n.FullApi)
 	}
 
+	if t.Role == "miner" {
+		go monitorChainAndPower(t, ctx, n.FullApi)
+	}
+
 	// Start listening on the full node.
 	fullNodeNetAddrs, err := n.FullApi.NetAddrsListen(ctx)
 	if err != nil {

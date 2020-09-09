@@ -1,15 +1,20 @@
 package testkit
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"sort"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/beacon"
+	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/metrics"
 	"github.com/filecoin-project/lotus/miner"
@@ -17,12 +22,20 @@ import (
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	modtest "github.com/filecoin-project/lotus/node/modules/testing"
 	tstats "github.com/filecoin-project/lotus/tools/stats"
+	"github.com/ipfs/go-cid"
+
+	cbg "github.com/whyrusleeping/cbor-gen"
 
 	influxdb "github.com/kpacha/opencensus-influxdb"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
+
+	"github.com/filecoin-project/specs-actors/actors/abi"
+	"github.com/filecoin-project/specs-actors/actors/builtin"
+	"github.com/filecoin-project/specs-actors/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/actors/util/adt"
 )
 
 var PrepareNodeTimeout = time.Minute
@@ -249,4 +262,123 @@ func collectStats(t *TestEnvironment, ctx context.Context, api api.FullNode) err
 	}()
 
 	return nil
+}
+
+func monitorChainAndPower(t *TestEnvironment, ctx context.Context, api api.FullNode) error {
+	go func() {
+		time.Sleep(20 * time.Second)
+		t.RecordMessage("monitor CP")
+		err := monitorCP(t, ctx, api)
+		if err != nil {
+			t.RecordMessage(err.Error())
+		}
+	}()
+
+	return nil
+}
+
+func monitorCP(t *TestEnvironment, ctx context.Context, api api.FullNode) error {
+	h := 0
+	headlag := 1
+
+	tipsetsCh, err := tstats.GetTips(ctx, api, abi.ChainEpoch(h), headlag)
+	if err != nil {
+		return err
+	}
+
+	for tipset := range tipsetsCh {
+		t.RecordMessage("Collect stats", "height", tipset.Height())
+
+		attoFil := types.NewInt(build.FilecoinPrecision).Int
+
+		netBal, err := api.WalletBalance(ctx, builtin.RewardActorAddr)
+		if err != nil {
+			return err
+		}
+
+		netBalFil := new(big.Rat).SetFrac(netBal.Int, attoFil)
+		netBalFilFloat, _ := netBalFil.Float64()
+		t.RecordMessage("network.balance", netBalFilFloat)
+
+		totalPower, err := api.StateMinerPower(ctx, address.Address{}, tipset.Key())
+		if err != nil {
+			return err
+		}
+		t.RecordMessage("chain.power", totalPower.TotalPower.QualityAdjPower.Int64())
+
+		powerActor, err := api.StateGetActor(ctx, builtin.StoragePowerActorAddr, tipset.Key())
+		if err != nil {
+			return err
+		}
+
+		powerRaw, err := api.ChainReadObj(ctx, powerActor.Head)
+		if err != nil {
+			return err
+		}
+
+		var powerActorState power.State
+
+		if err := powerActorState.UnmarshalCBOR(bytes.NewReader(powerRaw)); err != nil {
+			return fmt.Errorf("failed to unmarshal power actor state: %w", err)
+		}
+
+		s := &apiIpldStore{ctx, api}
+		mp, err := adt.AsMap(s, powerActorState.Claims)
+		if err != nil {
+			return err
+		}
+
+		var claim power.Claim
+		err = mp.ForEach(&claim, func(key string) error {
+			addr, err := address.NewFromBytes([]byte(key))
+			if err != nil {
+				return err
+			}
+
+			if claim.QualityAdjPower.Int64() == 0 {
+				return nil
+			}
+
+			t.RecordMessage("chain.miner_power", claim.QualityAdjPower.Int64(), "miner", addr.String())
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return nil
+}
+
+type apiIpldStore struct {
+	ctx context.Context
+	api api.FullNode
+}
+
+func (ht *apiIpldStore) Context() context.Context {
+	return ht.ctx
+}
+
+func (ht *apiIpldStore) Get(ctx context.Context, c cid.Cid, out interface{}) error {
+	raw, err := ht.api.ChainReadObj(ctx, c)
+	if err != nil {
+		return err
+	}
+
+	cu, ok := out.(cbg.CBORUnmarshaler)
+	if ok {
+		if err := cu.UnmarshalCBOR(bytes.NewReader(raw)); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return fmt.Errorf("Object does not implement CBORUnmarshaler")
+}
+
+func (ht *apiIpldStore) Put(ctx context.Context, v interface{}) (cid.Cid, error) {
+	return cid.Undef, fmt.Errorf("Put is not implemented on apiIpldStore")
 }

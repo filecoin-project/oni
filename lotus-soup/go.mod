@@ -32,6 +32,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/multiformats/go-multiaddr-net v0.2.0
 	github.com/testground/sdk-go v0.2.4
+	github.com/whyrusleeping/cbor-gen v0.0.0-20200814224545-656e08ce49ee
 	go.opencensus.io v0.22.4
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 )
