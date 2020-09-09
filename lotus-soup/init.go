@@ -16,7 +16,7 @@ import (
 
 func init() {
 	build.BlockDelaySecs = 30
-	build.PropagationDelaySecs = 3
+	build.PropagationDelaySecs = 6
 
 	_ = log.SetLogLevel("*", "WARN")
 	_ = log.SetLogLevel("dht/RtRefreshManager", "ERROR") // noisy
