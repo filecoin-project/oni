@@ -38,7 +38,7 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
 )
 
-var PrepareNodeTimeout = time.Minute
+var PrepareNodeTimeout = 3 * time.Minute
 
 type LotusNode struct {
 	FullApi  api.FullNode
