@@ -240,7 +240,7 @@ func collectStats(t *TestEnvironment, ctx context.Context, api api.FullNode) err
 	}
 
 	height := int64(0)
-	headlag := 3
+	headlag := 1
 
 	go func() {
 		time.Sleep(15 * time.Second)

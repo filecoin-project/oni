@@ -67,4 +67,4 @@
       role = "drand"
       drand_period = "10s"
       drand_log_level = "none"
-      suspend_events = "wait 2m -> halt -> wait 2m -> resume -> wait 2m -> halt -> wait 2m -> resume"
+      suspend_events = "wait 3m -> halt -> wait 3m -> resume -> wait 3m -> halt -> wait 3m -> resume"
