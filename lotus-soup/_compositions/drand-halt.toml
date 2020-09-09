@@ -4,7 +4,7 @@
 
 [global]
   plan = "lotus-soup"
-  case = "drand-outage"
+  case = "drand-halting"
   total_instances = 6
   builder = "docker:go"
   runner = "local:docker"
@@ -16,19 +16,16 @@
   exposed_ports = { pprof = "6060", node_rpc = "1234", miner_rpc = "2345" }
 
 [global.build_config]
-  push_registry=true
-  go_proxy_mode="remote"
-  go_proxy_url="http://localhost:8081"
-  registry_type="aws"
+  enable_go_build_cache = true
 
 [global.run.test_params]
-  clients = "0"
-  miners = "3"
+  clients = "1"
+  miners = "1"
   balance = "20000000" # These balances will work for maximum 100 nodes, as TotalFilecoin is 2B
   sectors = "10"
   random_beacon_type = "local-drand"
   genesis_timestamp_offset = "0"
-  mining_mode = "natural"
+#  mining_mode = "natural"
 
 [[groups]]
   id = "bootstrapper"
@@ -42,17 +39,32 @@
     [groups.run.test_params]
       role = "bootstrapper"
 
+
 [[groups]]
   id = "miners"
   [groups.resources]
     memory = "120Mi"
     cpu = "10m"
   [groups.instances]
-    count = 3
+    count = 1
     percentage = 0.0
   [groups.run]
     [groups.run.test_params]
       role = "miner"
+
+
+[[groups]]
+  id = "clients"
+  [groups.resources]
+    memory = "120Mi"
+    cpu = "10m"
+  [groups.instances]
+    count = 1
+    percentage = 0.0
+  [groups.run]
+    [groups.run.test_params]
+      role = "client"
+
 
 [[groups]]
   id = "drand"
@@ -62,6 +74,6 @@
   [groups.run]
     [groups.run.test_params]
       role = "drand"
-      drand_period = "10s"
+      drand_period = "1s"
       drand_log_level = "none"
-      suspend_events = "wait 2m -> halt -> wait 2m -> resume -> wait 2m -> halt -> wait 2m -> resume"
+      suspend_events = "wait 20s -> halt -> wait 1m -> resume -> wait 2s -> halt -> wait 1m -> resume"
