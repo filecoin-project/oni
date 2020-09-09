@@ -7,6 +7,7 @@ import (
 
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/abi/big"
+	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
 	"github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
@@ -29,17 +30,21 @@ func init() {
 
 	// MessageConfidence is the amount of tipsets we wait after a message is
 	// mined, e.g. payment channel creation, to be considered committed.
-	build.MessageConfidence = 1
+	//build.MessageConfidence = 1
+	build.MessageConfidence = 4
 
 	// The period over which all a miner's active sectors will be challenged.
-	miner.WPoStProvingPeriod = abi.ChainEpoch(240) // instead of 24 hours
+	//miner.WPoStProvingPeriod = abi.ChainEpoch(240) // instead of 24 hours
+	miner.WPoStProvingPeriod = abi.ChainEpoch(builtin.EpochsInDay) // 24 hours PARAM_SPEC
 
 	// The duration of a deadline's challenge window, the period before a deadline when the challenge is available.
-	miner.WPoStChallengeWindow = abi.ChainEpoch(5) // instead of 30 minutes (still 48 per day)
+	//miner.WPoStChallengeWindow = abi.ChainEpoch(5) // instead of 30 minutes (still 48 per day)
+	miner.WPoStChallengeWindow = abi.ChainEpoch(30 * 60 / builtin.EpochDurationSeconds) // 30 minutes (48 per day) PARAM_SPEC
 
 	// Number of epochs between publishing the precommit and when the challenge for interactive PoRep is drawn
 	// used to ensure it is not predictable by miner.
-	miner.PreCommitChallengeDelay = abi.ChainEpoch(10)
+	//miner.PreCommitChallengeDelay = abi.ChainEpoch(10)
+	miner.PreCommitChallengeDelay = abi.ChainEpoch(150)
 
 	power.ConsensusMinerMinPower = big.NewInt(2048)
 	miner.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
