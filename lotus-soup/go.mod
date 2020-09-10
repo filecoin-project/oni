@@ -6,7 +6,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/codeskyblue/go-sh v0.0.0-20200712050446-30169cf553fe
 	github.com/davecgh/go-spew v1.1.1
-	github.com/drand/drand v1.1.2-0.20200905144319-79c957281b32
+	github.com/drand/drand v1.1.1
 	github.com/filecoin-project/go-address v0.0.3
 	github.com/filecoin-project/go-fil-markets v0.6.0
 	github.com/filecoin-project/go-jsonrpc v0.1.2-0.20200822201400-474f4fdccc52

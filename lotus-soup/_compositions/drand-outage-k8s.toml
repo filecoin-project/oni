@@ -68,5 +68,5 @@
       drand_period = "30s"
       drand_catchup_period = "10s"
       drand_log_level = "info"
-      suspend_events = "wait 2m -> halt -> wait 5m -> resume -> wait 200m -> halt -> wait 2m -> resume"
+      suspend_events = "wait 2m -> halt -> wait 2m -> resume -> wait 200m -> halt -> wait 2m -> resume"
       #suspend_events = "wait 2m -> halt -> wait 2m -> resume -> wait 2m -> halt -> wait 2m -> resume"
