@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	PrepareDrandTimeout = time.Minute
+	PrepareDrandTimeout = 3 * time.Minute
 	secretDKG           = "dkgsecret"
 )
 
@@ -263,7 +263,7 @@ func PrepareDrandInstance(t *TestEnvironment) (*DrandInstance, error) {
 	// run DKG
 	t.SyncClient.MustSignalAndWait(ctx, "drand-dkg-start", nNodes)
 	if !isLeader {
-		time.Sleep(time.Second)
+		time.Sleep(3 * time.Second)
 	}
 	grp := dr.RunDKG(nNodes, threshold, "10s", isLeader, leaderAddr, beaconOffset)
 	if grp == nil {
@@ -271,9 +271,10 @@ func PrepareDrandInstance(t *TestEnvironment) (*DrandInstance, error) {
 	}
 	t.R().RecordPoint("drand_dkg_complete", time.Now().Sub(startTime).Seconds())
 
-	t.RecordMessage("drand dkg complete, waiting for chain start")
+	t.RecordMessage("drand dkg complete, waiting for chain start: %v", time.Until(time.Unix(grp.GenesisTime, 0).Add(grp.Period)))
+
 	// wait for chain to begin
-	to := time.Until(time.Unix(grp.GenesisTime, 0).Add(3 * time.Second).Add(grp.Period))
+	to := time.Until(time.Unix(grp.GenesisTime, 0).Add(5 * time.Second).Add(grp.Period))
 	time.Sleep(to)
 
 	t.RecordMessage("drand beacon chain started, fetching initial round via http")

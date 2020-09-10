@@ -208,6 +208,8 @@ github.com/drand/drand v1.0.3-0.20200714175734-29705eaf09d4 h1:+Rov3bfUriGWFR/lU
 github.com/drand/drand v1.0.3-0.20200714175734-29705eaf09d4/go.mod h1:SnqWL9jksIMK63UKkfmWI6f9PDN8ROoCgg+Z4zWk7hg=
 github.com/drand/drand v1.1.1 h1:Nq0/nyelzUH+ucK79jOkTJLvlsaWakYvQFjQPZYhsdA=
 github.com/drand/drand v1.1.1/go.mod h1:KFcGL4SJFSOMLWoLLOL77+yLoL2d7nIXYOvUOdMlNBM=
+github.com/drand/drand v1.1.2-0.20200905144319-79c957281b32 h1:sU+51aQRaDxg0KnjQg19KuYRIxDBEUHffBAICSnBys8=
+github.com/drand/drand v1.1.2-0.20200905144319-79c957281b32/go.mod h1:0sQEVg+ngs1jaDPVIiEgY0lbENWJPaUlWxGHEaSmKVM=
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.2/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
 github.com/drand/kyber v1.1.1 h1:mwCY2XGRB+Qc1MPfrnRuVuXELkPhcq/r9yMoJIcDhHI=
