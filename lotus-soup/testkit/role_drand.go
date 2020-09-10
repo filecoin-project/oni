@@ -128,12 +128,14 @@ func (dr *DrandInstance) RunDKG(nodes, thr int, timeout string, leader bool, lea
 
 func (dr *DrandInstance) Halt() {
 	dr.t.RecordMessage("drand node #%d halting", dr.t.GroupSeq)
-	dr.daemon.StopBeacon()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	dr.daemon.Stop(ctx)
 }
 
 func (dr *DrandInstance) Resume() {
 	dr.t.RecordMessage("drand node #%d resuming", dr.t.GroupSeq)
-	dr.daemon.StartBeacon(true)
+	dr.Start()
 	// block until we can fetch the round corresponding to the current time
 	startTime := time.Now()
 	round := dr.httpClient.RoundAt(startTime)
@@ -150,6 +152,7 @@ func (dr *DrandInstance) Resume() {
 				done <- struct{}{}
 				return
 			}
+			time.Sleep(2 * time.Second)
 		}
 	}()
 
