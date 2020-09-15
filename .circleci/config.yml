@@ -28,6 +28,17 @@ workflows:
   main:
     jobs:
       - soup-build-linux
+      - soup-baseline-on-moon-vm
+  #nightly:
+    #triggers:
+      #- schedule:
+          #cron: "0,5,10,15,20,25,30 * * * *"
+          #filters:
+            #branches:
+              #only:
+                #- master
+    #jobs:
+      #- soup-baseline-on-moon-vm
 
 jobs:
   soup-build-linux:
@@ -37,3 +48,16 @@ jobs:
       - run:
           name: "build lotus-soup"
           command: pushd lotus-soup && go build -tags=testground .
+  soup-baseline-on-moon-vm:
+    executor: golang
+    steps:
+      - setup
+      - run:
+          name: "build testground"
+          command: git clone https://github.com/testground/testground && cd testground && make goinstall
+      - run:
+          name: "prepare .env.toml"
+          command: pushd lotus-soup && mkdir -p $HOME/testground && cp env-ci.toml $HOME/testground/.env.toml && echo 'endpoint="'$endpoint'"' >> $HOME/testground/.env.toml && echo 'token="'$token'"' >> $HOME/testground/.env.toml
+      - run:
+          name: "run baseline test plan on lotus-ci-moon-vm"
+          command: mkdir -p $HOME/testground/plans && mv lotus-soup $HOME/testground/plans/ && testground run composition -f $HOME/testground/plans/lotus-soup/_compositions/baseline-docker-5-1.toml
