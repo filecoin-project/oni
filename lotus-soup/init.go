@@ -8,7 +8,6 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/specs-actors/actors/builtin"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
 	"github.com/filecoin-project/specs-actors/actors/builtin/verifreg"
@@ -17,10 +16,10 @@ import (
 )
 
 func init() {
-	build.BlockDelaySecs = 30
-	build.PropagationDelaySecs = 6
+	build.BlockDelaySecs = 2
+	build.PropagationDelaySecs = 1
 
-	_ = log.SetLogLevel("*", "INFO")
+	_ = log.SetLogLevel("*", "WARN")
 	_ = log.SetLogLevel("dht/RtRefreshManager", "ERROR") // noisy
 	_ = log.SetLogLevel("bitswap", "ERROR")              // noisy
 
@@ -31,21 +30,17 @@ func init() {
 
 	// MessageConfidence is the amount of tipsets we wait after a message is
 	// mined, e.g. payment channel creation, to be considered committed.
-	//build.MessageConfidence = 1
-	build.MessageConfidence = 4
+	build.MessageConfidence = 1
 
 	// The period over which all a miner's active sectors will be challenged.
-	//miner.WPoStProvingPeriod = abi.ChainEpoch(240) // instead of 24 hours
-	miner.WPoStProvingPeriod = abi.ChainEpoch(builtin.EpochsInDay) // 24 hours PARAM_SPEC
+	miner.WPoStProvingPeriod = abi.ChainEpoch(240) // instead of 24 hours
 
 	// The duration of a deadline's challenge window, the period before a deadline when the challenge is available.
-	//miner.WPoStChallengeWindow = abi.ChainEpoch(5) // instead of 30 minutes (still 48 per day)
-	miner.WPoStChallengeWindow = abi.ChainEpoch(30 * 60 / builtin.EpochDurationSeconds) // 30 minutes (48 per day) PARAM_SPEC
+	miner.WPoStChallengeWindow = abi.ChainEpoch(5) // instead of 30 minutes (still 48 per day)
 
 	// Number of epochs between publishing the precommit and when the challenge for interactive PoRep is drawn
 	// used to ensure it is not predictable by miner.
-	//miner.PreCommitChallengeDelay = abi.ChainEpoch(10)
-	miner.PreCommitChallengeDelay = abi.ChainEpoch(150)
+	miner.PreCommitChallengeDelay = abi.ChainEpoch(10)
 
 	power.ConsensusMinerMinPower = big.NewInt(2048)
 	miner.SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
