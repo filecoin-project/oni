@@ -38,11 +38,11 @@ require (
 	github.com/multiformats/go-multiaddr-net v0.2.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/testground/sdk-go v0.2.4
-	github.com/whyrusleeping/cbor-gen v0.0.0-20200814224545-656e08ce49ee
 	go.opencensus.io v0.22.4
+	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6 // indirect
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	google.golang.org/api v0.25.0 // indirect
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v0.0.0-20200617041141-9a465503579e // indirect
+	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
 )
 
 // This will work in all build modes: docker:go, exec:go, and local go build.
