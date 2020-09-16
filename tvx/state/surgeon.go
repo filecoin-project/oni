@@ -26,12 +26,12 @@ import (
 type Surgeon struct {
 	ctx    context.Context
 	api    api.FullNode
-	stores *ProxyingStores
+	stores *Stores
 }
 
 // NewSurgeon returns a state surgeon, an object used to fetch and manipulate
 // state.
-func NewSurgeon(ctx context.Context, api api.FullNode, stores *ProxyingStores) *Surgeon {
+func NewSurgeon(ctx context.Context, api api.FullNode, stores *Stores) *Surgeon {
 	return &Surgeon{
 		ctx:    ctx,
 		api:    api,
@@ -246,9 +246,12 @@ func (sg *Surgeon) resolveAddresses(orig []address.Address, ist *init_.State) (r
 
 	ret = make([]address.Address, len(orig))
 	for i, addr := range orig {
-		resolved, err := ist.ResolveAddress(sg.stores.ADTStore, addr)
+		resolved, _, err := ist.ResolveAddress(sg.stores.ADTStore, addr)
 		if err != nil {
 			return nil, err
+		}
+		if resolved == address.Undef {
+			return nil, fmt.Errorf("address not found: %s", addr)
 		}
 		ret[i] = resolved
 	}

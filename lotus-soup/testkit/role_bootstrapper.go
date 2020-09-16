@@ -16,7 +16,7 @@ import (
 	modtest "github.com/filecoin-project/lotus/node/modules/testing"
 	"github.com/filecoin-project/lotus/node/repo"
 
-	"github.com/filecoin-project/specs-actors/actors/abi/big"
+	"github.com/filecoin-project/go-state-types/big"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -94,10 +94,11 @@ func PrepareBootstrapper(t *TestEnvironment) (*Bootstrapper, error) {
 	}
 
 	genesisTemplate := genesis.Template{
-		Accounts:        genesisActors,
-		Miners:          genesisMiners,
-		Timestamp:       uint64(time.Now().Unix()) - uint64(t.IntParam("genesis_timestamp_offset")),
-		VerifregRootKey: gen.DefaultVerifregRootkeyActor,
+		Accounts:         genesisActors,
+		Miners:           genesisMiners,
+		Timestamp:        uint64(time.Now().Unix()) - uint64(t.IntParam("genesis_timestamp_offset")),
+		VerifregRootKey:  gen.DefaultVerifregRootkeyActor,
+		RemainderAccount: gen.DefaultRemainderAccountActor,
 	}
 
 	// dump the genesis block

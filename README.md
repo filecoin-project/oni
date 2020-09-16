@@ -63,7 +63,7 @@ Here are the basics of how to run the baseline deals end-to-end test case:
 
 ### Running the baseline deals end-to-end test case
 
-1. Compile and Install Testground from source code from the [`oni`](https://github.com/testground/testground/pull/1083) branch.
+1. Compile and Install Testground from source code.
     * See the [Getting Started](https://github.com/testground/testground#getting-started) section of the README for instructions.
 
 2. Run a Testground daemon
@@ -106,7 +106,7 @@ make
 7. Run a composition for the baseline deals end-to-end test case
 
 ```
-testground run composition -f ./lotus-soup/_compositions/baseline.toml
+testground run composition -f ./lotus-soup/_compositions/baseline-docker-5-1.toml
 ```
 
 ## Batch-running randomised test cases
@@ -158,7 +158,7 @@ the `-output` flag.
 * `baseline-k8s-10-3.toml` - Runs a `baseline` test (deals e2e test) with a network of 10 clients and 3 miner targeting `cluster:k8s`
 * `baseline-k8s-3-1.toml` - Runs a `baseline` test (deals e2e test) with a network of 3 clients and 1 miner targeting `cluster:k8s`
 * `baseline-k8s-3-2.toml` - Runs a `baseline` test (deals e2e test) with a network of 3 clients and 2 miner targeting `cluster:k8s`
-* `baseline.toml` - Runs a `baseline` test (deals e2e test) with a network of 3 clients and 2 miner targeting `local:exec`
+* `baseline.toml` - Runs a `baseline` test (deals e2e test) with a network of 3 clients and 2 miner targeting `local:exec`. You have to manually download the proof parameters and place them in `/var/tmp`.
 * `deals-stress-concurrent-natural-k8s.toml`
 * `deals-stress-concurrent-natural.toml`
 * `deals-stress-concurrent.toml`
@@ -210,7 +210,7 @@ The same process as for `local:docker`, however you need to make sure that the r
 
 ### proof parameters
 
-Additional to the Filecoin FFI Git submodules, we are also bundling `proof parameters` in the `iptestground/oni-runtime` image. If these change, you will need to rebuild that image with `make build-images` command, where X is the next version. These parameters are downloaded automatically for `local:exec` if they are not present.
+Additional to the Filecoin FFI Git submodules, we are also bundling `proof parameters` in the `iptestground/oni-runtime` image. If these change, you will need to rebuild that image with `make build-images` command, where X is the next version.
 
 ## Docker images changelog
 
@@ -221,17 +221,21 @@ Additional to the Filecoin FFI Git submodules, we are also bundling `proof param
 * `v3` => locking in Filecoin FFI commit 5342c7c97d1a1df4650629d14f2823d52889edd9.
 * `v4` => locking in Filecoin FFI commit 6a143e06f923f3a4f544c7a652e8b4df420a3d28.
 * `v5` => locking in Filecoin FFI commit cddc56607e1d851ea6d09d49404bd7db70cb3c2e.
+* `v6` => locking in Filecoin FFI commit 40569104603407c999d6c9e4c3f1228cbd4d0e5c.
+
 
 ### oni-runtime
 
 * `v1` => initial image with 2048 parameters.
 * `v2` => adds auxiliary tools: `net-tools netcat traceroute iputils-ping wget vim curl telnet iproute2 dnsutils`.
+* `v3` => bump proof parameters from v27 to v28
 
 ### oni-runtime-debug
 
 * `v1` => initial image
 * `v2` => locking in Lotus commit e21ea53
 * `v3` => locking in Lotus commit d557c40
+* `v4` => bump proof parameters from v27 to v28
 
 
 ## Team
@@ -241,3 +245,6 @@ Additional to the Filecoin FFI Git submodules, we are also bundling `proof param
 * [@yusefnapora](https://github.com/yusefnapora) (engineer and technical writer)
 * [@vyzo](https://github.com/vyzo) (engineer)
 * [@schomatis](https://github.com/schomatis) (advisor)
+* [@willscott](https://github.com/willscott) (engineer)
+* [@alanshaw](https://github.com/alanshaw) (engineer)
+

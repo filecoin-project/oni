@@ -9,12 +9,12 @@ import (
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
+	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/apistruct"
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/repo"
-	"github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-multierror"
 )
@@ -109,6 +109,7 @@ func PrepareClient(t *TestEnvironment) (*LotusClient, error) {
 	t.SyncClient.MustPublish(ctx, ClientsAddrsTopic, &ClientAddressesMsg{
 		PeerNetAddr: addrinfo,
 		WalletAddr:  walletKey.Address,
+		GroupSeq:    t.GroupSeq,
 	})
 
 	t.RecordMessage("waiting for all nodes to be ready")

@@ -14,6 +14,8 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-jsonrpc/auth"
+	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-storedcounter"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/apistruct"
@@ -23,16 +25,14 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet"
 	"github.com/filecoin-project/lotus/cmd/lotus-seed/seed"
+	"github.com/filecoin-project/lotus/extern/sector-storage/stores"
 	"github.com/filecoin-project/lotus/miner"
 	"github.com/filecoin-project/lotus/node"
 	"github.com/filecoin-project/lotus/node/impl"
 	"github.com/filecoin-project/lotus/node/modules"
 	"github.com/filecoin-project/lotus/node/repo"
-	"github.com/filecoin-project/sector-storage/stores"
-	"github.com/filecoin-project/specs-actors/actors/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin"
 	saminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/actors/crypto"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-multierror"
@@ -338,16 +338,14 @@ func PrepareMiner(t *TestEnvironment) (*LotusMiner, error) {
 	}
 
 	changeMinerID := &types.Message{
-		To:       minerAddr,
-		From:     genMiner.Worker,
-		Method:   builtin.MethodsMiner.ChangePeerID,
-		Params:   minerIDEncoded,
-		Value:    types.NewInt(0),
-		GasPrice: types.NewInt(0),
-		GasLimit: 1000000,
+		To:     minerAddr,
+		From:   genMiner.Worker,
+		Method: builtin.MethodsMiner.ChangePeerID,
+		Params: minerIDEncoded,
+		Value:  types.NewInt(0),
 	}
 
-	_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID)
+	_, err = n.FullApi.MpoolPushMessage(ctx, changeMinerID, nil)
 	if err != nil {
 		n.StopFn(context.TODO())
 		return nil, err
@@ -544,7 +542,7 @@ func (m *LotusMiner) RunDefault() error {
 				const maxRetries = 100
 				success := false
 				for retries := 0; retries < maxRetries; retries++ {
-					f := func(mined bool, err error) {
+					f := func(mined bool, epoch abi.ChainEpoch, err error) {
 						if mined {
 							t.D().Counter(fmt.Sprintf("block.mine,miner=%s", myActorAddr)).Inc(1)
 						}
