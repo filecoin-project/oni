@@ -50,4 +50,6 @@ require (
 // as an "extra source" in the manifest.
 replace github.com/filecoin-project/filecoin-ffi => ../extra/filecoin-ffi
 
-replace github.com/supranational/blst => github.com/supranational/blst v0.1.2-alpha.1
+replace github.com/supranational/blst => ../extra/fil-blst/blst
+
+replace github.com/filecoin-project/fil-blst => ../extra/fil-blst
