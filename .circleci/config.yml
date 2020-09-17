@@ -37,7 +37,6 @@ workflows:
             branches:
               only:
                 - master
-                - enable-nightly-scheduled-job
     jobs:
       - trigger-baseline-testplan
 
