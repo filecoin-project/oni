@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	init_ "github.com/filecoin-project/lotus/chain/actors/builtin/init"
@@ -206,31 +207,29 @@ func (sg *Surgeon) retainInitEntries(s init_.State, retain []address.Address) (i
 	// even _want_ this code. From what I can tell, lotus never removes
 	// address in the init actor, even if the underlying actor disappears.
 
-	/*
-		toRetain := make(map[address.Address]struct{}, len(retain))
-		for _, a := range retain {
-			if a.Protocol() == address.ID {
-				// skip over ID addresses; they don't need a mapping in the init actor.
-				continue
-			}
-			toRetain[a] = struct{}{}
+	toRetain := make(map[address.Address]struct{}, len(retain))
+	for _, a := range retain {
+		if a.Protocol() == address.ID {
+			// skip over ID addresses; they don't need a mapping in the init actor.
+			continue
 		}
+		toRetain[a] = struct{}{}
+	}
 
-		var toRemove []abi.ActorID
-		if err := s.ForEachActor(func(id abi.ActorID, address address.Address) error {
-			if _, found := toRetain[address]; found {
-				return nil
-			}
-			toRemove = append(toRemove, id)
+	var toRemove []address.Address
+	if err := s.ForEachActor(func(id abi.ActorID, address address.Address) error {
+		if _, found := toRetain[address]; found {
 			return nil
-		}); err != nil {
-			return nil, err
 		}
-		// TODO: this function doesn't exist yet vvv
-		if err := s.Remove(toRemove...); err != nil {
-			return nil, err
-		}
-	*/
+		toRemove = append(toRemove, address)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	// TODO: this function doesn't exist yet vvv
+	if err := s.Remove(toRemove...); err != nil {
+		return nil, err
+	}
 
 	log.Printf("new init actor state: %+v", s)
 	return s, nil

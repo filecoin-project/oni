@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/filecoin-project/go-address v0.0.3
 	github.com/filecoin-project/go-state-types v0.0.0-20200911004822-964d6c679cfc
-	github.com/filecoin-project/lotus v0.7.2-0.20200922230732-77f81fc49be3
+	github.com/filecoin-project/lotus v0.7.2-0.20200923173402-7d39542522ac
 	github.com/filecoin-project/specs-actors v0.9.10
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.4-0.20200624145336-a978cec6e834
