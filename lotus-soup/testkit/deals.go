@@ -27,9 +27,11 @@ func StartDeal(ctx context.Context, minerActorAddr address.Address, client api.F
 		},
 		Wallet:            addr,
 		Miner:             minerActorAddr,
-		EpochPrice:        types.NewInt(1000),
+		EpochPrice:        types.NewInt(1000000),
 		MinBlocksDuration: 640000,
-		FastRetrieval:     fastRetrieval,
+		DealStartEpoch:    60,
+		//MinBlocksDuration: uint64(build.MinDealDuration),
+		FastRetrieval: fastRetrieval,
 	})
 	if err != nil {
 		panic(err)
