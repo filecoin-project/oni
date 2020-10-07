@@ -29,6 +29,7 @@ workflows:
     jobs:
       - build-tvx-linux
       - build-soup-linux
+      - build-graphsync-linux
       - trigger-testplans
   nightly:
     triggers:
@@ -57,6 +58,14 @@ jobs:
       - run:
           name: "build lotus-soup"
           command: pushd lotus-soup && go build -tags=testground .
+
+  build-graphsync-linux:
+    executor: golang
+    steps:
+      - setup
+      - run:
+          name: "build graphsync"
+          command: pushd graphsync && go build .
 
   trigger-testplans:
     executor: golang
