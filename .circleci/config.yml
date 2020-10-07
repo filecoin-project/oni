@@ -79,7 +79,7 @@ jobs:
           command: pushd lotus-soup && mkdir -p $HOME/testground && cp env-ci.toml $HOME/testground/.env.toml && echo 'endpoint="'$endpoint'"' >> $HOME/testground/.env.toml && echo 'token="'$token'"' >> $HOME/testground/.env.toml && echo 'user="filecoin-project/oni -> '$CIRCLE_BRANCH';https://github.com/filecoin-project/oni/commit/'$CIRCLE_SHA1'"' >> $HOME/testground/.env.toml
       - run:
           name: "prepare testground home dir"
-          command: mkdir -p $HOME/testground/plans && mv lotus-soup $HOME/testground/plans/
+          command: mkdir -p $HOME/testground/plans && mv lotus-soup $HOME/testground/plans/ && mv graphsync $HOME/testground/plans/
       - run:
           name: "trigger baseline test plan on testground ci"
           command: ~/testground-cli run composition -f $HOME/testground/plans/lotus-soup/_compositions/baseline-k8s-3-1.toml
