@@ -81,11 +81,10 @@ func dealsStress(t *testkit.TestEnvironment) error {
 	}
 
 	// this to avoid failure to get block
-	time.Sleep(2 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	t.RecordMessage("starting storage deals")
 	if concurrentDeals {
-
 		var wg1 sync.WaitGroup
 		for i := 0; i < deals; i++ {
 			wg1.Add(1)
@@ -120,9 +119,7 @@ func dealsStress(t *testkit.TestEnvironment) error {
 		t.RecordMessage("waiting for all retrieval deals to complete")
 		wg2.Wait()
 		t.RecordMessage("all retrieval deals successful")
-
 	} else {
-
 		for i := 0; i < deals; i++ {
 			deal := testkit.StartDeal(ctx, minerAddr.MinerActorAddr, client, cids[i], false)
 			t.RecordMessage("started storage deal %d -> %s", i, deal)
