@@ -29,17 +29,17 @@ workflows:
     jobs:
       - build-soup-linux
       - build-graphsync-linux
-      - trigger-testplans
-  nightly:
-    triggers:
-      - schedule:
-          cron: "45 * * * *"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      - trigger-testplans
+      #- trigger-testplans
+  #nightly:
+    #triggers:
+      #- schedule:
+          #cron: "45 * * * *"
+          #filters:
+            #branches:
+              #only:
+                #- master
+    #jobs:
+      #- trigger-testplans
 
 jobs:
 
