@@ -1,5 +1,15 @@
 # Project Oni 👹
 
+---
+
+## 🌑 Deprecated
+
+- Testground testkit and test plans have moved to [filecoin-project/lotus](https://github.com/filecoin-project/lotus/tree/master/testplans)
+- Test vectors spun off to [filecoin-project/test-vectors](https://github.com/filecoin-project/test-vectors)
+- statediff is maintained at [filecoin-project/statediff](https://github.com/filecoin-project/statediff)
+
+---
+
 Our mandate is:
 
 > To verify the successful end-to-end outcome of the filecoin protocol and filecoin implementations, under a variety of real-world and simulated scenarios. 
